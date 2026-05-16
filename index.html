@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Taro's Tools — herramientas útiles online: compresor de imágenes, traductor IA, descargador de videos, generador QR y más. Sin virus, sin drama.">
+<meta name="theme-color" content="#c8ff00">
+<meta property="og:title" content="Taro's Tools">
+<meta property="og:description" content="Herramientas útiles online, sin virus, sin drama.">
+<meta property="og:type" content="website">
+<title>Taro's Tools</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ── DECORATIVE ── -->
+<span class="star" aria-hidden="true" style="top:10%;left:3%;font-size:1.1rem;animation-duration:6s">✦</span>
+<span class="star" aria-hidden="true" style="top:40%;right:2%;font-size:1rem;animation-duration:10s">★</span>
+<span class="star" aria-hidden="true" style="top:72%;left:5%;font-size:.9rem;animation-duration:14s">✶</span>
+<span class="star" aria-hidden="true" style="top:22%;right:7%;font-size:1.2rem;animation-duration:9s">✦</span>
+
+<div class="marquee-bar" aria-hidden="true"><span class="marquee-inner" id="mq"></span></div>
+
+<!-- ── HEADER ── -->
+<header role="banner">
+  <div class="header-deco" aria-hidden="true">T_T</div>
+  <div class="logo" aria-label="Taro's Tools"><span>Taro</span><em>'s</em> Tools</div>
+  <p class="tagline" id="tagline"></p>
+  <div class="header-controls" role="toolbar" aria-label="Controles">
+    <button class="ctrl-btn ctrl-btn--donate" onclick="UI.openModal('don-modal')" aria-label="Donar">
+      💜 <span id="don-lbl"></span>
+    </button>
+    <button class="ctrl-btn" id="theme-btn" onclick="UI.toggleTheme()" aria-label="Cambiar tema">☀</button>
+    <div class="lang-group" role="group" aria-label="Idioma">
+      <button class="lang-btn active" id="lb-es" onclick="I18n.set('es')" aria-label="Español">ES</button>
+      <button class="lang-btn" id="lb-en" onclick="I18n.set('en')" aria-label="English">EN</button>
+      <button class="lang-btn" id="lb-pt" onclick="I18n.set('pt')" aria-label="Português">PT</button>
+    </div>
+  </div>
+</header>
+
+<!-- ── SEARCH ── -->
+<div class="search-bar" role="search">
+  <input type="search" id="search" oninput="Tools.filter()" aria-label="Buscar herramienta" autocomplete="off">
+</div>
+
+<!-- ── MAIN ── -->
+<main class="content" id="main-content">
+  <nav class="tabs" id="tabs-container" aria-label="Categorías"></nav>
+  <div id="tools-container" role="list"></div>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- ── MODALS ── -->
+<div class="modal-bg" id="tool-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal">
+    <button class="modal__close" onclick="UI.closeModal('tool-modal')" aria-label="Cerrar">✕</button>
+    <h2 class="modal__title" id="modal-title"></h2>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="don-modal" role="dialog" aria-modal="true" aria-labelledby="don-title" style="z-index:110">
+  <div class="modal" style="max-width:400px">
+    <button class="modal__close" onclick="UI.closeModal('don-modal')" aria-label="Cerrar">✕</button>
+    <h2 class="modal__title" id="don-title"></h2>
+    <p id="don-desc" style="font-size:.8rem;color:var(--fg3);margin-bottom:1rem;font-family:var(--mono)"></p>
+    <a class="don-card" href="https://cafecito.app/laudiazzz" target="_blank" rel="noopener">
+      <div style="font-size:1.8rem;width:40px;text-align:center" aria-hidden="true">☕</div>
+      <div><div class="don-card__name">Cafecito</div><div class="don-card__sub">cafecito.app/laudiazzz</div></div>
+      <span style="color:var(--fg3);margin-left:auto" aria-hidden="true">↗</span>
+    </a>
+    <a class="don-card" href="https://paypal.me/diazlautarro" target="_blank" rel="noopener">
+      <div style="font-size:1.8rem;width:40px;text-align:center" aria-hidden="true">💙</div>
+      <div><div class="don-card__name">PayPal</div><div class="don-card__sub">paypal.me/diazlautarro</div></div>
+      <span style="color:var(--fg3);margin-left:auto" aria-hidden="true">↗</span>
+    </a>
+  </div>
+</div>
+
+<div class="modal-bg" id="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-title" style="z-index:110">
+  <div class="modal" style="max-width:580px">
+    <button class="modal__close" onclick="UI.closeModal('admin-modal')" aria-label="Cerrar">✕</button>
+    <h2 class="modal__title" id="admin-title"></h2>
+    <div class="admin-tabs">
+      <button class="admin-tab active" id="atab-tools" onclick="Admin.switchTab('tools')">🔧 <span id="at-tl"></span></button>
+      <button class="admin-tab" id="atab-add" onclick="Admin.switchTab('add')">➕ <span id="at-al"></span></button>
+    </div>
+    <div id="admin-body"></div>
+  </div>
+</div>
+
+<footer role="contentinfo">made with ✦ by <span>taro</span> · taro's tools © 2025</footer>
+
+<script src="js/app.js"></script>
+</body>
+</html>
