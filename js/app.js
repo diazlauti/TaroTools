@@ -479,36 +479,39 @@ const ToolUI = (() => {
 
     /* ── IMG COMPRESS ── */
     'img-compress': () =>
-      infoBox('Soporta <b>JPG, PNG, WEBP</b>. Todo se procesa en tu navegador, nada se sube.') +
+      infoBox('Soporta <b>JPG, PNG, WEBP</b>. Preview en vivo antes/después. Todo en tu navegador.') +
       label('Imagen') +
       `${dropZone('ic-file','image/jpeg,image/png,image/webp','ToolFn.previewImg()','Arrastrá una imagen acá')}` +
-      // preview + comparación
-      `<div id="ic-previews" style="display:none;margin:.8rem 0">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem">
-          <div>
-            <p style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.3rem">ANTES</p>
-            <img id="ic-before" style="width:100%;border-radius:8px;border:1.5px solid var(--border)" alt="original">
-            <p id="ic-before-size" style="font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin-top:.2rem"></p>
-          </div>
-          <div>
-            <p style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.3rem">DESPUÉS</p>
-            <img id="ic-after" style="width:100%;border-radius:8px;border:1.5px solid var(--border);opacity:.4" alt="comprimida">
-            <p id="ic-after-size" style="font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin-top:.2rem">— ajustá la calidad</p>
-          </div>
-        </div>
-      </div>` +
       label('Calidad: <span id="ic-ql">75</span>%') +
       `<input type="range" min="5" max="99" value="75" id="ic-q" oninput="ToolFn.onQualityChange()" style="width:100%;margin:.25rem 0 .1rem">` +
       `<div id="ic-reduction" style="font-size:.75rem;color:var(--fg3);font-family:var(--mono);min-height:1.2rem;margin:.3rem 0"></div>` +
       `<div class="btn-row"><button class="btn" onclick="ToolFn.compressImg()">⬇️ Comprimir y descargar</button></div>` +
-      result('ic-result'),
+      result('ic-result') +
+      `<div id="ic-previews" style="display:none;margin:.8rem 0">
+        <div style="border-radius:10px;overflow:hidden;border:1.5px solid var(--border);background:var(--bg3)">
+          <div style="display:flex;justify-content:space-between;padding:.4rem .7rem;border-bottom:1px solid var(--border)">
+            <span style="font-size:.7rem;font-family:var(--mono);color:var(--fg3)">ANTES / DESPUÉS</span>
+            <span id="ic-reduction-badge" style="font-size:.7rem;font-family:var(--mono);color:var(--accent)"></span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+            <div style="padding:.5rem;border-right:1px solid var(--border)">
+              <img id="ic-before" style="width:100%;border-radius:6px;display:block" alt="original">
+              <p id="ic-before-size" style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-top:.3rem;text-align:center"></p>
+            </div>
+            <div style="padding:.5rem">
+              <img id="ic-after" style="width:100%;border-radius:6px;display:block;opacity:.4;transition:opacity .3s" alt="comprimida">
+              <p id="ic-after-size" style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-top:.3rem;text-align:center">ajustá la calidad</p>
+            </div>
+          </div>
+        </div>
+      </div>`,
 
     /* ── IMG CONVERT ── */
     'img-convert': () =>
       infoBox('Convertí entre <b>JPG, PNG y WEBP</b>. Podés subir varias imágenes a la vez.') +
       label('Imágenes (múltiples)') +
       `${dropZone('cv-file','image/jpeg,image/png,image/webp','ToolFn.previewConvertFiles()','Arrastrá imágenes acá',true)}` +
-      `<div id="cv-previews" style="display:flex;flex-wrap:wrap;gap:.4rem;margin:.6rem 0"></div>` +
+      `<div id="cv-previews" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem;margin:.6rem 0"></div>` +
       label('Convertir a') +
       sel('cv-fmt', [['image/jpeg','JPG'],['image/png','PNG'],['image/webp','WEBP']]) +
       `<div class="btn-row"><button class="btn" onclick="ToolFn.convertImg()">Convertir todo</button></div>` +
@@ -519,7 +522,7 @@ const ToolUI = (() => {
       infoBox('Subí <b>una o más imágenes</b>. Cada una ocupa una página en el PDF. El orden es el que subiste.') +
       label('Imágenes') +
       `${dropZone('ipdf-file','image/*','ToolFn.previewPdfFiles()','Arrastrá imágenes acá',true)}` +
-      `<div id="ipdf-previews" style="display:flex;flex-wrap:wrap;gap:.4rem;margin:.6rem 0"></div>` +
+      `<div id="ipdf-previews" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:.5rem;margin:.6rem 0"></div>` +
       `<div class="btn-row"><button class="btn" onclick="ToolFn.imgToPdf()">📄 Generar PDF</button></div>` +
       loader('ipdf-loader','⏳ generando PDF...') +
       `<div id="ipdf-result" style="margin-top:.7rem"></div>`,
@@ -580,50 +583,61 @@ const ToolUI = (() => {
 
     /* ── IMG RESIZE ── */
     'img-resize': () =>
-      infoBox('Redimensioná tu imagen. Podés usar presets o ingresar tamaño manual. Todo se procesa en tu navegador.') +
-      `<input type="file" id="ir-file" accept="image/*" onchange="ToolFn.irLoad()" style="display:none" id="ir-file">` +
-      `<div class="file-drop" id="ir-drop" onclick="document.getElementById('ir-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('ir-file').files=event.dataTransfer.files;ToolFn.irLoad()">
+      infoBox('Redimensioná tu imagen. Presets, píxeles o porcentaje. Preview en vivo. 100% local.') +
+      `<input type="file" id="ir-file" accept="image/*" style="display:none" onchange="ToolFn.irLoad()">` +
+      `<div class="file-drop" id="ir-drop" onclick="document.getElementById('ir-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');const dt=event.dataTransfer;if(dt.files.length){const inp=document.getElementById('ir-file');const tsfr=new DataTransfer();tsfr.items.add(dt.files[0]);inp.files=tsfr.files;ToolFn.irLoad();}">
         <div class="file-drop__icon">📐</div>
         <div class="file-drop__title">Arrastrá una imagen acá</div>
-        <div class="file-drop__sub">o hacé click para elegir · JPG, PNG, WEBP, GIF</div>
+        <div class="file-drop__sub">o hacé click · JPG, PNG, WEBP, GIF</div>
         <div class="file-drop__name" id="ir-name"></div>
       </div>` +
-      `<div id="ir-info" style="display:none">` +
-        `<p id="ir-orig-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>` +
-        label('Presets rápidos') +
-        `<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.6rem">
-          <button class="btn btn--sec" onclick="ToolFn.irPreset(1080,1080)" style="font-size:.72rem;padding:.3rem .6rem">📸 Instagram</button>
-          <button class="btn btn--sec" onclick="ToolFn.irPreset(1080,1920)" style="font-size:.72rem;padding:.3rem .6rem">📱 TikTok</button>
-          <button class="btn btn--sec" onclick="ToolFn.irPreset(1280,720)" style="font-size:.72rem;padding:.3rem .6rem">▶️ YT Thumb</button>
-          <button class="btn btn--sec" onclick="ToolFn.irPreset(512,512)" style="font-size:.72rem;padding:.3rem .6rem">💬 Discord</button>
-          <button class="btn btn--sec" onclick="ToolFn.irPreset(3840,2160)" style="font-size:.72rem;padding:.3rem .6rem">🖥️ Wallpaper 4K</button>
-          <button class="btn btn--sec" onclick="ToolFn.irPreset(1920,1080)" style="font-size:.72rem;padding:.3rem .6rem">🖥️ FHD</button>
-        </div>` +
-        `<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:.5rem;align-items:end;margin-bottom:.4rem">
-          <div><label style="margin-top:0">Ancho (px)</label><input type="number" id="ir-w" oninput="ToolFn.irSyncAR('w')" placeholder="1920" style="text-align:center"></div>
+      `<div id="ir-info" style="display:none">
+        <p id="ir-orig-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.5rem 0 .3rem"></p>
+
+        <div style="display:flex;gap:.3rem;margin-bottom:.6rem">
+          <button class="btn btn--sec ir-mode-btn" id="ir-mode-px" onclick="ToolFn.irSetMode('px')" style="font-size:.72rem;padding:.3rem .7rem;opacity:1">px</button>
+          <button class="btn btn--sec ir-mode-btn" id="ir-mode-pct" onclick="ToolFn.irSetMode('pct')" style="font-size:.72rem;padding:.3rem .7rem;opacity:.5">%</button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:.5rem;align-items:end;margin-bottom:.4rem">
+          <div><label style="margin-top:0" id="ir-lbl-w">Ancho (px)</label><input type="number" id="ir-w" oninput="ToolFn.irSyncAR('w')" placeholder="1920" style="text-align:center"></div>
           <div style="padding-bottom:.6rem;color:var(--fg3);font-family:var(--mono);font-size:.9rem">×</div>
-          <div><label style="margin-top:0">Alto (px)</label><input type="number" id="ir-h" oninput="ToolFn.irSyncAR('h')" placeholder="1080" style="text-align:center"></div>
-        </div>` +
-        `<label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;cursor:pointer;margin-bottom:.4rem">
-          <input type="checkbox" id="ir-ar" checked> Mantener proporción
-        </label>` +
-        `<label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;cursor:pointer;margin-bottom:.6rem">
-          <input type="checkbox" id="ir-compress"> Comprimir también (calidad JPEG)
-        </label>` +
-        `<div id="ir-q-row" style="display:none">` +
-          label('Calidad: <span id="ir-ql">80</span>%') +
-          `<input type="range" min="10" max="99" value="80" id="ir-q" oninput="document.getElementById('ir-ql').textContent=this.value" style="width:100%">` +
-        `</div>` +
-        `<div id="ir-preview-wrap" style="margin:.6rem 0;display:none">
-          <canvas id="ir-canvas" style="width:100%;border-radius:8px;border:1.5px solid var(--border);display:block"></canvas>
-          <p id="ir-preview-info" style="font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin-top:.3rem"></p>
-        </div>` +
-        `<div class="btn-row">
-          <button class="btn btn--sec" onclick="ToolFn.irPreview()">👁️ Preview</button>
+          <div><label style="margin-top:0" id="ir-lbl-h">Alto (px)</label><input type="number" id="ir-h" oninput="ToolFn.irSyncAR('h')" placeholder="1080" style="text-align:center"></div>
+        </div>
+
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;cursor:pointer;margin-bottom:.5rem">
+          <input type="checkbox" id="ir-ar" checked onchange="ToolFn.irPreviewLive()"> Mantener proporción
+        </label>
+
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;cursor:pointer;margin-bottom:.3rem">
+          <input type="checkbox" id="ir-compress" onchange="ToolFn.irToggleCompress()"> Comprimir (JPEG)
+        </label>
+        <div id="ir-q-row" style="display:none;margin-bottom:.4rem">
+          <label style="margin-top:.3rem">Calidad: <span id="ir-ql">80</span>%</label>
+          <input type="range" min="10" max="99" value="80" id="ir-q" oninput="document.getElementById('ir-ql').textContent=this.value;ToolFn.irPreviewLive()" style="width:100%">
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.6rem">
+          <button class="btn btn--sec" onclick="ToolFn.irPreset(1080,1080)" style="font-size:.7rem;padding:.25rem .5rem">📸 Instagram</button>
+          <button class="btn btn--sec" onclick="ToolFn.irPreset(1080,1920)" style="font-size:.7rem;padding:.25rem .5rem">📱 TikTok</button>
+          <button class="btn btn--sec" onclick="ToolFn.irPreset(1280,720)" style="font-size:.7rem;padding:.25rem .5rem">▶️ YT Thumb</button>
+          <button class="btn btn--sec" onclick="ToolFn.irPreset(512,512)" style="font-size:.7rem;padding:.25rem .5rem">💬 Discord</button>
+          <button class="btn btn--sec" onclick="ToolFn.irPreset(1920,1080)" style="font-size:.7rem;padding:.25rem .5rem">🖥️ FHD</button>
+          <button class="btn btn--sec" onclick="ToolFn.irPreset(3840,2160)" style="font-size:.7rem;padding:.25rem .5rem">🖥️ 4K</button>
+        </div>
+
+        <div class="btn-row" style="margin-bottom:.5rem">
           <button class="btn" onclick="ToolFn.irDownload()">⬇️ Descargar</button>
-        </div>` +
-        result('ir-result') +
-      `</div>`,
+        </div>
+
+        <div style="border-radius:10px;overflow:hidden;border:1.5px solid var(--border);background:var(--bg3)">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem .7rem;border-bottom:1px solid var(--border)">
+            <span style="font-size:.7rem;font-family:var(--mono);color:var(--fg3)">PREVIEW EN VIVO</span>
+            <span id="ir-preview-info" style="font-size:.7rem;font-family:var(--mono);color:var(--accent)"></span>
+          </div>
+          <canvas id="ir-canvas" style="width:100%;display:block;max-height:340px;object-fit:contain"></canvas>
+        </div>
+      </div>`,
 
     /* ── META REMOVE ── */
     'meta-remove': () =>
@@ -714,19 +728,19 @@ const ToolUI = (() => {
 
     /* ── COBALT DL ── */
     'cobalt-dl': () =>
-      infoBox('Descargá de <b>YouTube, TikTok, Instagram, Twitter/X, Reddit</b> y más. Motor: <a href="https://cobalt.tools" target="_blank">cobalt.tools</a>. Si falla una URL, probá con otra plataforma.') +
+      `<div style="border:2px dashed var(--accent2);border-radius:12px;padding:1.2rem;margin-bottom:.8rem;text-align:center">
+        <div style="font-size:2rem;margin-bottom:.4rem">🚧</div>
+        <div style="font-family:var(--mono);font-size:.85rem;color:var(--accent2);font-weight:600;margin-bottom:.3rem">EN CONSTRUCCIÓN</div>
+        <div style="font-size:.75rem;color:var(--fg3);font-family:var(--mono);line-height:1.6">Esta herramienta está temporalmente deshabilitada.<br>Mientras tanto, podés usar <a href="https://cobalt.tools" target="_blank" style="color:var(--accent)">cobalt.tools</a> directamente.</div>
+      </div>` +
+      infoBox('Descargá de <b>YouTube, TikTok, Instagram, Twitter/X, Reddit</b> y más. Motor: <a href="https://cobalt.tools" target="_blank">cobalt.tools</a>.') +
       label('URL del video o post') +
-      `<input type="text" id="dl-url" placeholder="https://youtube.com/watch?v=... o link de TikTok, IG, etc">` +
+      `<input type="text" id="dl-url" placeholder="https://youtube.com/watch?v=..." disabled style="opacity:.5;cursor:not-allowed">` +
       label('Formato de descarga') +
       sel('dl-fmt',[['mp4','🎬 MP4 — video + audio'],['mp3','🎵 MP3 — solo audio']]) +
       label('Calidad de video (solo MP4)') +
       sel('dl-quality',[['max','Máxima disponible'],['1080','1080p Full HD'],['720','720p HD'],['480','480p'],['360','360p']]) +
-      `<div class="btn-row"><button class="btn" id="dl-btn" onclick="ToolFn.cobaltDl()">⬇️ Obtener enlace</button></div>` +
-      loader('dl-loader','⏳ contactando cobalt...') +
-      `<div id="dl-result" style="margin-top:.7rem"></div>` +
-      `<p style="font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin-top:.8rem;line-height:1.5">
-        ℹ️ cobalt.tools es un servicio externo. Si el enlace no funciona para una plataforma, puede ser una limitación de su servicio.
-      </p>`,
+      `<div class="btn-row"><button class="btn" id="dl-btn" disabled style="opacity:.5;cursor:not-allowed">⬇️ Obtener enlace</button></div>`,
 
     /* ── QR GEN ── */
     'qr-gen': () =>
@@ -949,12 +963,15 @@ const ToolFn = (() => {
         const pct = Math.round((1 - blob.size / _origFile.size) * 100);
         document.getElementById('ic-after-size').textContent = fmtSize(blob.size);
         const red = document.getElementById('ic-reduction');
+        const badge = document.getElementById('ic-reduction-badge');
         if (pct > 0) {
           red.textContent = `✅ Reducción estimada: ${pct}%`;
           red.style.color = 'var(--accent)';
+          if (badge) badge.textContent = `-${pct}%`;
         } else {
           red.textContent = `⚠️ Sin reducción a esta calidad`;
           red.style.color = 'var(--fg3)';
+          if (badge) badge.textContent = '';
         }
       }, 'image/jpeg', q);
     };
@@ -1509,7 +1526,7 @@ const ToolFn = (() => {
   }
 
   // ── img resize ──
-  let _irFile = null, _irOrig = null;
+  let _irFile = null, _irOrig = null, _irMode = 'px', _irDebounce = null;
 
   function irLoad() {
     const f = document.getElementById('ir-file').files[0]; if (!f) return;
@@ -1518,69 +1535,120 @@ const ToolFn = (() => {
     const img = new Image();
     img.onload = () => {
       _irOrig = img;
+      _irMode = 'px';
       document.getElementById('ir-w').value = img.width;
       document.getElementById('ir-h').value = img.height;
+      document.getElementById('ir-lbl-w').textContent = 'Ancho (px)';
+      document.getElementById('ir-lbl-h').textContent = 'Alto (px)';
       document.getElementById('ir-orig-info').textContent =
         `${img.width} × ${img.height}px · ${fmtSize(f.size)} · ${f.name}`;
       document.getElementById('ir-info').style.display = 'block';
-      document.getElementById('ir-compress').addEventListener('change', function() {
-        document.getElementById('ir-q-row').style.display = this.checked ? 'block' : 'none';
-      });
+      irPreviewLive();
     };
     img.src = URL.createObjectURL(f);
   }
 
+  function irSetMode(mode) {
+    if (!_irOrig) return;
+    _irMode = mode;
+    const pxBtn  = document.getElementById('ir-mode-px');
+    const pctBtn = document.getElementById('ir-mode-pct');
+    pxBtn.style.opacity  = mode === 'px'  ? '1' : '.5';
+    pctBtn.style.opacity = mode === 'pct' ? '1' : '.5';
+    if (mode === 'px') {
+      document.getElementById('ir-lbl-w').textContent = 'Ancho (px)';
+      document.getElementById('ir-lbl-h').textContent = 'Alto (px)';
+      document.getElementById('ir-w').value = _irOrig.width;
+      document.getElementById('ir-h').value = _irOrig.height;
+    } else {
+      document.getElementById('ir-lbl-w').textContent = 'Ancho (%)';
+      document.getElementById('ir-lbl-h').textContent = 'Alto (%)';
+      document.getElementById('ir-w').value = 100;
+      document.getElementById('ir-h').value = 100;
+    }
+    irPreviewLive();
+  }
+
+  function irToggleCompress() {
+    const on = document.getElementById('ir-compress').checked;
+    document.getElementById('ir-q-row').style.display = on ? 'block' : 'none';
+    irPreviewLive();
+  }
+
+  function _irGetDims() {
+    const wVal = parseFloat(document.getElementById('ir-w').value) || 100;
+    const hVal = parseFloat(document.getElementById('ir-h').value) || 100;
+    if (_irMode === 'pct') {
+      return {
+        w: Math.round(_irOrig.width  * wVal / 100),
+        h: Math.round(_irOrig.height * hVal / 100),
+      };
+    }
+    return { w: Math.round(wVal), h: Math.round(hVal) };
+  }
+
   function irSyncAR(changed) {
-    if (!_irOrig || !document.getElementById('ir-ar').checked) return;
+    if (!_irOrig || !document.getElementById('ir-ar').checked) { irPreviewLive(); return; }
     const ratio = _irOrig.width / _irOrig.height;
     if (changed === 'w') {
-      const w = parseInt(document.getElementById('ir-w').value) || 0;
-      document.getElementById('ir-h').value = Math.round(w / ratio) || '';
+      const wVal = parseFloat(document.getElementById('ir-w').value) || 0;
+      if (_irMode === 'pct') {
+        document.getElementById('ir-h').value = wVal.toFixed(1);
+      } else {
+        document.getElementById('ir-h').value = Math.round(wVal / ratio) || '';
+      }
     } else {
-      const h = parseInt(document.getElementById('ir-h').value) || 0;
-      document.getElementById('ir-w').value = Math.round(h * ratio) || '';
+      const hVal = parseFloat(document.getElementById('ir-h').value) || 0;
+      if (_irMode === 'pct') {
+        document.getElementById('ir-w').value = hVal.toFixed(1);
+      } else {
+        document.getElementById('ir-w').value = Math.round(hVal * ratio) || '';
+      }
     }
+    irPreviewLive();
+  }
+
+  function irPreviewLive() {
+    if (!_irOrig) return;
+    clearTimeout(_irDebounce);
+    _irDebounce = setTimeout(() => {
+      const { w, h } = _irGetDims();
+      if (!w || !h) return;
+      const canvas = document.getElementById('ir-canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(_irOrig, 0, 0, w, h);
+      const infoEl = document.getElementById('ir-preview-info');
+      const pctW = Math.round(w / _irOrig.width * 100);
+      infoEl.textContent = `${w} × ${h}px (${pctW}%)`;
+    }, 120);
   }
 
   function irPreset(w, h) {
+    _irMode = 'px';
+    document.getElementById('ir-mode-px').style.opacity  = '1';
+    document.getElementById('ir-mode-pct').style.opacity = '.5';
+    document.getElementById('ir-lbl-w').textContent = 'Ancho (px)';
+    document.getElementById('ir-lbl-h').textContent = 'Alto (px)';
     document.getElementById('ir-w').value = w;
     document.getElementById('ir-h').value = h;
-    irPreview();
-  }
-
-  function _irRender(w, h, q) {
-    const c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    c.getContext('2d').drawImage(_irOrig, 0, 0, w, h);
-    return c;
-  }
-
-  function irPreview() {
-    if (!_irOrig) return;
-    const w = parseInt(document.getElementById('ir-w').value) || _irOrig.width;
-    const h = parseInt(document.getElementById('ir-h').value) || _irOrig.height;
-    const preview = document.getElementById('ir-canvas');
-    preview.width = w; preview.height = h;
-    preview.getContext('2d').drawImage(_irOrig, 0, 0, w, h);
-    document.getElementById('ir-preview-wrap').style.display = 'block';
-    document.getElementById('ir-preview-info').textContent = `Preview: ${w} × ${h}px`;
+    irPreviewLive();
   }
 
   function irDownload() {
     if (!_irOrig) return;
-    const w = parseInt(document.getElementById('ir-w').value) || _irOrig.width;
-    const h = parseInt(document.getElementById('ir-h').value) || _irOrig.height;
+    const { w, h } = _irGetDims();
     const doCompress = document.getElementById('ir-compress').checked;
-    const q = doCompress ? (parseInt(document.getElementById('ir-q').value) / 100) : 0.95;
+    const q    = doCompress ? (parseInt(document.getElementById('ir-q').value) / 100) : 0.95;
     const mime = doCompress ? 'image/jpeg' : 'image/png';
-    const ext = doCompress ? 'jpg' : 'png';
-    const c = _irRender(w, h);
+    const ext  = doCompress ? 'jpg' : 'png';
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    c.getContext('2d').drawImage(_irOrig, 0, 0, w, h);
     c.toBlob(blob => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `taro-resize-${w}x${h}.${ext}`;
       a.click();
-      showResult('ir-result', `✅ ${w} × ${h}px · ${fmtSize(blob.size)}`);
       Audio.success();
     }, mime, q);
   }
@@ -1706,7 +1774,7 @@ const ToolFn = (() => {
     timerToggle, timerLap, timerReset,
     genUUID, genUUIDs, fetchIP,
     _dropName,
-    irLoad, irSyncAR, irPreset, irPreview, irDownload,
+    irLoad, irSetMode, irToggleCompress, irSyncAR, irPreset, irPreviewLive, irDownload,
     mrLoad, mrProcess,
     fvLoad, fvDownloadPng, fvDownloadIco,
   };
