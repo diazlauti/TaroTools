@@ -31,7 +31,7 @@ exports.handler = async (event) => {
         'X-Title': "Taro's Tools",
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-exp:free',
+        model: 'google/gemini-2.5-flash:free',
         messages,
       }),
     });
