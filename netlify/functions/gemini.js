@@ -31,7 +31,7 @@ exports.handler = async (event) => {
         'X-Title': "Taro's Tools",
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
+        model: 'deepseek/deepseek-v4-flash:free',
         messages,
       }),
     });
