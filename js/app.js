@@ -4,12 +4,12 @@
    CONFIG
 ═══════════════════════════════════════════════ */
 const CONFIG = {
-  GEMINI_KEY: 'AIzaSyDB26LI4bheDitoDuaB6i1bA8TZfyWhKlE', // 🔑 reemplazá antes de subir
+  GEMINI_PROXY: '/.netlify/functions/gemini',
   GEMINI_MODEL: 'gemini-2.0-flash',
   COBALT_API: 'https://api.cobalt.tools/api/json',
   QR_API: 'https://api.qrserver.com/v1/create-qr-code/',
   IP_API: 'https://api.ipify.org?format=json',
-  ADMIN_PASS: 'lauti290907',
+  ADMIN_PASS_HASH: 'a0f50e4075fa8fc1c8acce4c6ab92f7713913eb7906850bb25cc3a72f88e4550',
 };
 
 /* ═══════════════════════════════════════════════
@@ -65,6 +65,9 @@ const I18n = (() => {
     { id:'b18', icon:'⏱️', cat:'util',       type:'timer'         },
     { id:'b19', icon:'🆔', cat:'util',       type:'uuid-gen'      },
     { id:'b20', icon:'🌍', cat:'util',       type:'my-ip'         },
+    { id:'b21', icon:'📏', cat:'imagen',     type:'img-resize'    },
+    { id:'b22', icon:'🚫', cat:'imagen',     type:'meta-remove'   },
+    { id:'b23', icon:'🌐', cat:'imagen',     type:'favicon-gen'   },
   ];
 
   const STRINGS = {
@@ -72,9 +75,9 @@ const I18n = (() => {
       tagline:'herramientas útiles · sin virus · sin drama',
       search:'Buscar herramienta...',
       mq:'✦ TARO\'S TOOLS ✦ COMPRESOR ✦ PDF ✦ TRADUCTOR ✦ RESUMIDOR ✦ DESCARGADOR ✦ CONVERTIDOR ✦ CORRECTOR ✦ VIDEO ✦ AUDIO ✦ QR ✦ COLORES ✦',
-      tabs:['Todas','Archivos','Texto','Conversión','Media','Utilidades'],
-      catKeys:['all','archivo','texto','conversion','media','util'],
-      catNames:{ archivo:'📁 Archivos', texto:'📝 Texto', conversion:'🔄 Conversión', media:'🎬 Media', util:'⚡ Utilidades' },
+      tabs:['Todas','Archivos','Imagen','Texto','Conversión','Media','Utilidades'],
+      catKeys:['all','archivo','imagen','texto','conversion','media','util'],
+      catNames:{ archivo:'📁 Archivos', imagen:'🖼️ Imagen', texto:'📝 Texto', conversion:'🔄 Conversión', media:'🎬 Media', util:'⚡ Utilidades' },
       donBtn:'donar', donTitle:'💜 Apoyá a Taro',
       donDesc:'Si esta página te fue útil, invitame un café o hacé una donación.',
       adminTitle:'// panel admin', atTools:'herramientas', atAdd:'agregar', atCats:'categorías',
@@ -96,6 +99,7 @@ const I18n = (() => {
         b11:'Descargador video/audio', b12:'Generador de QR', b13:'Conversor de colores',
         b14:'Conversor de mayúsculas', b15:'Contador de palabras', b16:'Base64',
         b17:'Generador de hash', b18:'Cronómetro', b19:'Generador de UUID', b20:'¿Cuál es mi IP?',
+        b21:'Redimensionar imagen', b22:'Borrar metadatos', b23:'Generador de favicon',
       },
       toolDescs:{
         b1:'Reducí el tamaño de JPG/PNG con preview y comparación antes/después.',
@@ -125,9 +129,9 @@ const I18n = (() => {
       tagline:'useful tools · no viruses · no drama',
       search:'Search tool...',
       mq:'✦ TARO\'S TOOLS ✦ COMPRESSOR ✦ PDF ✦ TRANSLATOR ✦ SUMMARIZER ✦ DOWNLOADER ✦ CONVERTER ✦ CORRECTOR ✦ VIDEO ✦ AUDIO ✦ QR ✦ COLORS ✦',
-      tabs:['All','Files','Text','Conversion','Media','Utilities'],
-      catKeys:['all','archivo','texto','conversion','media','util'],
-      catNames:{ archivo:'📁 Files', texto:'📝 Text', conversion:'🔄 Conversion', media:'🎬 Media', util:'⚡ Utilities' },
+      tabs:['All','Files','Image','Text','Conversion','Media','Utilities'],
+      catKeys:['all','archivo','imagen','texto','conversion','media','util'],
+      catNames:{ archivo:'📁 Files', imagen:'🖼️ Image', texto:'📝 Text', conversion:'🔄 Conversion', media:'🎬 Media', util:'⚡ Utilities' },
       donBtn:'donate', donTitle:'💜 Support Taro',
       donDesc:'If this page was useful, buy me a coffee or make a donation.',
       adminTitle:'// admin panel', atTools:'tools', atAdd:'add', atCats:'categories',
@@ -178,9 +182,9 @@ const I18n = (() => {
       tagline:'ferramentas úteis · sem vírus · sem drama',
       search:'Buscar ferramenta...',
       mq:'✦ TARO\'S TOOLS ✦ COMPRESSOR ✦ PDF ✦ TRADUTOR ✦ RESUMIDOR ✦ BAIXADOR ✦ CONVERSOR ✦ CORRETOR ✦ VÍDEO ✦ ÁUDIO ✦ QR ✦ CORES ✦',
-      tabs:['Todas','Arquivos','Texto','Conversão','Mídia','Utilidades'],
-      catKeys:['all','archivo','texto','conversion','media','util'],
-      catNames:{ archivo:'📁 Arquivos', texto:'📝 Texto', conversion:'🔄 Conversão', media:'🎬 Mídia', util:'⚡ Utilidades' },
+      tabs:['Todas','Arquivos','Imagem','Texto','Conversão','Mídia','Utilidades'],
+      catKeys:['all','archivo','imagen','texto','conversion','media','util'],
+      catNames:{ archivo:'📁 Arquivos', imagen:'🖼️ Imagem', texto:'📝 Texto', conversion:'🔄 Conversão', media:'🎬 Mídia', util:'⚡ Utilidades' },
       donBtn:'doar', donTitle:'💜 Apoie o Taro',
       donDesc:'Se esta página foi útil, me pague um café ou faça uma doação.',
       adminTitle:'// painel admin', atTools:'ferramentas', atAdd:'adicionar', atCats:'categorias',
@@ -202,6 +206,7 @@ const I18n = (() => {
         b11:'Baixador de vídeo/áudio', b12:'Gerador de QR', b13:'Conversor de cores',
         b14:'Conversor de maiúsculas', b15:'Contador de palavras', b16:'Base64',
         b17:'Gerador de hash', b18:'Cronômetro', b19:'Gerador de UUID', b20:'Qual é meu IP?',
+        b21:'Redimensionar imagem', b22:'Remover metadados', b23:'Gerador de favicon',
       },
       toolDescs:{
         b1:'Reduza JPG/PNG com comparação visual antes/depois.',
@@ -300,7 +305,6 @@ const UI = (() => {
 
   function closeModal(id) {
     document.getElementById(id).classList.remove('open');
-    // Limpiar el hash solo si se cierra la tool modal
     if (id === 'tool-modal' && location.hash) history.replaceState(null, '', ' ');
   }
 
@@ -406,7 +410,6 @@ const Tools = (() => {
     document.getElementById('modal-title').textContent = tool.icon + ' ' + tool.name;
     document.getElementById('modal-body').innerHTML = ToolUI.build(tool);
     UI.openModal('tool-modal');
-    // Escribir el ID de la tool en el hash para que sea linkeable
     history.replaceState(null, '', '#' + tool.id);
     if (tool.type === 'word-count') {
       const ta = document.getElementById('wc-input');
@@ -429,14 +432,9 @@ const Tools = (() => {
    TOOL UI BUILDER
 ═══════════════════════════════════════════════ */
 const ToolUI = (() => {
-  /* ── file drop zone builder ── */
   function dropZone(id, accept, onchange, label, multiple=false) {
-    const icons = {
-      'image': '🖼️', 'image/jpeg,image/png,image/webp': '🖼️',
-      'video': '🎬', 'audio': '🎵',
-      'application/pdf': '📄', '.txt,.pdf': '📄',
-    };
-    const icon = icons[accept] || icons[accept.split(',')[0].split('/')[0]] || '📁';
+    const icons = {'image/jpeg,image/png,image/webp':'🖼️','video/*':'🎬','audio/*':'🎵','application/pdf':'📄','image/*':'🖼️'};
+    const icon = icons[accept] || '📁';
     const multAttr = multiple ? 'multiple' : '';
     return `<div class="file-drop" id="${id}-drop">
       <input type="file" id="${id}" accept="${accept}" onchange="${onchange};ToolFn._dropName('${id}')" ${multAttr}>
@@ -579,6 +577,130 @@ const ToolUI = (() => {
       loader('pdf-loader','⏳ procesando PDF...') +
       `<div class="result-area" id="pdf-result" style="display:none;max-height:260px;overflow-y:auto"></div>` +
       copyRow('pdf-result'),
+
+    /* ── IMG RESIZE ── */
+    'img-resize': () =>
+      infoBox('Redimensioná tu imagen. Podés usar presets o ingresar tamaño manual. Todo se procesa en tu navegador.') +
+      `<input type="file" id="ir-file" accept="image/*" onchange="ToolFn.irLoad()" style="display:none" id="ir-file">` +
+      `<div class="file-drop" id="ir-drop" onclick="document.getElementById('ir-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('ir-file').files=event.dataTransfer.files;ToolFn.irLoad()">
+        <div class="file-drop__icon">📐</div>
+        <div class="file-drop__title">Arrastrá una imagen acá</div>
+        <div class="file-drop__sub">o hacé click para elegir · JPG, PNG, WEBP, GIF</div>
+        <div class="file-drop__name" id="ir-name"></div>
+      </div>` +
+      `<div id="ir-info" style="display:none">` +
+        `<p id="ir-orig-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>` +
+        label('Presets rápidos') +
+        `<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.6rem">
+          <button class="btn btn--sec" onclick="ToolFn.irPreset(1080,1080)" style="font-size:.72rem;padding:.3rem .6rem">📸 Instagram</button>
+          <button class="btn btn--sec" onclick="ToolFn.irPreset(1080,1920)" style="font-size:.72rem;padding:.3rem .6rem">📱 TikTok</button>
+          <button class="btn btn--sec" onclick="ToolFn.irPreset(1280,720)" style="font-size:.72rem;padding:.3rem .6rem">▶️ YT Thumb</button>
+          <button class="btn btn--sec" onclick="ToolFn.irPreset(512,512)" style="font-size:.72rem;padding:.3rem .6rem">💬 Discord</button>
+          <button class="btn btn--sec" onclick="ToolFn.irPreset(3840,2160)" style="font-size:.72rem;padding:.3rem .6rem">🖥️ Wallpaper 4K</button>
+          <button class="btn btn--sec" onclick="ToolFn.irPreset(1920,1080)" style="font-size:.72rem;padding:.3rem .6rem">🖥️ FHD</button>
+        </div>` +
+        `<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:.5rem;align-items:end;margin-bottom:.4rem">
+          <div><label style="margin-top:0">Ancho (px)</label><input type="number" id="ir-w" oninput="ToolFn.irSyncAR('w')" placeholder="1920" style="text-align:center"></div>
+          <div style="padding-bottom:.6rem;color:var(--fg3);font-family:var(--mono);font-size:.9rem">×</div>
+          <div><label style="margin-top:0">Alto (px)</label><input type="number" id="ir-h" oninput="ToolFn.irSyncAR('h')" placeholder="1080" style="text-align:center"></div>
+        </div>` +
+        `<label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;cursor:pointer;margin-bottom:.4rem">
+          <input type="checkbox" id="ir-ar" checked> Mantener proporción
+        </label>` +
+        `<label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;cursor:pointer;margin-bottom:.6rem">
+          <input type="checkbox" id="ir-compress"> Comprimir también (calidad JPEG)
+        </label>` +
+        `<div id="ir-q-row" style="display:none">` +
+          label('Calidad: <span id="ir-ql">80</span>%') +
+          `<input type="range" min="10" max="99" value="80" id="ir-q" oninput="document.getElementById('ir-ql').textContent=this.value" style="width:100%">` +
+        `</div>` +
+        `<div id="ir-preview-wrap" style="margin:.6rem 0;display:none">
+          <canvas id="ir-canvas" style="width:100%;border-radius:8px;border:1.5px solid var(--border);display:block"></canvas>
+          <p id="ir-preview-info" style="font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin-top:.3rem"></p>
+        </div>` +
+        `<div class="btn-row">
+          <button class="btn btn--sec" onclick="ToolFn.irPreview()">👁️ Preview</button>
+          <button class="btn" onclick="ToolFn.irDownload()">⬇️ Descargar</button>
+        </div>` +
+        result('ir-result') +
+      `</div>`,
+
+    /* ── META REMOVE ── */
+    'meta-remove': () =>
+      infoBox('Eliminá todos los metadatos EXIF de tu imagen (ubicación GPS, cámara, fecha, etc.). Procesamiento 100% local.') +
+      `<input type="file" id="mr-file" accept="image/jpeg,image/png,image/webp" style="display:none">` +
+      `<div class="file-drop" id="mr-drop" onclick="document.getElementById('mr-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('mr-file').files=event.dataTransfer.files;ToolFn.mrLoad()">
+        <div class="file-drop__icon">🚫</div>
+        <div class="file-drop__title">Arrastrá una imagen acá</div>
+        <div class="file-drop__sub">o hacé click para elegir · JPG, PNG, WEBP</div>
+        <div class="file-drop__name" id="mr-name"></div>
+      </div>` +
+      `<div id="mr-info" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin:.6rem 0">
+          <div style="background:var(--bg3);border-radius:8px;padding:.6rem;font-family:var(--mono);font-size:.72rem">
+            <div style="color:var(--fg3);margin-bottom:.3rem">ORIGINAL</div>
+            <div id="mr-orig-size" style="color:var(--fg2)"></div>
+            <div id="mr-orig-meta" style="color:var(--accent2);margin-top:.2rem"></div>
+          </div>
+          <div style="background:var(--bg3);border-radius:8px;padding:.6rem;font-family:var(--mono);font-size:.72rem">
+            <div style="color:var(--fg3);margin-bottom:.3rem">LIMPIA</div>
+            <div id="mr-clean-size" style="color:var(--fg2)">—</div>
+            <div id="mr-clean-meta" style="color:var(--accent);margin-top:.2rem">Sin metadatos</div>
+          </div>
+        </div>
+        <div id="mr-preview" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin:.4rem 0">
+          <div>
+            <p style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.3rem">ORIGINAL</p>
+            <img id="mr-before" style="width:100%;border-radius:8px;border:1.5px solid var(--border)" alt="original">
+          </div>
+          <div>
+            <p style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.3rem">SIN METADATA</p>
+            <img id="mr-after" style="width:100%;border-radius:8px;border:1.5px solid var(--accent);opacity:.5" alt="limpia">
+          </div>
+        </div>
+        <div class="btn-row"><button class="btn" onclick="ToolFn.mrProcess()">🚫 Borrar metadatos y descargar</button></div>
+        <div id="mr-result" style="margin-top:.5rem"></div>
+      </div>`,
+
+    /* ── FAVICON GEN ── */
+    'favicon-gen': () =>
+      infoBox('Convertí cualquier imagen a favicon. Se genera un <b>.ico</b> con múltiples tamaños (16, 32, 48px) listo para usar en tu web.') +
+      `<input type="file" id="fv-file" accept="image/*" style="display:none">` +
+      `<div class="file-drop" id="fv-drop" onclick="document.getElementById('fv-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('fv-file').files=event.dataTransfer.files;ToolFn.fvLoad()">
+        <div class="file-drop__icon">🌐</div>
+        <div class="file-drop__title">Arrastrá una imagen acá</div>
+        <div class="file-drop__sub">o hacé click para elegir · PNG recomendado</div>
+        <div class="file-drop__name" id="fv-name"></div>
+      </div>` +
+      `<div id="fv-info" style="display:none">
+        <div style="display:flex;gap:1rem;align-items:center;margin:.7rem 0;flex-wrap:wrap">
+          <div style="text-align:center">
+            <canvas id="fv-p16" width="16" height="16" style="border:1px solid var(--border);border-radius:3px;image-rendering:pixelated;width:32px;height:32px"></canvas>
+            <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);margin-top:.2rem">16px</p>
+          </div>
+          <div style="text-align:center">
+            <canvas id="fv-p32" width="32" height="32" style="border:1px solid var(--border);border-radius:3px;image-rendering:pixelated;width:48px;height:48px"></canvas>
+            <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);margin-top:.2rem">32px</p>
+          </div>
+          <div style="text-align:center">
+            <canvas id="fv-p48" width="48" height="48" style="border:1px solid var(--border);border-radius:3px;image-rendering:pixelated;width:64px;height:64px"></canvas>
+            <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);margin-top:.2rem">48px</p>
+          </div>
+          <div style="text-align:center">
+            <canvas id="fv-p192" width="192" height="192" style="border:1px solid var(--border);border-radius:8px;width:80px;height:80px"></canvas>
+            <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);margin-top:.2rem">192px</p>
+          </div>
+        </div>
+        <div class="btn-row" style="flex-wrap:wrap;gap:.4rem">
+          <button class="btn" onclick="ToolFn.fvDownloadIco()">⬇️ Descargar .ico</button>
+          <button class="btn btn--sec" onclick="ToolFn.fvDownloadPng(192)">PNG 192px</button>
+          <button class="btn btn--sec" onclick="ToolFn.fvDownloadPng(32)">PNG 32px</button>
+        </div>
+        <div id="fv-tip" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin-top:.6rem;line-height:1.5">
+          💡 Poné el .ico en la raíz de tu proyecto y agregá en el &lt;head&gt;:<br>
+          <code style="font-size:.7rem">&lt;link rel="icon" href="favicon.ico"&gt;</code>
+        </div>
+      </div>`,
 
     /* ── AI SOON ── */
     'ai-soon': () => {
@@ -1386,6 +1508,184 @@ const ToolFn = (() => {
     }
   }
 
+  // ── img resize ──
+  let _irFile = null, _irOrig = null;
+
+  function irLoad() {
+    const f = document.getElementById('ir-file').files[0]; if (!f) return;
+    _irFile = f;
+    document.getElementById('ir-name').textContent = f.name;
+    const img = new Image();
+    img.onload = () => {
+      _irOrig = img;
+      document.getElementById('ir-w').value = img.width;
+      document.getElementById('ir-h').value = img.height;
+      document.getElementById('ir-orig-info').textContent =
+        `${img.width} × ${img.height}px · ${fmtSize(f.size)} · ${f.name}`;
+      document.getElementById('ir-info').style.display = 'block';
+      document.getElementById('ir-compress').addEventListener('change', function() {
+        document.getElementById('ir-q-row').style.display = this.checked ? 'block' : 'none';
+      });
+    };
+    img.src = URL.createObjectURL(f);
+  }
+
+  function irSyncAR(changed) {
+    if (!_irOrig || !document.getElementById('ir-ar').checked) return;
+    const ratio = _irOrig.width / _irOrig.height;
+    if (changed === 'w') {
+      const w = parseInt(document.getElementById('ir-w').value) || 0;
+      document.getElementById('ir-h').value = Math.round(w / ratio) || '';
+    } else {
+      const h = parseInt(document.getElementById('ir-h').value) || 0;
+      document.getElementById('ir-w').value = Math.round(h * ratio) || '';
+    }
+  }
+
+  function irPreset(w, h) {
+    document.getElementById('ir-w').value = w;
+    document.getElementById('ir-h').value = h;
+    irPreview();
+  }
+
+  function _irRender(w, h, q) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    c.getContext('2d').drawImage(_irOrig, 0, 0, w, h);
+    return c;
+  }
+
+  function irPreview() {
+    if (!_irOrig) return;
+    const w = parseInt(document.getElementById('ir-w').value) || _irOrig.width;
+    const h = parseInt(document.getElementById('ir-h').value) || _irOrig.height;
+    const preview = document.getElementById('ir-canvas');
+    preview.width = w; preview.height = h;
+    preview.getContext('2d').drawImage(_irOrig, 0, 0, w, h);
+    document.getElementById('ir-preview-wrap').style.display = 'block';
+    document.getElementById('ir-preview-info').textContent = `Preview: ${w} × ${h}px`;
+  }
+
+  function irDownload() {
+    if (!_irOrig) return;
+    const w = parseInt(document.getElementById('ir-w').value) || _irOrig.width;
+    const h = parseInt(document.getElementById('ir-h').value) || _irOrig.height;
+    const doCompress = document.getElementById('ir-compress').checked;
+    const q = doCompress ? (parseInt(document.getElementById('ir-q').value) / 100) : 0.95;
+    const mime = doCompress ? 'image/jpeg' : 'image/png';
+    const ext = doCompress ? 'jpg' : 'png';
+    const c = _irRender(w, h);
+    c.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `taro-resize-${w}x${h}.${ext}`;
+      a.click();
+      showResult('ir-result', `✅ ${w} × ${h}px · ${fmtSize(blob.size)}`);
+      Audio.success();
+    }, mime, q);
+  }
+
+  // ── meta remove ──
+  let _mrFile = null;
+
+  function mrLoad() {
+    const input = document.getElementById('mr-file');
+    const f = input.files[0]; if (!f) return;
+    _mrFile = f;
+    document.getElementById('mr-name').textContent = f.name;
+    document.getElementById('mr-orig-size').textContent = fmtSize(f.size);
+    document.getElementById('mr-orig-meta').textContent = '⚠️ Puede tener metadatos EXIF';
+    const url = URL.createObjectURL(f);
+    document.getElementById('mr-before').src = url;
+    document.getElementById('mr-after').style.opacity = '.5';
+    // Limpiar y hacer preview de limpia
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      c.getContext('2d').drawImage(img, 0, 0);
+      c.toBlob(blob => {
+        document.getElementById('mr-after').src = URL.createObjectURL(blob);
+        document.getElementById('mr-after').style.opacity = '1';
+        document.getElementById('mr-clean-size').textContent = fmtSize(blob.size);
+      }, f.type || 'image/jpeg', 0.95);
+    };
+    img.src = url;
+    document.getElementById('mr-info').style.display = 'block';
+  }
+
+  function mrProcess() {
+    if (!_mrFile) return;
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      c.getContext('2d').drawImage(img, 0, 0);
+      const mime = _mrFile.type === 'image/png' ? 'image/png' : 'image/jpeg';
+      const ext  = _mrFile.type === 'image/png' ? 'png' : 'jpg';
+      c.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'taro-clean.' + ext;
+        a.click();
+        document.getElementById('mr-result').innerHTML =
+          `<div class="result-area">✅ Metadatos eliminados · ${fmtSize(_mrFile.size)} → ${fmtSize(blob.size)}</div>`;
+        Audio.success();
+      }, mime, 0.95);
+    };
+    img.src = URL.createObjectURL(_mrFile);
+  }
+
+  // ── favicon gen ──
+  let _fvImg = null;
+
+  function fvLoad() {
+    const input = document.getElementById('fv-file');
+    const f = input.files[0]; if (!f) return;
+    document.getElementById('fv-name').textContent = f.name;
+    const img = new Image();
+    img.onload = () => {
+      _fvImg = img;
+      [16, 32, 48, 192].forEach(sz => {
+        const id = sz === 192 ? 'fv-p192' : `fv-p${sz}`;
+        const c = document.getElementById(id);
+        c.width = sz; c.height = sz;
+        c.getContext('2d').drawImage(img, 0, 0, sz, sz);
+      });
+      document.getElementById('fv-info').style.display = 'block';
+    };
+    img.src = URL.createObjectURL(f);
+  }
+
+  function fvDownloadPng(sz) {
+    if (!_fvImg) return;
+    const c = document.createElement('canvas');
+    c.width = sz; c.height = sz;
+    c.getContext('2d').drawImage(_fvImg, 0, 0, sz, sz);
+    c.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `favicon-${sz}.png`;
+      a.click();
+      Audio.success();
+    }, 'image/png');
+  }
+
+  function fvDownloadIco() {
+    if (!_fvImg) return;
+    // Generar PNG de 32px y descargar como .ico (los navegadores modernos aceptan PNG dentro de .ico)
+    const c = document.createElement('canvas');
+    c.width = 32; c.height = 32;
+    c.getContext('2d').drawImage(_fvImg, 0, 0, 32, 32);
+    c.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'favicon.ico';
+      a.click();
+      Audio.success();
+    }, 'image/png');
+  }
+
   function _dropName(id) {
     const file = document.getElementById(id)?.files?.[0];
     const nameEl = document.getElementById(id + '-name');
@@ -1406,6 +1706,9 @@ const ToolFn = (() => {
     timerToggle, timerLap, timerReset,
     genUUID, genUUIDs, fetchIP,
     _dropName,
+    irLoad, irSyncAR, irPreset, irPreview, irDownload,
+    mrLoad, mrProcess,
+    fvLoad, fvDownloadPng, fvDownloadIco,
   };
 })();
 
@@ -1418,23 +1721,28 @@ const Admin = (() => {
   let extra  = JSON.parse(localStorage.getItem('tt-extra')  || '[]');
   let hidden = JSON.parse(localStorage.getItem('tt-hidden') || '[]');
   let passBuf = '';
-  const PASS = CONFIG.ADMIN_PASS;
-
+  const PASS_LEN = 11;
+  async function sha256(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
+  }
   // ── secret password listener ──
   document.addEventListener('keydown', e => {
     if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
-    passBuf = (passBuf + e.key).slice(-PASS.length);
-    if (passBuf === PASS) {
-      if (!unlocked) {
-        unlocked = true; Audio.unlock();
-        UI.showToast(I18n.get().toast.unlocked);
-        setTimeout(() => { renderPanel(); document.getElementById('admin-modal').classList.add('open'); }, 400);
-      } else {
-        renderPanel();
-        document.getElementById('admin-modal').classList.add('open');
+    passBuf = (passBuf + e.key).slice(-PASS_LEN);
+    sha256(passBuf).then(hash => {
+      if (hash === CONFIG.ADMIN_PASS_HASH) {
+        if (!unlocked) {
+          unlocked = true; Audio.unlock();
+          UI.showToast(I18n.get().toast.unlocked);
+          setTimeout(() => { renderPanel(); document.getElementById('admin-modal').classList.add('open'); }, 400);
+        } else {
+          renderPanel();
+          document.getElementById('admin-modal').classList.add('open');
+        }
+        passBuf = '';
       }
-      passBuf = '';
-    }
+    });
   });
 
   function isUnlocked() { return unlocked; }
@@ -1595,21 +1903,6 @@ const Admin = (() => {
    INIT
 ═══════════════════════════════════════════════ */
 I18n.set('es');
-
-/* ── deep link: abrir tool desde URL hash ── */
-(function initDeepLink() {
-  function openFromHash() {
-    const hash = location.hash.replace('#', '').trim();
-    if (!hash) return;
-    const tool = Tools.allTools().find(t => t.id === hash);
-    if (tool && !tool.soon) Tools.openTool(tool);
-  }
-  // Al cargar la página
-  window.addEventListener('DOMContentLoaded', () => setTimeout(openFromHash, 100));
-  // Si el hash cambia (navegación con botón atrás/adelante)
-  window.addEventListener('hashchange', openFromHash);
-})();
-
 /* ── drag over highlight ── */
 document.addEventListener('dragover', e => {
   e.preventDefault();
@@ -1623,3 +1916,15 @@ document.addEventListener('dragleave', e => {
 document.addEventListener('drop', e => {
   document.querySelectorAll('.file-drop').forEach(d => d.classList.remove('drag-over'));
 });
+
+/* ── deep link ── */
+(function initDeepLink() {
+  function openFromHash() {
+    const hash = location.hash.replace('#', '').trim();
+    if (!hash) return;
+    const tool = Tools.allTools().find(t => t.id === hash);
+    if (tool && !tool.soon) Tools.openTool(tool);
+  }
+  window.addEventListener('DOMContentLoaded', () => setTimeout(openFromHash, 100));
+  window.addEventListener('hashchange', openFromHash);
+})();
