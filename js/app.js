@@ -425,6 +425,23 @@ const Tools = (() => {
    TOOL UI BUILDER
 ═══════════════════════════════════════════════ */
 const ToolUI = (() => {
+  /* ── file drop zone builder ── */
+  function dropZone(id, accept, onchange, label, multiple=false) {
+    const icons = {
+      'image': '🖼️', 'image/jpeg,image/png,image/webp': '🖼️',
+      'video': '🎬', 'audio': '🎵',
+      'application/pdf': '📄', '.txt,.pdf': '📄',
+    };
+    const icon = icons[accept] || icons[accept.split(',')[0].split('/')[0]] || '📁';
+    const multAttr = multiple ? 'multiple' : '';
+    return `<div class="file-drop" id="${id}-drop">
+      <input type="file" id="${id}" accept="${accept}" onchange="${onchange};ToolFn._dropName('${id}')" ${multAttr}>
+      <div class="file-drop__icon">${icon}</div>
+      <div class="file-drop__title">${label}</div>
+      <div class="file-drop__sub">o hacé click para elegir</div>
+      <div class="file-drop__name" id="${id}-name"></div>
+    </div>`;
+  }
   const infoBox = html => `<div class="info-box">${html}</div>`;
   const label   = txt  => `<label>${txt}</label>`;
   const sel     = (id, opts) => `<select id="${id}">${opts.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>`;
@@ -1366,23 +1383,6 @@ const ToolFn = (() => {
   }
 
 
-  /* ── file drop zone builder ── */
-  function dropZone(id, accept, onchange, label, multiple=false) {
-    const icons = {
-      'image': '🖼️', 'image/jpeg,image/png,image/webp': '🖼️',
-      'video': '🎬', 'audio': '🎵',
-      'application/pdf': '📄', '.txt,.pdf': '📄',
-    };
-    const icon = icons[accept] || icons[accept.split(',')[0].split('/')[0]] || '📁';
-    const multAttr = multiple ? 'multiple' : '';
-    return `<div class="file-drop" id="${id}-drop">
-      <input type="file" id="${id}" accept="${accept}" onchange="${onchange};ToolFn._dropName('${id}')" ${multAttr}>
-      <div class="file-drop__icon">${icon}</div>
-      <div class="file-drop__title">${label}</div>
-      <div class="file-drop__sub">o hacé click para elegir</div>
-      <div class="file-drop__name" id="${id}-name"></div>
-    </div>`;
-  }
   function _dropName(id) {
     const file = document.getElementById(id)?.files?.[0];
     const nameEl = document.getElementById(id + '-name');
