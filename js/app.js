@@ -5,7 +5,7 @@
 ═══════════════════════════════════════════════ */
 const CONFIG = {
   GEMINI_PROXY: '/.netlify/functions/gemini',
-  GEMINI_MODEL: 'gemini-1.5-flash-8b',
+  GEMINI_MODEL: 'gemini-1.5-flash-latest',
   COBALT_API: 'https://api.cobalt.tools/api/json',
   QR_API: 'https://api.qrserver.com/v1/create-qr-code/',
   IP_API: 'https://api.ipify.org?format=json',
