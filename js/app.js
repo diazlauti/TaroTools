@@ -300,6 +300,8 @@ const UI = (() => {
 
   function closeModal(id) {
     document.getElementById(id).classList.remove('open');
+    // Limpiar el hash solo si se cierra la tool modal
+    if (id === 'tool-modal' && location.hash) history.replaceState(null, '', ' ');
   }
 
   document.querySelectorAll('.modal-bg').forEach(bg => {
@@ -404,6 +406,8 @@ const Tools = (() => {
     document.getElementById('modal-title').textContent = tool.icon + ' ' + tool.name;
     document.getElementById('modal-body').innerHTML = ToolUI.build(tool);
     UI.openModal('tool-modal');
+    // Escribir el ID de la tool en el hash para que sea linkeable
+    history.replaceState(null, '', '#' + tool.id);
     if (tool.type === 'word-count') {
       const ta = document.getElementById('wc-input');
       if (ta) ta.addEventListener('input', ToolFn.updateWC);
@@ -1382,7 +1386,6 @@ const ToolFn = (() => {
     }
   }
 
-
   function _dropName(id) {
     const file = document.getElementById(id)?.files?.[0];
     const nameEl = document.getElementById(id + '-name');
@@ -1593,19 +1596,19 @@ const Admin = (() => {
 ═══════════════════════════════════════════════ */
 I18n.set('es');
 
-/* ── drag over highlight ── */
-document.addEventListener('dragover', e => {
-  e.preventDefault();
-  const drop = e.target.closest('.file-drop');
-  if (drop) drop.classList.add('drag-over');
-});
-document.addEventListener('dragleave', e => {
-  const drop = e.target.closest('.file-drop');
-  if (drop && !drop.contains(e.relatedTarget)) drop.classList.remove('drag-over');
-});
-document.addEventListener('drop', e => {
-  document.querySelectorAll('.file-drop').forEach(d => d.classList.remove('drag-over'));
-});
+/* ── deep link: abrir tool desde URL hash ── */
+(function initDeepLink() {
+  function openFromHash() {
+    const hash = location.hash.replace('#', '').trim();
+    if (!hash) return;
+    const tool = Tools.allTools().find(t => t.id === hash);
+    if (tool && !tool.soon) Tools.openTool(tool);
+  }
+  // Al cargar la página
+  window.addEventListener('DOMContentLoaded', () => setTimeout(openFromHash, 100));
+  // Si el hash cambia (navegación con botón atrás/adelante)
+  window.addEventListener('hashchange', openFromHash);
+})();
 
 /* ── drag over highlight ── */
 document.addEventListener('dragover', e => {
