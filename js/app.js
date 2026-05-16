@@ -4,12 +4,12 @@
    CONFIG
 ═══════════════════════════════════════════════ */
 const CONFIG = {
-  GEMINI_PROXY: '/.netlify/functions/gemini',
-  GEMINI_MODEL: 'gemini-2.0-flash-lite',
+  GEMINI_KEY: 'AIzaSyDB26LI4bheDitoDuaB6i1bA8TZfyWhKlE', // 🔑 reemplazá antes de subir
+  GEMINI_MODEL: 'gemini-2.0-flash',
   COBALT_API: 'https://api.cobalt.tools/api/json',
   QR_API: 'https://api.qrserver.com/v1/create-qr-code/',
   IP_API: 'https://api.ipify.org?format=json',
-  ADMIN_PASS_HASH: 'a0f50e4075fa8fc1c8acce4c6ab92f7713913eb7906850bb25cc3a72f88e4550',
+  ADMIN_PASS: 'lauti290907',
 };
 
 /* ═══════════════════════════════════════════════
@@ -51,12 +51,12 @@ const I18n = (() => {
     { id:'b4',  icon:'🎬', cat:'media',      type:'vid-compress'  },
     { id:'b5',  icon:'🎵', cat:'media',      type:'aud-compress'  },
     { id:'b6',  icon:'📄', cat:'archivo',    type:'pdf-text'      },
-    { id:'b7', icon:'✂️', cat:'texto',       type:'ai-soon',      soon:true },
-    { id:'b8', icon:'✏️', cat:'texto',       type:'ai-soon',      soon:true },
+    { id:'b7',  icon:'✂️', cat:'texto',      type:'ai-soon',      soon:true },
+    { id:'b8',  icon:'✏️', cat:'texto',      type:'ai-soon',      soon:true },
     { id:'b9',  icon:'🌐', cat:'texto',      type:'ai-soon',      soon:true },
     { id:'b10', icon:'📝', cat:'texto',      type:'ai-soon',      soon:true },
     { id:'b11', icon:'⬇️', cat:'media',      type:'cobalt-dl'     },
-    { id:'b12', icon:'◼️', cat:'util',        type:'qr-gen'        },
+    { id:'b12', icon:'◼️', cat:'util',       type:'qr-gen'        },
     { id:'b13', icon:'🎨', cat:'util',       type:'color-conv'    },
     { id:'b14', icon:'🔡', cat:'texto',      type:'case-conv'     },
     { id:'b15', icon:'🔢', cat:'texto',      type:'word-count'    },
@@ -462,7 +462,7 @@ const ToolUI = (() => {
     'img-compress': () =>
       infoBox('Soporta <b>JPG, PNG, WEBP</b>. Todo se procesa en tu navegador, nada se sube.') +
       label('Imagen') +
-      `<input type="file" id="ic-file" accept="image/jpeg,image/png,image/webp" onchange="ToolFn.previewImg()">` +
+      `${dropZone('ic-file','image/jpeg,image/png,image/webp','ToolFn.previewImg()','Arrastrá una imagen acá')}` +
       // preview + comparación
       `<div id="ic-previews" style="display:none;margin:.8rem 0">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem">
@@ -488,7 +488,7 @@ const ToolUI = (() => {
     'img-convert': () =>
       infoBox('Convertí entre <b>JPG, PNG y WEBP</b>. Podés subir varias imágenes a la vez.') +
       label('Imágenes (múltiples)') +
-      `<input type="file" id="cv-file" accept="image/jpeg,image/png,image/webp" multiple onchange="ToolFn.previewConvertFiles()">` +
+      `${dropZone('cv-file','image/jpeg,image/png,image/webp','ToolFn.previewConvertFiles()','Arrastrá imágenes acá',true)}` +
       `<div id="cv-previews" style="display:flex;flex-wrap:wrap;gap:.4rem;margin:.6rem 0"></div>` +
       label('Convertir a') +
       sel('cv-fmt', [['image/jpeg','JPG'],['image/png','PNG'],['image/webp','WEBP']]) +
@@ -499,7 +499,7 @@ const ToolUI = (() => {
     'img-pdf': () =>
       infoBox('Subí <b>una o más imágenes</b>. Cada una ocupa una página en el PDF. El orden es el que subiste.') +
       label('Imágenes') +
-      `<input type="file" id="ipdf-file" accept="image/*" multiple onchange="ToolFn.previewPdfFiles()">` +
+      `${dropZone('ipdf-file','image/*','ToolFn.previewPdfFiles()','Arrastrá imágenes acá',true)}` +
       `<div id="ipdf-previews" style="display:flex;flex-wrap:wrap;gap:.4rem;margin:.6rem 0"></div>` +
       `<div class="btn-row"><button class="btn" onclick="ToolFn.imgToPdf()">📄 Generar PDF</button></div>` +
       loader('ipdf-loader','⏳ generando PDF...') +
@@ -509,7 +509,7 @@ const ToolUI = (() => {
     'vid-compress': () =>
       infoBox('⚠️ El resultado es <b>WEBM</b> (limitación del navegador). Para MP4 profesional usá <a href="https://handbrake.fr" target="_blank">HandBrake</a> (gratis).') +
       label('Video') +
-      `<input type="file" id="vc-file" accept="video/*" onchange="ToolFn.previewVideo()">` +
+      `${dropZone('vc-file','video/*','ToolFn.previewVideo()','Arrastrá un video acá')}` +
       `<div id="vc-video-preview" style="margin:.5rem 0;display:none">
         <video id="vc-orig-video" controls muted style="width:100%;border-radius:8px;border:1.5px solid var(--border);max-height:160px"></video>
         <p id="vc-orig-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin-top:.3rem"></p>
@@ -535,7 +535,7 @@ const ToolUI = (() => {
     'aud-compress': () =>
       infoBox('Soporta <b>MP3, WAV, OGG, M4A</b>. Se exporta como WAV (sin pérdida adicional). Bajá el sample rate o pasá a Mono para reducir más el tamaño.') +
       label('Archivo de audio') +
-      `<input type="file" id="ac-file" accept="audio/*" onchange="ToolFn.previewAudio()">` +
+      `${dropZone('ac-file','audio/*','ToolFn.previewAudio()','Arrastrá un archivo de audio acá')}` +
       `<div id="ac-audio-preview" style="margin:.5rem 0;display:none">
         <audio id="ac-orig-audio" controls style="width:100%;margin-bottom:.3rem"></audio>
         <p id="ac-orig-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono)"></p>
@@ -553,7 +553,7 @@ const ToolUI = (() => {
     'pdf-text': () =>
       infoBox('Funciona con PDFs que tienen <b>texto seleccionable</b>. Los PDFs escaneados (imágenes) no son compatibles.') +
       label('Archivo PDF') +
-      `<input type="file" id="pdf-file" accept="application/pdf">` +
+      `${dropZone('pdf-file','application/pdf','','Arrastrá un PDF acá')}` +
       `<div class="btn-row"><button class="btn" onclick="ToolFn.pdfToText()">📄 Extraer texto</button></div>` +
       loader('pdf-loader','⏳ procesando PDF...') +
       `<div class="result-area" id="pdf-result" style="display:none;max-height:260px;overflow-y:auto"></div>` +
@@ -568,43 +568,6 @@ const ToolUI = (() => {
         <p>${s.soonDesc}<br><br>Las herramientas de IA con <b>Gemini</b> van a estar disponibles pronto. ¡Volvé a revisar!</p>
       </div>`;
     },
-
-    /* ── AI SUMMARIZE ── */
-    'ai-summarize': () =>
-      infoBox('Resumí cualquier texto con <b>IA (Gemini)</b>. Pegá el texto o subí un archivo <b>TXT o PDF</b>.') +
-      label('Texto') +
-      `<textarea id="sum-input" placeholder="Pegá el texto acá..." style="min-height:140px"></textarea>` +
-      label('O subí un archivo') +
-      `<input type="file" id="sum-file" accept=".txt,.pdf" onchange="ToolFn.sumLoadFile()">` +
-      `<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.5rem">` +
-        `<div><label style="margin-top:0">Longitud</label>` +
-        sel('sum-len', [['corto','Corto (1-2 párrafos)'], ['medio','Medio (3-4 párrafos)'], ['largo','Largo (detallado)']]) +
-        `</div>` +
-        `<div><label style="margin-top:0">Estilo</label>` +
-        sel('sum-style', [['neutro','Neutro'], ['formal','Formal'], ['casual','Casual'], ['bullets','Bullets / viñetas']]) +
-        `</div>` +
-      `</div>` +
-      `<div class="btn-row"><button class="btn" onclick="ToolFn.summarize()">✂️ Resumir</button></div>` +
-      loader('sum-loader', '⏳ resumiendo con Gemini...') +
-      result('sum-result') + copyRow('sum-result'),
-
-    /* ── AI CORRECT ── */
-    'ai-correct': () =>
-      infoBox('Corregí ortografía y gramática con <b>IA (Gemini)</b>. El texto corregido aparece abajo con las diferencias marcadas.') +
-      label('Texto a corregir') +
-      `<textarea id="cor-input" placeholder="Pegá el texto acá..." style="min-height:140px"></textarea>` +
-      label('Idioma') +
-      sel('cor-lang', [
-        ['español','Español'],
-        ['inglés','Inglés'],
-        ['portugués','Portugués'],
-        ['francés','Francés'],
-        ['italiano','Italiano'],
-        ['alemán','Alemán'],
-      ]) +
-      `<div class="btn-row"><button class="btn" onclick="ToolFn.correct()">✏️ Corregir</button></div>` +
-      loader('cor-loader', '⏳ corrigiendo con Gemini...') +
-      result('cor-result') + copyRow('cor-result'),
 
     /* ── COBALT DL ── */
     'cobalt-dl': () =>
@@ -1402,114 +1365,28 @@ const ToolFn = (() => {
     }
   }
 
-  // ── ai summarize ──
-  async function sumLoadFile() {
-    const file = document.getElementById('sum-file').files[0];
-    if (!file) return;
-    const ta = document.getElementById('sum-input');
-    if (file.type === 'text/plain') { ta.value = await file.text(); return; }
-    if (file.type === 'application/pdf') {
-      try {
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        const buf = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-        let text = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const ct = await page.getTextContent();
-          text += ct.items.map(it => it.str).join(' ') + '\n';
-        }
-        ta.value = text.trim();
-      } catch(e) { showResult('sum-result', 'Error al leer el PDF: ' + e.message, true); Audio.error(); }
-      return;
-    }
-    showResult('sum-result', 'Formato no soportado. Usá TXT o PDF.', true); Audio.error();
+
+  /* ── file drop zone builder ── */
+  function dropZone(id, accept, onchange, label, multiple=false) {
+    const icons = {
+      'image': '🖼️', 'image/jpeg,image/png,image/webp': '🖼️',
+      'video': '🎬', 'audio': '🎵',
+      'application/pdf': '📄', '.txt,.pdf': '📄',
+    };
+    const icon = icons[accept] || icons[accept.split(',')[0].split('/')[0]] || '📁';
+    const multAttr = multiple ? 'multiple' : '';
+    return `<div class="file-drop" id="${id}-drop">
+      <input type="file" id="${id}" accept="${accept}" onchange="${onchange};ToolFn._dropName('${id}')" ${multAttr}>
+      <div class="file-drop__icon">${icon}</div>
+      <div class="file-drop__title">${label}</div>
+      <div class="file-drop__sub">o hacé click para elegir</div>
+      <div class="file-drop__name" id="${id}-name"></div>
+    </div>`;
   }
-
-  async function summarize() {
-    const text = document.getElementById('sum-input').value.trim();
-    if (!text) { Audio.error(); return; }
-    const len   = document.getElementById('sum-len').value;
-    const style = document.getElementById('sum-style').value;
-    const lenMap   = { corto: '1 o 2 párrafos cortos', medio: '3 o 4 párrafos', largo: 'un resumen detallado y extenso' };
-    const styleMap = { neutro: 'en tono neutro y objetivo', formal: 'en tono formal y profesional', casual: 'en tono casual y accesible', bullets: 'como una lista de viñetas con los puntos clave' };
-    const prompt = `Resumí el siguiente texto en ${lenMap[len]}, ${styleMap[style]}. Respondé solo con el resumen, sin comentarios extra.\n\n---\n${text}`;
-    toggleLoader('sum-loader', true);
-    document.getElementById('sum-result').style.display = 'none';
-    document.getElementById('sum-result-copy').style.display = 'none';
-    try {
-      const res = await fetch(CONFIG.GEMINI_PROXY, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: CONFIG.GEMINI_MODEL, contents: [{ parts: [{ text: prompt }] }] }),
-      });
-      const data = await res.json();
-      toggleLoader('sum-loader', false);
-      if (!res.ok) throw new Error(data.error || 'Error del servidor');
-      const output = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!output) throw new Error('Respuesta vacía de Gemini');
-      const html = output.split('\n').filter(l => l.trim()).map(l => `<p style="margin:.4rem 0;line-height:1.6">${l}</p>`).join('');
-      showResult('sum-result', html);
-      showCopyBtn('sum-result', `() => document.getElementById('sum-result').innerText`);
-      Audio.success();
-    } catch(e) {
-      toggleLoader('sum-loader', false);
-      showResult('sum-result', '❌ ' + e.message, true); Audio.error();
-    }
-  }
-
-  // ── ai correct ──
-  async function correct() {
-    const text = document.getElementById('cor-input').value.trim();
-    if (!text) { Audio.error(); return; }
-    const lang = document.getElementById('cor-lang').value;
-
-    const prompt = `Corregí el siguiente texto en ${lang}. Corregí solo errores de ortografía y gramática, sin cambiar el estilo ni el significado. Respondé únicamente con el texto corregido, sin explicaciones ni comentarios.\n\n---\n${text}`;
-
-    toggleLoader('cor-loader', true);
-    document.getElementById('cor-result').style.display = 'none';
-    document.getElementById('cor-result-copy').style.display = 'none';
-
-    try {
-      const res = await fetch(CONFIG.GEMINI_PROXY, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: CONFIG.GEMINI_MODEL, contents: [{ parts: [{ text: prompt }] }] }),
-      });
-      const data = await res.json();
-      toggleLoader('cor-loader', false);
-      if (!res.ok) throw new Error(data.error || 'Error del servidor');
-      const output = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!output) throw new Error('Respuesta vacía de Gemini');
-
-      // Diff visual: marcar palabras que cambiaron
-      const originalWords = text.split(/\s+/);
-      const correctedWords = output.trim().split(/\s+/);
-      const maxLen = Math.max(originalWords.length, correctedWords.length);
-      let diffHtml = '';
-      for (let i = 0; i < maxLen; i++) {
-        const orig = originalWords[i] || '';
-        const corr = correctedWords[i] || '';
-        if (orig !== corr) {
-          diffHtml += `<mark style="background:var(--accent);color:#000;border-radius:3px;padding:0 2px">${corr}</mark> `;
-        } else {
-          diffHtml += corr + ' ';
-        }
-      }
-
-      const changedCount = originalWords.filter((w, i) => w !== (correctedWords[i] || '')).length;
-      const summary = changedCount === 0
-        ? `<p style="font-size:.75rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.6rem">✅ Sin errores encontrados</p>`
-        : `<p style="font-size:.75rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.6rem">✦ ${changedCount} corrección${changedCount > 1 ? 'es' : ''} marcada${changedCount > 1 ? 's' : ''} en <span style="background:var(--accent);color:#000;border-radius:3px;padding:0 2px">amarillo</span></p>`;
-
-      showResult('cor-result', summary + `<div style="line-height:1.8">${diffHtml.trim()}</div>`);
-      showCopyBtn('cor-result', `() => document.getElementById('cor-result').innerText.split('\\n').slice(1).join('\\n').trim()`);
-      Audio.success();
-    } catch(e) {
-      toggleLoader('cor-loader', false);
-      showResult('cor-result', '❌ ' + e.message, true); Audio.error();
-    }
+  function _dropName(id) {
+    const file = document.getElementById(id)?.files?.[0];
+    const nameEl = document.getElementById(id + '-name');
+    if (nameEl && file) nameEl.textContent = file.name;
   }
 
   return {
@@ -1525,8 +1402,7 @@ const ToolFn = (() => {
     b64Action, genHash,
     timerToggle, timerLap, timerReset,
     genUUID, genUUIDs, fetchIP,
-    sumLoadFile, summarize,
-    correct,
+    _dropName,
   };
 })();
 
@@ -1539,30 +1415,23 @@ const Admin = (() => {
   let extra  = JSON.parse(localStorage.getItem('tt-extra')  || '[]');
   let hidden = JSON.parse(localStorage.getItem('tt-hidden') || '[]');
   let passBuf = '';
-  const PASS_LEN = 11;
-
-  async function sha256(str) {
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-    return [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
-  }
+  const PASS = CONFIG.ADMIN_PASS;
 
   // ── secret password listener ──
   document.addEventListener('keydown', e => {
     if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
-    passBuf = (passBuf + e.key).slice(-PASS_LEN);
-    sha256(passBuf).then(hash => {
-      if (hash === CONFIG.ADMIN_PASS_HASH) {
-        if (!unlocked) {
-          unlocked = true; Audio.unlock();
-          UI.showToast(I18n.get().toast.unlocked);
-          setTimeout(() => { renderPanel(); document.getElementById('admin-modal').classList.add('open'); }, 400);
-        } else {
-          renderPanel();
-          document.getElementById('admin-modal').classList.add('open');
-        }
-        passBuf = '';
+    passBuf = (passBuf + e.key).slice(-PASS.length);
+    if (passBuf === PASS) {
+      if (!unlocked) {
+        unlocked = true; Audio.unlock();
+        UI.showToast(I18n.get().toast.unlocked);
+        setTimeout(() => { renderPanel(); document.getElementById('admin-modal').classList.add('open'); }, 400);
+      } else {
+        renderPanel();
+        document.getElementById('admin-modal').classList.add('open');
       }
-    });
+      passBuf = '';
+    }
   });
 
   function isUnlocked() { return unlocked; }
@@ -1723,3 +1592,31 @@ const Admin = (() => {
    INIT
 ═══════════════════════════════════════════════ */
 I18n.set('es');
+
+/* ── drag over highlight ── */
+document.addEventListener('dragover', e => {
+  e.preventDefault();
+  const drop = e.target.closest('.file-drop');
+  if (drop) drop.classList.add('drag-over');
+});
+document.addEventListener('dragleave', e => {
+  const drop = e.target.closest('.file-drop');
+  if (drop && !drop.contains(e.relatedTarget)) drop.classList.remove('drag-over');
+});
+document.addEventListener('drop', e => {
+  document.querySelectorAll('.file-drop').forEach(d => d.classList.remove('drag-over'));
+});
+
+/* ── drag over highlight ── */
+document.addEventListener('dragover', e => {
+  e.preventDefault();
+  const drop = e.target.closest('.file-drop');
+  if (drop) drop.classList.add('drag-over');
+});
+document.addEventListener('dragleave', e => {
+  const drop = e.target.closest('.file-drop');
+  if (drop && !drop.contains(e.relatedTarget)) drop.classList.remove('drag-over');
+});
+document.addEventListener('drop', e => {
+  document.querySelectorAll('.file-drop').forEach(d => d.classList.remove('drag-over'));
+});
