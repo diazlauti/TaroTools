@@ -55,7 +55,7 @@ const I18n = (() => {
     { id:'b8',  icon:'✏️', cat:'texto',      type:'ai-soon',      soon:true },
     { id:'b9',  icon:'🌐', cat:'texto',      type:'ai-soon',      soon:true },
     { id:'b10', icon:'📝', cat:'texto',      type:'ai-soon',      soon:true },
-    { id:'b11', icon:'⬇️', cat:'media',      type:'ai-soon',      soon:true },
+    { id:'b11', icon:'⬇️', cat:'media',      type:'cobalt-dl'     },
     { id:'b12', icon:'◼️', cat:'util',       type:'qr-gen'        },
     { id:'b13', icon:'🎨', cat:'util',       type:'color-conv'    },
     { id:'b14', icon:'🔡', cat:'texto',      type:'case-conv'     },
@@ -69,6 +69,14 @@ const I18n = (() => {
     { id:'b22', icon:'🚫', cat:'imagen',     type:'meta-remove'   },
     { id:'b23', icon:'🌐', cat:'imagen',     type:'favicon-gen'   },
     { id:'b24', icon:'✂️',  cat:'imagen',     type:'ai-soon',      soon:true },
+    { id:'c1',  icon:'🔗', cat:'pdf',        type:'pdf-merge'     },
+    { id:'c2',  icon:'✂️', cat:'pdf',        type:'pdf-split'     },
+    { id:'c3',  icon:'🗜️', cat:'pdf',        type:'pdf-compress'  },
+    { id:'c4',  icon:'🖼️', cat:'pdf',        type:'pdf-to-jpg'    },
+    { id:'c5',  icon:'🔓', cat:'pdf',        type:'pdf-unlock'    },
+    { id:'c6',  icon:'🔄', cat:'pdf',        type:'pdf-rotate'    },
+    { id:'c7',  icon:'🗑️', cat:'pdf',        type:'pdf-delete-p'  },
+    { id:'c8',  icon:'🔍', cat:'pdf',        type:'pdf-ocr'       },
   ];
 
   const STRINGS = {
@@ -76,9 +84,9 @@ const I18n = (() => {
       tagline:'herramientas útiles · sin virus · sin drama',
       search:'Buscar herramienta...',
       mq:'✦ TARO\'S TOOLS ✦ COMPRESOR ✦ PDF ✦ TRADUCTOR ✦ RESUMIDOR ✦ DESCARGADOR ✦ CONVERTIDOR ✦ CORRECTOR ✦ VIDEO ✦ AUDIO ✦ QR ✦ COLORES ✦',
-      tabs:['Todas','Archivos','Imagen','Texto','Conversión','Media','Utilidades'],
-      catKeys:['all','archivo','imagen','texto','conversion','media','util'],
-      catNames:{ archivo:'📁 Archivos', imagen:'🖼️ Imagen', texto:'📝 Texto', conversion:'🔄 Conversión', media:'🎬 Media', util:'⚡ Utilidades' },
+      tabs:['Todas','Archivos','PDF','Imagen','Texto','Conversión','Media','Utilidades'],
+      catKeys:['all','archivo','pdf','imagen','texto','conversion','media','util'],
+      catNames:{ archivo:'📁 Archivos', pdf:'📄 PDF', imagen:'🖼️ Imagen', texto:'📝 Texto', conversion:'🔄 Conversión', media:'🎬 Media', util:'⚡ Utilidades' },
       donBtn:'donar', donTitle:'💜 Apoyá a Taro',
       donDesc:'Si esta página te fue útil, invitame un café o hacé una donación.',
       adminTitle:'// panel admin', atTools:'herramientas', atAdd:'agregar', atCats:'categorías',
@@ -101,6 +109,7 @@ const I18n = (() => {
         b14:'Conversor de mayúsculas', b15:'Contador de palabras', b16:'Base64',
         b17:'Generador de hash', b18:'Cronómetro', b19:'Generador de UUID', b20:'¿Cuál es mi IP?',
         b21:'Redimensionar imagen', b22:'Borrar metadatos', b23:'Generador de favicon', b24:'Borrar fondo',
+        c1:'Combinar PDFs', c2:'Dividir PDF', c3:'Comprimir PDF', c4:'PDF a JPG', c5:'Desbloquear PDF', c6:'Rotar PDF', c7:'Borrar páginas', c8:'OCR — imagen a texto',
       },
       toolDescs:{
         b1:'Reducí el tamaño de JPG/PNG con preview y comparación antes/después.',
@@ -127,6 +136,14 @@ const I18n = (() => {
         b22:'Eliminá todos los metadatos EXIF de tu foto (GPS, cámara, fecha). 100% local.',
         b23:'Convertí cualquier imagen a favicon .ico listo para usar en tu sitio web.',
         b24:'Próximamente — eliminá el fondo de cualquier imagen automáticamente.',
+        c1:'Combiná varios PDFs en uno solo, en el orden que quieras.',
+        c2:'Dividí un PDF por páginas o rangos.',
+        c3:'Reducí el peso de tu PDF sin perder calidad visible.',
+        c4:'Exportá cada página de un PDF como imagen JPG.',
+        c5:'Eliminá restricciones de copia y edición de un PDF.',
+        c6:'Rotá páginas de tu PDF en 90°, 180° o 270°.',
+        c7:'Eliminá páginas específicas de un PDF.',
+        c8:'Extraé texto de imágenes o PDFs escaneados con OCR.',
       },
       langs:['Inglés','Español','Portugués','Francés','Alemán','Italiano','Japonés','Chino (simplificado)','Árabe','Ruso','Coreano','Hindi'],
     },
@@ -134,9 +151,9 @@ const I18n = (() => {
       tagline:'useful tools · no viruses · no drama',
       search:'Search tool...',
       mq:'✦ TARO\'S TOOLS ✦ COMPRESSOR ✦ PDF ✦ TRANSLATOR ✦ SUMMARIZER ✦ DOWNLOADER ✦ CONVERTER ✦ CORRECTOR ✦ VIDEO ✦ AUDIO ✦ QR ✦ COLORS ✦',
-      tabs:['All','Files','Image','Text','Conversion','Media','Utilities'],
-      catKeys:['all','archivo','imagen','texto','conversion','media','util'],
-      catNames:{ archivo:'📁 Files', imagen:'🖼️ Image', texto:'📝 Text', conversion:'🔄 Conversion', media:'🎬 Media', util:'⚡ Utilities' },
+      tabs:['All','Files','PDF','Image','Text','Conversion','Media','Utilities'],
+      catKeys:['all','archivo','pdf','imagen','texto','conversion','media','util'],
+      catNames:{ archivo:'📁 Files', pdf:'📄 PDF', imagen:'🖼️ Image', texto:'📝 Text', conversion:'🔄 Conversion', media:'🎬 Media', util:'⚡ Utilities' },
       donBtn:'donate', donTitle:'💜 Support Taro',
       donDesc:'If this page was useful, buy me a coffee or make a donation.',
       adminTitle:'// admin panel', atTools:'tools', atAdd:'add', atCats:'categories',
@@ -187,9 +204,9 @@ const I18n = (() => {
       tagline:'ferramentas úteis · sem vírus · sem drama',
       search:'Buscar ferramenta...',
       mq:'✦ TARO\'S TOOLS ✦ COMPRESSOR ✦ PDF ✦ TRADUTOR ✦ RESUMIDOR ✦ BAIXADOR ✦ CONVERSOR ✦ CORRETOR ✦ VÍDEO ✦ ÁUDIO ✦ QR ✦ CORES ✦',
-      tabs:['Todas','Arquivos','Imagem','Texto','Conversão','Mídia','Utilidades'],
-      catKeys:['all','archivo','imagen','texto','conversion','media','util'],
-      catNames:{ archivo:'📁 Arquivos', imagen:'🖼️ Imagem', texto:'📝 Texto', conversion:'🔄 Conversão', media:'🎬 Mídia', util:'⚡ Utilidades' },
+      tabs:['Todas','Arquivos','PDF','Imagem','Texto','Conversão','Mídia','Utilidades'],
+      catKeys:['all','archivo','pdf','imagen','texto','conversion','media','util'],
+      catNames:{ archivo:'📁 Arquivos', pdf:'📄 PDF', imagen:'🖼️ Imagem', texto:'📝 Texto', conversion:'🔄 Conversão', media:'🎬 Mídia', util:'⚡ Utilidades' },
       donBtn:'doar', donTitle:'💜 Apoie o Taro',
       donDesc:'Se esta página foi útil, me pague um café ou faça uma doação.',
       adminTitle:'// painel admin', atTools:'ferramentas', atAdd:'adicionar', atCats:'categorias',
@@ -719,6 +736,159 @@ const ToolUI = (() => {
           <code style="font-size:.7rem">&lt;link rel="icon" href="favicon.ico"&gt;</code>
         </div>
       </div>`,
+
+    /* ── PDF MERGE ── */
+    'pdf-merge': () =>
+      infoBox('Combiná varios PDFs en uno solo. Arrastrá para reordenar antes de combinar. 100% local con <b>PDF-lib</b>.') +
+      `<input type="file" id="pm-files" accept="application/pdf" multiple style="display:none" onchange="ToolFn.pmLoad()">` +
+      `<div class="file-drop" onclick="document.getElementById('pm-files').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pm-files').files=event.dataTransfer.files;ToolFn.pmLoad()">
+        <div class="file-drop__icon">🔗</div>
+        <div class="file-drop__title">Arrastrá los PDFs acá</div>
+        <div class="file-drop__sub">o hacé click · varios archivos a la vez</div>
+      </div>` +
+      `<div id="pm-list" style="margin:.6rem 0"></div>` +
+      `<div class="btn-row"><button class="btn" onclick="ToolFn.pmMerge()">🔗 Combinar PDFs</button></div>` +
+      loader('pm-loader','⏳ combinando PDFs...') +
+      result('pm-result'),
+
+    /* ── PDF SPLIT ── */
+    'pdf-split': () =>
+      infoBox('Dividí un PDF en páginas individuales o por rango. Ej: <b>1-3, 5, 7-9</b>.') +
+      `<input type="file" id="ps-file" accept="application/pdf" style="display:none" onchange="ToolFn.psLoad()">` +
+      `<div class="file-drop" onclick="document.getElementById('ps-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('ps-file').files=event.dataTransfer.files;ToolFn.psLoad()">
+        <div class="file-drop__icon">✂️</div>
+        <div class="file-drop__title">Arrastrá un PDF acá</div>
+        <div class="file-drop__sub">o hacé click para elegir</div>
+        <div class="file-drop__name" id="ps-name"></div>
+      </div>` +
+      `<div id="ps-info" style="display:none">
+        <p id="ps-pages-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>
+        <label>Modo</label>` +
+      sel('ps-mode',[['all','Todas las páginas (una por una)'],['range','Rango específico (ej: 1-3, 5)']]) +
+      `<div id="ps-range-row" style="display:none;margin-top:.4rem">
+          <label>Páginas (ej: 1-3, 5, 7-9)</label>
+          <input type="text" id="ps-range" placeholder="1-3, 5, 7-9">
+        </div>
+        <div class="btn-row"><button class="btn" onclick="ToolFn.psSplit()">✂️ Dividir PDF</button></div>` +
+      `</div>` +
+      loader('ps-loader','⏳ dividiendo PDF...') +
+      result('ps-result'),
+
+    /* ── PDF COMPRESS ── */
+    'pdf-compress': () =>
+      infoBox('Reducí el peso del PDF eliminando metadata y optimizando streams. Procesamiento 100% local.') +
+      `<input type="file" id="pc-file" accept="application/pdf" style="display:none" onchange="ToolFn.pcLoad()">` +
+      `<div class="file-drop" onclick="document.getElementById('pc-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pc-file').files=event.dataTransfer.files;ToolFn.pcLoad()">
+        <div class="file-drop__icon">🗜️</div>
+        <div class="file-drop__title">Arrastrá un PDF acá</div>
+        <div class="file-drop__sub">o hacé click para elegir</div>
+        <div class="file-drop__name" id="pc-name"></div>
+      </div>` +
+      `<div id="pc-info" style="display:none">
+        <p id="pc-orig-size" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>
+        <div class="btn-row"><button class="btn" onclick="ToolFn.pcCompress()">🗜️ Comprimir y descargar</button></div>
+      </div>` +
+      loader('pc-loader','⏳ comprimiendo PDF...') +
+      result('pc-result'),
+
+    /* ── PDF TO JPG ── */
+    'pdf-to-jpg': () =>
+      infoBox('Exportá cada página de tu PDF como imagen JPG de alta calidad. Procesamiento local con <b>PDF.js</b>.') +
+      `<input type="file" id="pj-file" accept="application/pdf" style="display:none" onchange="ToolFn.pjLoad()">` +
+      `<div class="file-drop" onclick="document.getElementById('pj-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pj-file').files=event.dataTransfer.files;ToolFn.pjLoad()">
+        <div class="file-drop__icon">🖼️</div>
+        <div class="file-drop__title">Arrastrá un PDF acá</div>
+        <div class="file-drop__sub">o hacé click para elegir</div>
+        <div class="file-drop__name" id="pj-name"></div>
+      </div>` +
+      `<div id="pj-info" style="display:none">
+        <p id="pj-pages-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>
+        <label>Calidad</label>` +
+      sel('pj-quality',[['2','Alta (2x)'],['1.5','Media (1.5x)'],['1','Estándar (1x)']]) +
+      `<div class="btn-row"><button class="btn" onclick="ToolFn.pjConvert()">🖼️ Convertir a JPG</button></div>
+      </div>` +
+      loader('pj-loader','⏳ convirtiendo páginas...') +
+      `<div id="pj-previews" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.5rem;margin-top:.6rem"></div>`,
+
+    /* ── PDF UNLOCK ── */
+    'pdf-unlock': () =>
+      infoBox('Eliminá restricciones de copia, impresión y edición de PDFs. <b>No funciona con contraseña de apertura.</b>') +
+      `<input type="file" id="pu-file" accept="application/pdf" style="display:none" onchange="ToolFn.puLoad()">` +
+      `<div class="file-drop" onclick="document.getElementById('pu-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pu-file').files=event.dataTransfer.files;ToolFn.puLoad()">
+        <div class="file-drop__icon">🔓</div>
+        <div class="file-drop__title">Arrastrá un PDF acá</div>
+        <div class="file-drop__sub">o hacé click para elegir</div>
+        <div class="file-drop__name" id="pu-name"></div>
+      </div>` +
+      `<div id="pu-info" style="display:none">
+        <p id="pu-orig-size" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>
+        <div class="btn-row"><button class="btn" onclick="ToolFn.puUnlock()">🔓 Desbloquear y descargar</button></div>
+      </div>` +
+      loader('pu-loader','⏳ desbloqueando PDF...') +
+      result('pu-result'),
+
+    /* ── PDF ROTATE ── */
+    'pdf-rotate': () =>
+      infoBox('Rotá todas las páginas o páginas específicas de tu PDF.') +
+      `<input type="file" id="pr-file" accept="application/pdf" style="display:none" onchange="ToolFn.prLoad()">` +
+      `<div class="file-drop" onclick="document.getElementById('pr-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pr-file').files=event.dataTransfer.files;ToolFn.prLoad()">
+        <div class="file-drop__icon">🔄</div>
+        <div class="file-drop__title">Arrastrá un PDF acá</div>
+        <div class="file-drop__sub">o hacé click para elegir</div>
+        <div class="file-drop__name" id="pr-name"></div>
+      </div>` +
+      `<div id="pr-info" style="display:none">
+        <p id="pr-pages-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>
+        <label>Rotación</label>` +
+      sel('pr-deg',[['90','90° →'],['180','180°'],['270','270° ←']]) +
+      `<label>Páginas a rotar</label>` +
+      sel('pr-scope',[['all','Todas las páginas'],['range','Páginas específicas (ej: 1,3,5)']]) +
+      `<div id="pr-range-row" style="display:none;margin-top:.4rem">
+          <input type="text" id="pr-range" placeholder="ej: 1, 3, 5-7">
+        </div>
+        <div class="btn-row"><button class="btn" onclick="ToolFn.prRotate()">🔄 Rotar y descargar</button></div>
+      </div>` +
+      loader('pr-loader','⏳ rotando PDF...') +
+      result('pr-result'),
+
+    /* ── PDF DELETE PAGES ── */
+    'pdf-delete-p': () =>
+      infoBox('Eliminá páginas específicas de tu PDF. Indicá los números separados por coma.') +
+      `<input type="file" id="pd-file" accept="application/pdf" style="display:none" onchange="ToolFn.pdLoad()">` +
+      `<div class="file-drop" onclick="document.getElementById('pd-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pd-file').files=event.dataTransfer.files;ToolFn.pdLoad()">
+        <div class="file-drop__icon">🗑️</div>
+        <div class="file-drop__title">Arrastrá un PDF acá</div>
+        <div class="file-drop__sub">o hacé click para elegir</div>
+        <div class="file-drop__name" id="pd-name"></div>
+      </div>` +
+      `<div id="pd-info" style="display:none">
+        <p id="pd-pages-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>
+        <label>Páginas a eliminar (ej: 1, 3, 5-7)</label>
+        <input type="text" id="pd-pages" placeholder="ej: 2, 4, 6-8">
+        <div class="btn-row"><button class="btn" onclick="ToolFn.pdDelete()">🗑️ Borrar páginas y descargar</button></div>
+      </div>` +
+      loader('pd-loader','⏳ eliminando páginas...') +
+      result('pd-result'),
+
+    /* ── PDF OCR ── */
+    'pdf-ocr': () =>
+      infoBox('Extraé texto de imágenes o PDFs escaneados usando <b>Tesseract.js</b>. Funciona offline, sin subir nada.') +
+      `<input type="file" id="po-file" accept="image/*,application/pdf" style="display:none" onchange="ToolFn.poLoad()">` +
+      `<div class="file-drop" onclick="document.getElementById('po-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('po-file').files=event.dataTransfer.files;ToolFn.poLoad()">
+        <div class="file-drop__icon">🔍</div>
+        <div class="file-drop__title">Arrastrá una imagen o PDF acá</div>
+        <div class="file-drop__sub">o hacé click · JPG, PNG, PDF</div>
+        <div class="file-drop__name" id="po-name"></div>
+      </div>` +
+      `<div id="po-info" style="display:none">
+        <label>Idioma del texto en la imagen</label>` +
+      sel('po-lang',[['spa','Español'],['eng','Inglés'],['por','Portugués'],['fra','Francés'],['deu','Alemán']]) +
+      `<div class="btn-row"><button class="btn" onclick="ToolFn.poOCR()">🔍 Extraer texto</button></div>
+      </div>` +
+      loader('po-loader','⏳ analizando imagen con OCR...') +
+      `<div id="po-progress" style="font-size:.72rem;color:var(--accent);font-family:var(--mono);margin:.3rem 0;min-height:1rem"></div>` +
+      `<div class="result-area" id="po-result" style="display:none;max-height:260px;overflow-y:auto"></div>` +
+      copyRow('po-result'),
 
     /* ── AI SOON ── */
     'ai-soon': () => {
@@ -1764,6 +1934,360 @@ const ToolFn = (() => {
     if (nameEl && file) nameEl.textContent = file.name;
   }
 
+  // ════ PDF TOOLS — helper: cargar pdf-lib ════
+  async function _loadPdfLib() {
+    if (window.PDFLib) return window.PDFLib;
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js');
+    return window.PDFLib;
+  }
+
+  async function _loadPdfJs() {
+    if (window.pdfjsLib) return window.pdfjsLib;
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    return window.pdfjsLib;
+  }
+
+  function _parsePageRanges(str, total) {
+    const pages = new Set();
+    str.split(',').forEach(part => {
+      const [a, b] = part.trim().split('-').map(Number);
+      if (b) { for (let i = a; i <= Math.min(b, total); i++) pages.add(i); }
+      else if (a) pages.add(a);
+    });
+    return [...pages].filter(p => p >= 1 && p <= total).sort((a,b)=>a-b);
+  }
+
+  // ── pdf merge ──
+  let _pmFiles = [];
+
+  function pmLoad() {
+    const files = [...document.getElementById('pm-files').files];
+    if (!files.length) return;
+    _pmFiles = [..._pmFiles, ...files];
+    const list = document.getElementById('pm-list');
+    list.innerHTML = _pmFiles.map((f,i) =>
+      `<div style="display:flex;align-items:center;gap:.5rem;padding:.35rem .5rem;background:var(--bg3);border-radius:6px;margin-bottom:.3rem;font-size:.75rem;font-family:var(--mono)">
+        <span style="color:var(--fg3)">${i+1}.</span>
+        <span style="flex:1;color:var(--fg2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
+        <span style="color:var(--fg3)">${fmtSize(f.size)}</span>
+        <button onclick="ToolFn.pmRemove(${i})" style="background:none;border:none;color:var(--fg3);cursor:pointer;font-size:.9rem;padding:0">✕</button>
+      </div>`
+    ).join('');
+  }
+
+  function pmRemove(i) {
+    _pmFiles.splice(i, 1);
+    pmLoad();
+  }
+
+  async function pmMerge() {
+    if (_pmFiles.length < 2) { showResult('pm-result','❌ Necesitás al menos 2 PDFs.',true); Audio.error(); return; }
+    toggleLoader('pm-loader', true);
+    try {
+      const { PDFDocument } = await _loadPdfLib();
+      const merged = await PDFDocument.create();
+      for (const file of _pmFiles) {
+        const buf = await file.arrayBuffer();
+        const pdf = await PDFDocument.load(buf, { ignoreEncryption: true });
+        const pages = await merged.copyPages(pdf, pdf.getPageIndices());
+        pages.forEach(p => merged.addPage(p));
+      }
+      const bytes = await merged.save();
+      const blob = new Blob([bytes], { type:'application/pdf' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'taro-merged.pdf'; a.click();
+      toggleLoader('pm-loader', false);
+      showResult('pm-result', `✅ ${_pmFiles.length} PDFs combinados · ${fmtSize(blob.size)}`);
+      Audio.success();
+    } catch(e) { toggleLoader('pm-loader',false); showResult('pm-result','❌ '+e.message,true); Audio.error(); }
+  }
+
+  // ── pdf split ──
+  let _psFile = null, _psPagesTotal = 0;
+
+  async function psLoad() {
+    const f = document.getElementById('ps-file').files[0]; if (!f) return;
+    _psFile = f;
+    document.getElementById('ps-name').textContent = f.name;
+    const { PDFDocument } = await _loadPdfLib();
+    const pdf = await PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption:true });
+    _psPagesTotal = pdf.getPageCount();
+    document.getElementById('ps-pages-info').textContent = `${_psPagesTotal} páginas · ${fmtSize(f.size)}`;
+    document.getElementById('ps-info').style.display = 'block';
+    document.getElementById('ps-mode').onchange = function() {
+      document.getElementById('ps-range-row').style.display = this.value==='range' ? 'block' : 'none';
+    };
+  }
+
+  async function psSplit() {
+    if (!_psFile) return;
+    toggleLoader('ps-loader', true);
+    try {
+      const { PDFDocument } = await _loadPdfLib();
+      const srcPdf = await PDFDocument.load(await _psFile.arrayBuffer(), { ignoreEncryption:true });
+      const mode = document.getElementById('ps-mode').value;
+      let pageNums;
+      if (mode === 'all') {
+        pageNums = Array.from({length:_psPagesTotal}, (_,i)=>i+1);
+      } else {
+        pageNums = _parsePageRanges(document.getElementById('ps-range').value, _psPagesTotal);
+      }
+      if (!pageNums.length) throw new Error('No se encontraron páginas válidas');
+      for (const num of pageNums) {
+        const newPdf = await PDFDocument.create();
+        const [page] = await newPdf.copyPages(srcPdf, [num-1]);
+        newPdf.addPage(page);
+        const bytes = await newPdf.save();
+        const blob = new Blob([bytes], {type:'application/pdf'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = `taro-pag${num}.pdf`; a.click();
+        await new Promise(r => setTimeout(r, 200));
+      }
+      toggleLoader('ps-loader', false);
+      showResult('ps-result', `✅ ${pageNums.length} páginas exportadas`);
+      Audio.success();
+    } catch(e) { toggleLoader('ps-loader',false); showResult('ps-result','❌ '+e.message,true); Audio.error(); }
+  }
+
+  // ── pdf compress ──
+  let _pcFile = null;
+
+  async function pcLoad() {
+    const f = document.getElementById('pc-file').files[0]; if (!f) return;
+    _pcFile = f;
+    document.getElementById('pc-name').textContent = f.name;
+    document.getElementById('pc-orig-size').textContent = `Tamaño original: ${fmtSize(f.size)}`;
+    document.getElementById('pc-info').style.display = 'block';
+  }
+
+  async function pcCompress() {
+    if (!_pcFile) return;
+    toggleLoader('pc-loader', true);
+    try {
+      const { PDFDocument } = await _loadPdfLib();
+      const pdf = await PDFDocument.load(await _pcFile.arrayBuffer(), { ignoreEncryption:true });
+      // Eliminar metadata para reducir tamaño
+      pdf.setTitle(''); pdf.setAuthor(''); pdf.setSubject('');
+      pdf.setKeywords([]); pdf.setProducer(''); pdf.setCreator('');
+      const bytes = await pdf.save({ useObjectStreams: true });
+      const blob = new Blob([bytes], {type:'application/pdf'});
+      const saved = Math.round((1 - blob.size/_pcFile.size)*100);
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'taro-compressed.pdf'; a.click();
+      toggleLoader('pc-loader', false);
+      showResult('pc-result', `✅ ${fmtSize(_pcFile.size)} → ${fmtSize(blob.size)} ${saved>0?'(-'+saved+'%)':'(sin cambio)'}`);
+      Audio.success();
+    } catch(e) { toggleLoader('pc-loader',false); showResult('pc-result','❌ '+e.message,true); Audio.error(); }
+  }
+
+  // ── pdf to jpg ──
+  let _pjFile = null, _pjPages = 0;
+
+  async function pjLoad() {
+    const f = document.getElementById('pj-file').files[0]; if (!f) return;
+    _pjFile = f;
+    document.getElementById('pj-name').textContent = f.name;
+    const pdfjs = await _loadPdfJs();
+    const pdf = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
+    _pjPages = pdf.numPages;
+    document.getElementById('pj-pages-info').textContent = `${_pjPages} páginas · ${fmtSize(f.size)}`;
+    document.getElementById('pj-info').style.display = 'block';
+  }
+
+  async function pjConvert() {
+    if (!_pjFile) return;
+    toggleLoader('pj-loader', true);
+    const previews = document.getElementById('pj-previews');
+    previews.innerHTML = '';
+    try {
+      const pdfjs = await _loadPdfJs();
+      const scale = parseFloat(document.getElementById('pj-quality').value);
+      const pdf = await pdfjs.getDocument({ data: await _pjFile.arrayBuffer() }).promise;
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const vp = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        canvas.width = vp.width; canvas.height = vp.height;
+        await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+        canvas.toBlob(blob => {
+          const url = URL.createObjectURL(blob);
+          const wrap = document.createElement('div');
+          wrap.style.cssText = 'text-align:center';
+          wrap.innerHTML = `<img src="${url}" style="width:100%;border-radius:6px;border:1px solid var(--border)">
+            <a href="${url}" download="taro-pag${i}.jpg" style="display:block;font-size:.68rem;color:var(--accent);font-family:var(--mono);margin-top:.2rem">⬇️ pag ${i}</a>`;
+          previews.appendChild(wrap);
+          const a = document.createElement('a'); a.href = url;
+          a.download = `taro-pag${i}.jpg`; a.click();
+        }, 'image/jpeg', 0.92);
+        await new Promise(r => setTimeout(r, 300));
+      }
+      toggleLoader('pj-loader', false);
+      Audio.success();
+    } catch(e) { toggleLoader('pj-loader',false); Audio.error(); }
+  }
+
+  // ── pdf unlock ──
+  let _puFile = null;
+
+  async function puLoad() {
+    const f = document.getElementById('pu-file').files[0]; if (!f) return;
+    _puFile = f;
+    document.getElementById('pu-name').textContent = f.name;
+    document.getElementById('pu-orig-size').textContent = `Tamaño: ${fmtSize(f.size)}`;
+    document.getElementById('pu-info').style.display = 'block';
+  }
+
+  async function puUnlock() {
+    if (!_puFile) return;
+    toggleLoader('pu-loader', true);
+    try {
+      const { PDFDocument } = await _loadPdfLib();
+      const pdf = await PDFDocument.load(await _puFile.arrayBuffer(), { ignoreEncryption:true });
+      const bytes = await pdf.save();
+      const blob = new Blob([bytes], {type:'application/pdf'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'taro-unlocked.pdf'; a.click();
+      toggleLoader('pu-loader', false);
+      showResult('pu-result', '✅ Restricciones eliminadas · ' + fmtSize(blob.size));
+      Audio.success();
+    } catch(e) { toggleLoader('pu-loader',false); showResult('pu-result','❌ '+e.message,true); Audio.error(); }
+  }
+
+  // ── pdf rotate ──
+  let _prFile = null, _prPagesTotal = 0;
+
+  async function prLoad() {
+    const f = document.getElementById('pr-file').files[0]; if (!f) return;
+    _prFile = f;
+    document.getElementById('pr-name').textContent = f.name;
+    const { PDFDocument } = await _loadPdfLib();
+    const pdf = await PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption:true });
+    _prPagesTotal = pdf.getPageCount();
+    document.getElementById('pr-pages-info').textContent = `${_prPagesTotal} páginas · ${fmtSize(f.size)}`;
+    document.getElementById('pr-info').style.display = 'block';
+    document.getElementById('pr-scope').onchange = function() {
+      document.getElementById('pr-range-row').style.display = this.value==='range' ? 'block' : 'none';
+    };
+  }
+
+  async function prRotate() {
+    if (!_prFile) return;
+    toggleLoader('pr-loader', true);
+    try {
+      const { PDFDocument, degrees } = await _loadPdfLib();
+      const pdf = await PDFDocument.load(await _prFile.arrayBuffer(), { ignoreEncryption:true });
+      const deg = parseInt(document.getElementById('pr-deg').value);
+      const scope = document.getElementById('pr-scope').value;
+      const pageNums = scope==='all'
+        ? Array.from({length:_prPagesTotal},(_,i)=>i+1)
+        : _parsePageRanges(document.getElementById('pr-range').value, _prPagesTotal);
+      pageNums.forEach(n => {
+        const page = pdf.getPage(n-1);
+        page.setRotation(degrees((page.getRotation().angle + deg) % 360));
+      });
+      const bytes = await pdf.save();
+      const blob = new Blob([bytes], {type:'application/pdf'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'taro-rotated.pdf'; a.click();
+      toggleLoader('pr-loader', false);
+      showResult('pr-result', `✅ ${pageNums.length} páginas rotadas ${deg}°`);
+      Audio.success();
+    } catch(e) { toggleLoader('pr-loader',false); showResult('pr-result','❌ '+e.message,true); Audio.error(); }
+  }
+
+  // ── pdf delete pages ──
+  let _pdFile = null, _pdPagesTotal = 0;
+
+  async function pdLoad() {
+    const f = document.getElementById('pd-file').files[0]; if (!f) return;
+    _pdFile = f;
+    document.getElementById('pd-name').textContent = f.name;
+    const { PDFDocument } = await _loadPdfLib();
+    const pdf = await PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption:true });
+    _pdPagesTotal = pdf.getPageCount();
+    document.getElementById('pd-pages-info').textContent = `${_pdPagesTotal} páginas · ${fmtSize(f.size)}`;
+    document.getElementById('pd-info').style.display = 'block';
+  }
+
+  async function pdDelete() {
+    if (!_pdFile) return;
+    const toDelete = _parsePageRanges(document.getElementById('pd-pages').value, _pdPagesTotal);
+    if (!toDelete.length) { showResult('pd-result','❌ Indicá las páginas a eliminar.',true); Audio.error(); return; }
+    if (toDelete.length >= _pdPagesTotal) { showResult('pd-result','❌ No podés eliminar todas las páginas.',true); Audio.error(); return; }
+    toggleLoader('pd-loader', true);
+    try {
+      const { PDFDocument } = await _loadPdfLib();
+      const pdf = await PDFDocument.load(await _pdFile.arrayBuffer(), { ignoreEncryption:true });
+      const keepPages = Array.from({length:_pdPagesTotal},(_,i)=>i+1).filter(n=>!toDelete.includes(n));
+      const newPdf = await PDFDocument.create();
+      const copied = await newPdf.copyPages(pdf, keepPages.map(n=>n-1));
+      copied.forEach(p => newPdf.addPage(p));
+      const bytes = await newPdf.save();
+      const blob = new Blob([bytes], {type:'application/pdf'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'taro-edited.pdf'; a.click();
+      toggleLoader('pd-loader', false);
+      showResult('pd-result', `✅ ${toDelete.length} página${toDelete.length>1?'s':''} eliminada${toDelete.length>1?'s':''} · ${fmtSize(blob.size)}`);
+      Audio.success();
+    } catch(e) { toggleLoader('pd-loader',false); showResult('pd-result','❌ '+e.message,true); Audio.error(); }
+  }
+
+  // ── pdf ocr ──
+  let _poFile = null;
+
+  async function poLoad() {
+    const f = document.getElementById('po-file').files[0]; if (!f) return;
+    _poFile = f;
+    document.getElementById('po-name').textContent = f.name;
+    document.getElementById('po-info').style.display = 'block';
+  }
+
+  async function poOCR() {
+    if (!_poFile) return;
+    toggleLoader('po-loader', true);
+    document.getElementById('po-result').style.display = 'none';
+    const progress = document.getElementById('po-progress');
+    progress.textContent = 'Cargando Tesseract...';
+    try {
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js');
+      const lang = document.getElementById('po-lang').value;
+      let imageUrl;
+      if (_poFile.type === 'application/pdf') {
+        // Renderizar primera página como imagen
+        const pdfjs = await _loadPdfJs();
+        const pdf = await pdfjs.getDocument({ data: await _poFile.arrayBuffer() }).promise;
+        const page = await pdf.getPage(1);
+        const vp = page.getViewport({ scale: 2 });
+        const canvas = document.createElement('canvas');
+        canvas.width = vp.width; canvas.height = vp.height;
+        await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+        imageUrl = canvas.toDataURL('image/png');
+      } else {
+        imageUrl = URL.createObjectURL(_poFile);
+      }
+      progress.textContent = 'Analizando imagen...';
+      const result = await Tesseract.recognize(imageUrl, lang, {
+        logger: m => { if (m.status==='recognizing text') progress.textContent = `Reconociendo: ${Math.round(m.progress*100)}%`; }
+      });
+      toggleLoader('po-loader', false);
+      progress.textContent = '';
+      const text = result.data.text.trim();
+      if (!text) throw new Error('No se encontró texto en la imagen');
+      document.getElementById('po-result').textContent = text;
+      document.getElementById('po-result').style.display = 'block';
+      document.getElementById('po-result-copy').style.display = 'block';
+      Audio.success();
+    } catch(e) {
+      toggleLoader('po-loader',false);
+      progress.textContent = '';
+      document.getElementById('po-result').textContent = '❌ ' + e.message;
+      document.getElementById('po-result').style.display = 'block';
+      Audio.error();
+    }
+  }
+
   return {
     previewImg, onQualityChange, compressImg,
     previewConvertFiles, convertImg,
@@ -1777,6 +2301,14 @@ const ToolFn = (() => {
     b64Action, genHash,
     timerToggle, timerLap, timerReset,
     genUUID, genUUIDs, fetchIP,
+    pmLoad, pmRemove, pmMerge,
+    psLoad, psSplit,
+    pcLoad, pcCompress,
+    pjLoad, pjConvert,
+    puLoad, puUnlock,
+    prLoad, prRotate,
+    pdLoad, pdDelete,
+    poLoad, poOCR,
     _dropName,
     irLoad, irSetMode, irToggleCompress, irSyncAR, irPreset, irPreviewLive, irDownload,
     mrLoad, mrProcess,
