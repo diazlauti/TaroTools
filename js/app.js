@@ -55,7 +55,7 @@ const I18n = (() => {
     { id:'b8',  icon:'✏️', cat:'texto',      type:'ai-soon',      soon:true },
     { id:'b9',  icon:'🌐', cat:'texto',      type:'ai-soon',      soon:true },
     { id:'b10', icon:'📝', cat:'texto',      type:'ai-soon',      soon:true },
-    { id:'b11', icon:'⬇️', cat:'media',      type:'cobalt-dl'     },
+    { id:'b11', icon:'⬇️', cat:'media',      type:'ai-soon',      soon:true },
     { id:'b12', icon:'◼️', cat:'util',       type:'qr-gen'        },
     { id:'b13', icon:'🎨', cat:'util',       type:'color-conv'    },
     { id:'b14', icon:'🔡', cat:'texto',      type:'case-conv'     },
@@ -68,6 +68,7 @@ const I18n = (() => {
     { id:'b21', icon:'📏', cat:'imagen',     type:'img-resize'    },
     { id:'b22', icon:'🚫', cat:'imagen',     type:'meta-remove'   },
     { id:'b23', icon:'🌐', cat:'imagen',     type:'favicon-gen'   },
+    { id:'b24', icon:'✂️',  cat:'imagen',     type:'ai-soon',      soon:true },
   ];
 
   const STRINGS = {
