@@ -739,95 +739,214 @@ const ToolUI = (() => {
 
     /* ── PDF MERGE ── */
     'pdf-merge': () =>
-      infoBox('Combiná varios PDFs en uno solo. Arrastrá para reordenar antes de combinar. 100% local con <b>PDF-lib</b>.') +
+      infoBox('Combiná varios PDFs en uno solo. Arrastrá las tarjetas para reordenar. 100% local con <b>PDF-lib</b>.') +
       `<input type="file" id="pm-files" accept="application/pdf" multiple style="display:none" onchange="ToolFn.pmLoad()">` +
       `<div class="file-drop" onclick="document.getElementById('pm-files').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pm-files').files=event.dataTransfer.files;ToolFn.pmLoad()">
         <div class="file-drop__icon">🔗</div>
         <div class="file-drop__title">Arrastrá los PDFs acá</div>
         <div class="file-drop__sub">o hacé click · varios archivos a la vez</div>
       </div>` +
+      `<div id="pm-total" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0;min-height:1.1rem"></div>` +
       `<div id="pm-list" style="margin:.6rem 0"></div>` +
       `<div class="btn-row"><button class="btn" onclick="ToolFn.pmMerge()">🔗 Combinar PDFs</button></div>` +
       loader('pm-loader','⏳ combinando PDFs...') +
       result('pm-result'),
 
     /* ── PDF SPLIT ── */
-    'pdf-split': () =>
-      infoBox('Dividí un PDF en páginas individuales o por rango. Ej: <b>1-3, 5, 7-9</b>.') +
-      `<input type="file" id="ps-file" accept="application/pdf" style="display:none" onchange="ToolFn.psLoad()">` +
-      `<div class="file-drop" onclick="document.getElementById('ps-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('ps-file').files=event.dataTransfer.files;ToolFn.psLoad()">
-        <div class="file-drop__icon">✂️</div>
-        <div class="file-drop__title">Arrastrá un PDF acá</div>
-        <div class="file-drop__sub">o hacé click para elegir</div>
-        <div class="file-drop__name" id="ps-name"></div>
-      </div>` +
-      `<div id="ps-info" style="display:none">
-        <p id="ps-pages-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>
-        <label>Modo</label>` +
-      sel('ps-mode',[['all','Todas las páginas (una por una)'],['range','Rango específico (ej: 1-3, 5)']]) +
-      `<div id="ps-range-row" style="display:none;margin-top:.4rem">
-          <label>Páginas (ej: 1-3, 5, 7-9)</label>
-          <input type="text" id="ps-range" placeholder="1-3, 5, 7-9">
+    'pdf-split': () => {
+      const loaderHtml = loader('ps-loader','⏳ dividiendo PDF...');
+      const resultHtml = result('ps-result');
+      return `<div id="ps-upload-screen">` +
+        infoBox('Dividí un PDF en páginas individuales o por rango. Hacé click en las miniaturas para seleccionar.') +
+        `<input type="file" id="ps-file" accept="application/pdf" style="display:none" onchange="ToolFn.psLoad()">
+        <div class="file-drop" onclick="document.getElementById('ps-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('ps-file').files=event.dataTransfer.files;ToolFn.psLoad()">
+          <div class="file-drop__icon">✂️</div>
+          <div class="file-drop__title">Arrastrá un PDF acá</div>
+          <div class="file-drop__sub">o hacé click para elegir</div>
+          <div class="file-drop__name" id="ps-name"></div>
         </div>
-        <div class="btn-row"><button class="btn" onclick="ToolFn.psSplit()">✂️ Dividir PDF</button></div>` +
-      `</div>` +
-      loader('ps-loader','⏳ dividiendo PDF...') +
-      result('ps-result'),
+        </div>
+        <div id="ps-editor" style="display:none">
+          <div class="pr-topbar">
+            <div class="pr-topbar__info">
+              <span id="ps-filename" style="font-family:var(--mono);font-size:.78rem;color:var(--fg2)"></span>
+              <span id="ps-pages-info" style="font-family:var(--mono);font-size:.7rem;color:var(--fg3);margin-left:.6rem"></span>
+            </div>
+            <button class="btn btn--sec" onclick="ToolFn.psReset()" style="font-size:.7rem;padding:.25rem .6rem">✕ Cambiar PDF</button>
+          </div>
+          <div class="pr-workspace">
+            <div class="pr-sidebar" id="ps-sidebar">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Páginas</p>
+              <div id="ps-thumbs"></div>
+            </div>
+            <div class="pr-panel">
+              <label>Modo</label>
+              <div class="pr-scope-group">
+                <button class="pr-scope-btn active" id="ps-scope-all" onclick="ToolFn.psSetScope('all',this)">Todas</button>
+                <button class="pr-scope-btn" id="ps-scope-sel" onclick="ToolFn.psSetScope('sel',this)">Selección</button>
+                <button class="pr-scope-btn" id="ps-scope-range" onclick="ToolFn.psSetScope('range',this)">Rango</button>
+              </div>
+              <div id="ps-range-row" style="display:none;margin-top:.5rem">
+                <label>Páginas (ej: 1-3, 5, 7-9)</label>
+                <input type="text" id="ps-range" placeholder="1-3, 5, 7-9" oninput="ToolFn.psHighlightRange()">
+              </div>
+              <div id="ps-sel-hint" style="display:none;font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin-top:.4rem">✦ Hacé click en las miniaturas para seleccionar</div>
+              <div style="margin-top:.9rem;padding:.6rem;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+                <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.35rem">Selección</p>
+                <div id="ps-sel-info" style="font-size:.75rem;color:var(--accent);font-family:var(--mono)">todas las páginas</div>
+              </div>
+              <div class="btn-row" style="margin-top:.9rem">
+                <button class="btn" onclick="ToolFn.psSplit()">✂️ Dividir PDF</button>
+              </div>
+              ${loaderHtml}${resultHtml}
+            </div>
+          </div>
+        </div>`;
+    },
 
     /* ── PDF COMPRESS ── */
-    'pdf-compress': () =>
-      infoBox('Reducí el peso del PDF eliminando metadata y optimizando streams. Procesamiento 100% local.') +
-      `<input type="file" id="pc-file" accept="application/pdf" style="display:none" onchange="ToolFn.pcLoad()">` +
-      `<div class="file-drop" onclick="document.getElementById('pc-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pc-file').files=event.dataTransfer.files;ToolFn.pcLoad()">
-        <div class="file-drop__icon">🗜️</div>
-        <div class="file-drop__title">Arrastrá un PDF acá</div>
-        <div class="file-drop__sub">o hacé click para elegir</div>
-        <div class="file-drop__name" id="pc-name"></div>
-      </div>` +
-      `<div id="pc-info" style="display:none">
-        <p id="pc-orig-size" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>
-        <div class="btn-row"><button class="btn" onclick="ToolFn.pcCompress()">🗜️ Comprimir y descargar</button></div>
-      </div>` +
-      loader('pc-loader','⏳ comprimiendo PDF...') +
-      result('pc-result'),
+    'pdf-compress': () => {
+      const loaderHtml = loader('pc-loader','⏳ comprimiendo PDF...');
+      const resultHtml = result('pc-result');
+      return `<div id="pc-upload-screen">` +
+        infoBox('Reducí el peso del PDF. Para PDFs con imágenes podés ajustar la calidad. 100% local.') +
+        `<input type="file" id="pc-file" accept="application/pdf" style="display:none" onchange="ToolFn.pcLoad()">
+        <div class="file-drop" onclick="document.getElementById('pc-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pc-file').files=event.dataTransfer.files;ToolFn.pcLoad()">
+          <div class="file-drop__icon">🗜️</div>
+          <div class="file-drop__title">Arrastrá un PDF acá</div>
+          <div class="file-drop__sub">o hacé click para elegir</div>
+          <div class="file-drop__name" id="pc-name"></div>
+        </div>
+        </div>
+        <div id="pc-editor" style="display:none">
+          <div class="pr-topbar">
+            <div class="pr-topbar__info">
+              <span id="pc-filename" style="font-family:var(--mono);font-size:.78rem;color:var(--fg2)"></span>
+              <span id="pc-pages-info" style="font-family:var(--mono);font-size:.7rem;color:var(--fg3);margin-left:.6rem"></span>
+            </div>
+            <button class="btn btn--sec" onclick="ToolFn.pcReset()" style="font-size:.7rem;padding:.25rem .6rem">✕ Cambiar PDF</button>
+          </div>
+          <div class="pr-workspace">
+            <div class="pr-sidebar" id="pc-sidebar">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Páginas</p>
+              <div id="pc-thumbs"></div>
+            </div>
+            <div class="pr-panel">
+              <div style="background:var(--bg3);border-radius:8px;padding:.6rem;font-family:var(--mono);font-size:.72rem;margin-bottom:.7rem">
+                <div style="display:flex;justify-content:space-between;margin-bottom:.2rem">
+                  <span style="color:var(--fg3)">Tamaño original</span>
+                  <span id="pc-orig-size" style="color:var(--fg2)">—</span>
+                </div>
+                <div style="display:flex;justify-content:space-between">
+                  <span style="color:var(--fg3)">Estimado comprimido</span>
+                  <span id="pc-est-size" style="color:var(--accent)">—</span>
+                </div>
+              </div>
+              <label>Calidad de imágenes: <span id="pc-ql" style="color:var(--accent);font-family:var(--mono)">80</span>%</label>
+              <input type="range" min="10" max="99" value="80" id="pc-q" oninput="ToolFn.pcUpdateEst()" style="width:100%;margin:.25rem 0 .4rem;accent-color:var(--accent)">
+              <p style="font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.6rem">Afecta imágenes embebidas. Calidad más baja = archivo más pequeño.</p>
+              <div class="btn-row">
+                <button class="btn" onclick="ToolFn.pcCompress()">🗜️ Comprimir y descargar</button>
+              </div>
+              ${loaderHtml}${resultHtml}
+            </div>
+          </div>
+        </div>`;
+    },
 
     /* ── PDF TO JPG ── */
-    'pdf-to-jpg': () =>
-      infoBox('Exportá cada página de tu PDF como imagen JPG de alta calidad. Procesamiento local con <b>PDF.js</b>.') +
-      `<input type="file" id="pj-file" accept="application/pdf" style="display:none" onchange="ToolFn.pjLoad()">` +
-      `<div class="file-drop" onclick="document.getElementById('pj-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pj-file').files=event.dataTransfer.files;ToolFn.pjLoad()">
-        <div class="file-drop__icon">🖼️</div>
-        <div class="file-drop__title">Arrastrá un PDF acá</div>
-        <div class="file-drop__sub">o hacé click para elegir</div>
-        <div class="file-drop__name" id="pj-name"></div>
-      </div>` +
-      `<div id="pj-info" style="display:none">
-        <p id="pj-pages-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>
-        <label>Calidad</label>` +
-      sel('pj-quality',[['2','Alta (2x)'],['1.5','Media (1.5x)'],['1','Estándar (1x)']]) +
-      `<div class="btn-row"><button class="btn" onclick="ToolFn.pjConvert()">🖼️ Convertir a JPG</button></div>
-      </div>` +
-      loader('pj-loader','⏳ convirtiendo páginas...') +
-      `<div id="pj-previews" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.5rem;margin-top:.6rem"></div>`,
+    'pdf-to-jpg': () => {
+      const loaderHtml = loader('pj-loader','⏳ convirtiendo páginas...');
+      return `<div id="pj-upload-screen">` +
+        infoBox('Exportá cada página como JPG. Preview en vivo al cambiar calidad. Descargá individual o todo en ZIP.') +
+        `<input type="file" id="pj-file" accept="application/pdf" style="display:none" onchange="ToolFn.pjLoad()">
+        <div class="file-drop" onclick="document.getElementById('pj-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pj-file').files=event.dataTransfer.files;ToolFn.pjLoad()">
+          <div class="file-drop__icon">🖼️</div>
+          <div class="file-drop__title">Arrastrá un PDF acá</div>
+          <div class="file-drop__sub">o hacé click para elegir</div>
+          <div class="file-drop__name" id="pj-name"></div>
+        </div>
+        </div>
+        <div id="pj-editor" style="display:none">
+          <div class="pr-topbar">
+            <div class="pr-topbar__info">
+              <span id="pj-filename" style="font-family:var(--mono);font-size:.78rem;color:var(--fg2)"></span>
+              <span id="pj-pages-info" style="font-family:var(--mono);font-size:.7rem;color:var(--fg3);margin-left:.6rem"></span>
+            </div>
+            <button class="btn btn--sec" onclick="ToolFn.pjReset()" style="font-size:.7rem;padding:.25rem .6rem">✕ Cambiar PDF</button>
+          </div>
+          <div class="pr-workspace">
+            <div class="pr-sidebar" id="pj-sidebar">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Páginas</p>
+              <div id="pj-thumbs"></div>
+            </div>
+            <div class="pr-panel">
+              <label>Resolución: <span id="pj-scale-lbl" style="color:var(--accent);font-family:var(--mono)">Alta (2x)</span></label>
+              <input type="range" min="1" max="3" step="0.5" value="2" id="pj-scale" oninput="ToolFn.pjUpdateScaleLabel()" style="width:100%;margin:.25rem 0 .4rem;accent-color:var(--accent)">
+              <label style="margin-top:.5rem">Calidad JPG: <span id="pj-ql" style="color:var(--accent);font-family:var(--mono)">92</span>%</label>
+              <input type="range" min="50" max="99" value="92" id="pj-quality" oninput="ToolFn.pjUpdateQLLabel()" style="width:100%;margin:.25rem 0 .8rem;accent-color:var(--accent)">
+              <div class="btn-row" style="flex-wrap:wrap">
+                <button class="btn" onclick="ToolFn.pjConvert(false)">🖼️ Convertir y descargar todo</button>
+                <button class="btn btn--sec" onclick="ToolFn.pjConvert(true)" id="pj-zip-btn">📦 Descargar ZIP</button>
+              </div>
+              ${loaderHtml}
+              <div id="pj-progress" style="font-size:.72rem;color:var(--accent);font-family:var(--mono);margin:.3rem 0;min-height:1rem"></div>
+              <div id="pj-previews" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.5rem;margin-top:.6rem"></div>
+            </div>
+          </div>
+        </div>`;
+    },
 
     /* ── PDF UNLOCK ── */
-    'pdf-unlock': () =>
-      infoBox('Eliminá restricciones de copia, impresión y edición de PDFs. <b>No funciona con contraseña de apertura.</b>') +
-      `<input type="file" id="pu-file" accept="application/pdf" style="display:none" onchange="ToolFn.puLoad()">` +
-      `<div class="file-drop" onclick="document.getElementById('pu-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pu-file').files=event.dataTransfer.files;ToolFn.puLoad()">
-        <div class="file-drop__icon">🔓</div>
-        <div class="file-drop__title">Arrastrá un PDF acá</div>
-        <div class="file-drop__sub">o hacé click para elegir</div>
-        <div class="file-drop__name" id="pu-name"></div>
-      </div>` +
-      `<div id="pu-info" style="display:none">
-        <p id="pu-orig-size" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>
-        <div class="btn-row"><button class="btn" onclick="ToolFn.puUnlock()">🔓 Desbloquear y descargar</button></div>
-      </div>` +
-      loader('pu-loader','⏳ desbloqueando PDF...') +
-      result('pu-result'),
+    'pdf-unlock': () => {
+      const loaderHtml = loader('pu-loader','⏳ desbloqueando PDF...');
+      const resultHtml = result('pu-result');
+      return `<div id="pu-upload-screen">` +
+        infoBox('Eliminá restricciones de copia, impresión y edición. <b>No funciona con contraseña de apertura.</b>') +
+        `<input type="file" id="pu-file" accept="application/pdf" style="display:none" onchange="ToolFn.puLoad()">
+        <div class="file-drop" onclick="document.getElementById('pu-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pu-file').files=event.dataTransfer.files;ToolFn.puLoad()">
+          <div class="file-drop__icon">🔓</div>
+          <div class="file-drop__title">Arrastrá un PDF acá</div>
+          <div class="file-drop__sub">o hacé click para elegir</div>
+          <div class="file-drop__name" id="pu-name"></div>
+        </div>
+        </div>
+        <div id="pu-editor" style="display:none">
+          <div class="pr-topbar">
+            <div class="pr-topbar__info">
+              <span id="pu-filename" style="font-family:var(--mono);font-size:.78rem;color:var(--fg2)"></span>
+              <span id="pu-pages-info" style="font-family:var(--mono);font-size:.7rem;color:var(--fg3);margin-left:.6rem"></span>
+            </div>
+            <button class="btn btn--sec" onclick="ToolFn.puReset()" style="font-size:.7rem;padding:.25rem .6rem">✕ Cambiar PDF</button>
+          </div>
+          <div class="pr-workspace">
+            <div class="pr-sidebar" id="pu-sidebar">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Páginas</p>
+              <div id="pu-thumbs"></div>
+            </div>
+            <div class="pr-panel">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Restricciones detectadas</p>
+              <div id="pu-restrictions" style="background:var(--bg3);border-radius:8px;padding:.6rem;font-family:var(--mono);font-size:.72rem;margin-bottom:.8rem">
+                <div id="pu-r-print" style="display:flex;justify-content:space-between;margin-bottom:.3rem">
+                  <span style="color:var(--fg3)">🖨️ Impresión</span><span id="pu-r-print-val" style="color:var(--fg2)">—</span>
+                </div>
+                <div id="pu-r-copy" style="display:flex;justify-content:space-between;margin-bottom:.3rem">
+                  <span style="color:var(--fg3)">📋 Copia de texto</span><span id="pu-r-copy-val" style="color:var(--fg2)">—</span>
+                </div>
+                <div id="pu-r-edit" style="display:flex;justify-content:space-between">
+                  <span style="color:var(--fg3)">✏️ Edición</span><span id="pu-r-edit-val" style="color:var(--fg2)">—</span>
+                </div>
+              </div>
+              <p style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.7rem">Tamaño: <span id="pu-orig-size">—</span></p>
+              <div class="btn-row">
+                <button class="btn" onclick="ToolFn.puUnlock()">🔓 Desbloquear y descargar</button>
+              </div>
+              ${loaderHtml}${resultHtml}
+            </div>
+          </div>
+        </div>`;
+    },
 
-    /* ── PDF ROTATE ── */
     /* ── PDF ROTATE ── */
     'pdf-rotate': () => {
       const loaderHtml = loader('pr-loader','⏳ rotando PDF...');
@@ -903,27 +1022,52 @@ const ToolUI = (() => {
     },
 
     /* ── PDF DELETE PAGES ── */
-    'pdf-delete-p': () =>
-      infoBox('Eliminá páginas específicas de tu PDF. Indicá los números separados por coma.') +
-      `<input type="file" id="pd-file" accept="application/pdf" style="display:none" onchange="ToolFn.pdLoad()">` +
-      `<div class="file-drop" onclick="document.getElementById('pd-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pd-file').files=event.dataTransfer.files;ToolFn.pdLoad()">
-        <div class="file-drop__icon">🗑️</div>
-        <div class="file-drop__title">Arrastrá un PDF acá</div>
-        <div class="file-drop__sub">o hacé click para elegir</div>
-        <div class="file-drop__name" id="pd-name"></div>
-      </div>` +
-      `<div id="pd-info" style="display:none">
-        <p id="pd-pages-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>
-        <label>Páginas a eliminar (ej: 1, 3, 5-7)</label>
-        <input type="text" id="pd-pages" placeholder="ej: 2, 4, 6-8">
-        <div class="btn-row"><button class="btn" onclick="ToolFn.pdDelete()">🗑️ Borrar páginas y descargar</button></div>
-      </div>` +
-      loader('pd-loader','⏳ eliminando páginas...') +
-      result('pd-result'),
+    'pdf-delete-p': () => {
+      const loaderHtml = loader('pd-loader','⏳ eliminando páginas...');
+      const resultHtml = result('pd-result');
+      return `<div id="pd-upload-screen">` +
+        infoBox('Hacé click en las miniaturas para seleccionar las páginas a eliminar. Preview de lo que queda.') +
+        `<input type="file" id="pd-file" accept="application/pdf" style="display:none" onchange="ToolFn.pdLoad()">
+        <div class="file-drop" onclick="document.getElementById('pd-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pd-file').files=event.dataTransfer.files;ToolFn.pdLoad()">
+          <div class="file-drop__icon">🗑️</div>
+          <div class="file-drop__title">Arrastrá un PDF acá</div>
+          <div class="file-drop__sub">o hacé click para elegir</div>
+          <div class="file-drop__name" id="pd-name"></div>
+        </div>
+        </div>
+        <div id="pd-editor" style="display:none">
+          <div class="pr-topbar">
+            <div class="pr-topbar__info">
+              <span id="pd-filename" style="font-family:var(--mono);font-size:.78rem;color:var(--fg2)"></span>
+              <span id="pd-pages-info" style="font-family:var(--mono);font-size:.7rem;color:var(--fg3);margin-left:.6rem"></span>
+            </div>
+            <button class="btn btn--sec" onclick="ToolFn.pdReset()" style="font-size:.7rem;padding:.25rem .6rem">✕ Cambiar PDF</button>
+          </div>
+          <div class="pr-workspace">
+            <div class="pr-sidebar" id="pd-sidebar">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Páginas</p>
+              <p style="font-size:.65rem;color:var(--accent2);font-family:var(--mono);margin-bottom:.4rem">Click = marcar para borrar</p>
+              <div id="pd-thumbs"></div>
+            </div>
+            <div class="pr-panel">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Páginas marcadas para borrar</p>
+              <div id="pd-sel-info" style="font-size:.75rem;color:var(--accent2);font-family:var(--mono);margin-bottom:.6rem;min-height:1.2rem">ninguna</div>
+              <div style="margin-bottom:.7rem;padding:.6rem;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+                <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.35rem">Quedará</p>
+                <div id="pd-keep-info" style="font-size:.75rem;color:var(--accent);font-family:var(--mono)">—</div>
+              </div>
+              <div class="btn-row">
+                <button class="btn" onclick="ToolFn.pdDelete()">🗑️ Borrar páginas y descargar</button>
+              </div>
+              ${loaderHtml}${resultHtml}
+            </div>
+          </div>
+        </div>`;
+    },
 
     /* ── PDF OCR ── */
     'pdf-ocr': () =>
-      infoBox('Extraé texto de imágenes o PDFs escaneados usando <b>Tesseract.js</b>. Funciona offline, sin subir nada.') +
+      infoBox('Extraé texto de imágenes o PDFs escaneados con <b>Tesseract.js</b>. Para PDFs: elegí qué páginas escanear.') +
       `<input type="file" id="po-file" accept="image/*,application/pdf" style="display:none" onchange="ToolFn.poLoad()">` +
       `<div class="file-drop" onclick="document.getElementById('po-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('po-file').files=event.dataTransfer.files;ToolFn.poLoad()">
         <div class="file-drop__icon">🔍</div>
@@ -934,9 +1078,27 @@ const ToolUI = (() => {
       `<div id="po-info" style="display:none">
         <label>Idioma del texto en la imagen</label>` +
       sel('po-lang',[['spa','Español'],['eng','Inglés'],['por','Portugués'],['fra','Francés'],['deu','Alemán']]) +
-      `<div class="btn-row"><button class="btn" onclick="ToolFn.poOCR()">🔍 Extraer texto</button></div>
+      `<div id="po-pdf-opts" style="display:none;margin-top:.5rem">
+          <label>Páginas a escanear</label>
+          <div class="pr-scope-group">
+            <button class="pr-scope-btn active" id="po-scope-all" onclick="ToolFn.poSetScope('all',this)">Todas</button>
+            <button class="pr-scope-btn" id="po-scope-sel" onclick="ToolFn.poSetScope('sel',this)">Selección</button>
+          </div>
+          <p id="po-sel-hint" style="display:none;font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin-top:.3rem">✦ Hacé click en las miniaturas para seleccionar</p>
+          <div id="po-thumbs" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem"></div>
+        </div>
+        <div class="btn-row"><button class="btn" onclick="ToolFn.poOCR()">🔍 Extraer texto</button></div>
       </div>` +
-      loader('po-loader','⏳ analizando imagen con OCR...') +
+      loader('po-loader','⏳ analizando con OCR...') +
+      `<div id="po-progress-wrap" style="margin:.4rem 0;display:none">
+        <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.2rem">
+          <span id="po-progress-label">Procesando...</span>
+          <span id="po-progress-pct">0%</span>
+        </div>
+        <div style="background:var(--bg3);border-radius:30px;height:5px;overflow:hidden">
+          <div id="po-progress-bar" style="height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:30px;transition:width .3s;width:0%"></div>
+        </div>
+      </div>` +
       `<div id="po-progress" style="font-size:.72rem;color:var(--accent);font-family:var(--mono);margin:.3rem 0;min-height:1rem"></div>` +
       `<div class="result-area" id="po-result" style="display:none;max-height:260px;overflow-y:auto"></div>` +
       copyRow('po-result'),
@@ -2100,24 +2262,69 @@ const ToolFn = (() => {
   // ── pdf merge ──
   let _pmFiles = [];
 
-  function pmLoad() {
+  async function _pmThumb(file) {
+    const pdfjs = await _loadPdfJs();
+    const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+    const page = await pdf.getPage(1);
+    const vp = page.getViewport({ scale: 0.4 });
+    const c = document.createElement('canvas');
+    c.width = vp.width; c.height = vp.height;
+    await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+    return { dataUrl: c.toDataURL('image/jpeg', 0.7), pages: pdf.numPages };
+  }
+
+  async function pmLoad() {
     const files = [...document.getElementById('pm-files').files];
     if (!files.length) return;
-    _pmFiles = [..._pmFiles, ...files];
+    // append new files
+    for (const f of files) {
+      const { dataUrl, pages } = await _pmThumb(f).catch(() => ({ dataUrl: null, pages: '?' }));
+      _pmFiles.push({ file: f, dataUrl, pages });
+    }
+    pmRenderList();
+  }
+
+  function pmRenderList() {
     const list = document.getElementById('pm-list');
-    list.innerHTML = _pmFiles.map((f,i) =>
-      `<div style="display:flex;align-items:center;gap:.5rem;padding:.35rem .5rem;background:var(--bg3);border-radius:6px;margin-bottom:.3rem;font-size:.75rem;font-family:var(--mono)">
-        <span style="color:var(--fg3)">${i+1}.</span>
-        <span style="flex:1;color:var(--fg2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
-        <span style="color:var(--fg3)">${fmtSize(f.size)}</span>
-        <button onclick="ToolFn.pmRemove(${i})" style="background:none;border:none;color:var(--fg3);cursor:pointer;font-size:.9rem;padding:0">✕</button>
+    const totalPages = _pmFiles.reduce((a, f) => a + (typeof f.pages === 'number' ? f.pages : 0), 0);
+    const totalEl = document.getElementById('pm-total');
+    if (totalEl) totalEl.textContent = _pmFiles.length
+      ? `${_pmFiles.length} archivos · ${totalPages} páginas en total`
+      : '';
+
+    list.innerHTML = _pmFiles.map((f, i) => `
+      <div class="pm-item" draggable="true" data-idx="${i}"
+        ondragstart="ToolFn.pmDragStart(event,${i})"
+        ondragover="event.preventDefault();this.classList.add('pm-item--over')"
+        ondragleave="this.classList.remove('pm-item--over')"
+        ondrop="event.preventDefault();this.classList.remove('pm-item--over');ToolFn.pmDrop(event,${i})"
+        style="display:flex;align-items:center;gap:.6rem;padding:.4rem .5rem;background:var(--bg3);border-radius:8px;margin-bottom:.3rem;cursor:grab;border:1.5px solid var(--border);transition:border-color .15s">
+        ${f.dataUrl
+          ? `<img src="${f.dataUrl}" style="width:36px;height:48px;object-fit:cover;border-radius:4px;border:1px solid var(--border);flex-shrink:0" alt="">`
+          : `<div style="width:36px;height:48px;background:var(--bg2);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0">📄</div>`}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.75rem;font-family:var(--mono);color:var(--fg2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.file.name}</div>
+          <div style="font-size:.67rem;color:var(--fg3);font-family:var(--mono);margin-top:.1rem">${fmtSize(f.file.size)} · ${f.pages} pág.</div>
+        </div>
+        <span style="color:var(--fg3);font-size:.9rem;cursor:grab;padding:0 .2rem" title="Arrastrá para reordenar">⠿</span>
+        <button onclick="ToolFn.pmRemove(${i})" style="background:none;border:none;color:var(--fg3);cursor:pointer;font-size:.9rem;padding:0" title="Quitar">✕</button>
       </div>`
     ).join('');
   }
 
+  let _pmDragIdx = null;
+  function pmDragStart(e, idx) { _pmDragIdx = idx; e.dataTransfer.effectAllowed = 'move'; }
+  function pmDrop(e, targetIdx) {
+    if (_pmDragIdx === null || _pmDragIdx === targetIdx) return;
+    const dragged = _pmFiles.splice(_pmDragIdx, 1)[0];
+    _pmFiles.splice(targetIdx, 0, dragged);
+    _pmDragIdx = null;
+    pmRenderList();
+  }
+
   function pmRemove(i) {
     _pmFiles.splice(i, 1);
-    pmLoad();
+    pmRenderList();
   }
 
   async function pmMerge() {
@@ -2126,8 +2333,8 @@ const ToolFn = (() => {
     try {
       const { PDFDocument } = await _loadPdfLib();
       const merged = await PDFDocument.create();
-      for (const file of _pmFiles) {
-        const buf = await file.arrayBuffer();
+      for (const item of _pmFiles) {
+        const buf = await item.file.arrayBuffer();
         const pdf = await PDFDocument.load(buf, { ignoreEncryption: true });
         const pages = await merged.copyPages(pdf, pdf.getPageIndices());
         pages.forEach(p => merged.addPage(p));
@@ -2143,20 +2350,86 @@ const ToolFn = (() => {
   }
 
   // ── pdf split ──
-  let _psFile = null, _psPagesTotal = 0;
+  let _psFile = null, _psPagesTotal = 0, _psScope = 'all', _psSelected = new Set();
 
   async function psLoad() {
     const f = document.getElementById('ps-file').files[0]; if (!f) return;
-    _psFile = f;
-    document.getElementById('ps-name').textContent = f.name;
-    const { PDFDocument } = await _loadPdfLib();
-    const pdf = await PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption:true });
-    _psPagesTotal = pdf.getPageCount();
+    _psFile = f; _psSelected = new Set(); _psScope = 'all';
+    document.getElementById('ps-filename').textContent = f.name;
+    document.getElementById('ps-upload-screen').style.display = 'none';
+    document.getElementById('ps-editor').style.display = 'block';
+
+    const pdfjs = await _loadPdfJs();
+    const pdf = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
+    _psPagesTotal = pdf.numPages;
     document.getElementById('ps-pages-info').textContent = `${_psPagesTotal} páginas · ${fmtSize(f.size)}`;
-    document.getElementById('ps-info').style.display = 'block';
-    document.getElementById('ps-mode').onchange = function() {
-      document.getElementById('ps-range-row').style.display = this.value==='range' ? 'block' : 'none';
-    };
+
+    const thumbsEl = document.getElementById('ps-thumbs');
+    thumbsEl.innerHTML = '';
+    for (let i = 1; i <= _psPagesTotal; i++) {
+      const page = await pdf.getPage(i);
+      const vp = page.getViewport({ scale: 0.3 });
+      const c = document.createElement('canvas');
+      c.width = vp.width; c.height = vp.height;
+      await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      const wrap = document.createElement('div');
+      wrap.className = 'pr-thumb'; wrap.dataset.page = i;
+      wrap.innerHTML = `<div class="pr-thumb__canvas-wrap"><canvas width="${vp.width}" height="${vp.height}" style="width:100%;display:block"></canvas><div class="pr-thumb__overlay"></div></div><p class="pr-thumb__num">${i}</p>`;
+      wrap.querySelector('canvas').getContext('2d').drawImage(c, 0, 0);
+      wrap.addEventListener('click', () => psToggleSelect(i, wrap));
+      thumbsEl.appendChild(wrap);
+    }
+    psUpdateSelInfo();
+  }
+
+  function psReset() {
+    _psFile = null; _psPagesTotal = 0; _psSelected = new Set();
+    document.getElementById('ps-upload-screen').style.display = 'block';
+    document.getElementById('ps-editor').style.display = 'none';
+    document.getElementById('ps-file').value = '';
+  }
+
+  function psSetScope(scope, btn) {
+    _psScope = scope;
+    document.querySelectorAll('#ps-editor .pr-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const rangeRow = document.getElementById('ps-range-row');
+    const selHint  = document.getElementById('ps-sel-hint');
+    rangeRow.style.display = scope === 'range' ? 'block' : 'none';
+    selHint.style.display  = scope === 'sel'   ? 'block' : 'none';
+    // toggle clickability
+    document.querySelectorAll('#ps-thumbs .pr-thumb').forEach(t => {
+      t.style.cursor = scope === 'sel' ? 'pointer' : 'default';
+    });
+    if (scope === 'range') psHighlightRange();
+    else psUpdateSelInfo();
+  }
+
+  function psToggleSelect(pageNum, wrap) {
+    if (_psScope !== 'sel') return;
+    if (_psSelected.has(pageNum)) { _psSelected.delete(pageNum); wrap.classList.remove('pr-thumb--selected'); }
+    else { _psSelected.add(pageNum); wrap.classList.add('pr-thumb--selected'); }
+    psUpdateSelInfo();
+  }
+
+  function psHighlightRange() {
+    const str = document.getElementById('ps-range')?.value || '';
+    const highlighted = str ? _parsePageRanges(str, _psPagesTotal) : [];
+    document.querySelectorAll('#ps-thumbs .pr-thumb').forEach(t => {
+      const n = parseInt(t.dataset.page);
+      t.classList.toggle('pr-thumb--selected', highlighted.includes(n));
+    });
+    psUpdateSelInfo(highlighted);
+  }
+
+  function psUpdateSelInfo(pages) {
+    const info = document.getElementById('ps-sel-info');
+    if (!info) return;
+    let list;
+    if (_psScope === 'all') list = Array.from({length:_psPagesTotal},(_,i)=>i+1);
+    else if (_psScope === 'sel') list = [..._psSelected].sort((a,b)=>a-b);
+    else list = pages || [];
+    info.textContent = list.length ? `${list.length} páginas seleccionadas (${list.slice(0,8).join(', ')}${list.length>8?'…':''})` : 'ninguna';
   }
 
   async function psSplit() {
@@ -2165,13 +2438,10 @@ const ToolFn = (() => {
     try {
       const { PDFDocument } = await _loadPdfLib();
       const srcPdf = await PDFDocument.load(await _psFile.arrayBuffer(), { ignoreEncryption:true });
-      const mode = document.getElementById('ps-mode').value;
       let pageNums;
-      if (mode === 'all') {
-        pageNums = Array.from({length:_psPagesTotal}, (_,i)=>i+1);
-      } else {
-        pageNums = _parsePageRanges(document.getElementById('ps-range').value, _psPagesTotal);
-      }
+      if (_psScope === 'all') pageNums = Array.from({length:_psPagesTotal}, (_,i)=>i+1);
+      else if (_psScope === 'sel') pageNums = [..._psSelected].sort((a,b)=>a-b);
+      else pageNums = _parsePageRanges(document.getElementById('ps-range').value, _psPagesTotal);
       if (!pageNums.length) throw new Error('No se encontraron páginas válidas');
       for (const num of pageNums) {
         const newPdf = await PDFDocument.create();
@@ -2190,14 +2460,52 @@ const ToolFn = (() => {
   }
 
   // ── pdf compress ──
-  let _pcFile = null;
+  let _pcFile = null, _pcOrigSize = 0;
 
   async function pcLoad() {
     const f = document.getElementById('pc-file').files[0]; if (!f) return;
-    _pcFile = f;
-    document.getElementById('pc-name').textContent = f.name;
-    document.getElementById('pc-orig-size').textContent = `Tamaño original: ${fmtSize(f.size)}`;
-    document.getElementById('pc-info').style.display = 'block';
+    _pcFile = f; _pcOrigSize = f.size;
+    document.getElementById('pc-filename').textContent = f.name;
+    document.getElementById('pc-upload-screen').style.display = 'none';
+    document.getElementById('pc-editor').style.display = 'block';
+    document.getElementById('pc-orig-size').textContent = fmtSize(f.size);
+    pcUpdateEst();
+
+    const pdfjs = await _loadPdfJs();
+    const pdf = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
+    document.getElementById('pc-pages-info').textContent = `${pdf.numPages} páginas`;
+
+    const thumbsEl = document.getElementById('pc-thumbs');
+    thumbsEl.innerHTML = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const vp = page.getViewport({ scale: 0.3 });
+      const c = document.createElement('canvas');
+      c.width = vp.width; c.height = vp.height;
+      await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      const wrap = document.createElement('div');
+      wrap.className = 'pr-thumb';
+      wrap.innerHTML = `<div class="pr-thumb__canvas-wrap"><canvas width="${vp.width}" height="${vp.height}" style="width:100%;display:block"></canvas></div><p class="pr-thumb__num">${i}</p>`;
+      wrap.querySelector('canvas').getContext('2d').drawImage(c, 0, 0);
+      thumbsEl.appendChild(wrap);
+    }
+  }
+
+  function pcReset() {
+    _pcFile = null;
+    document.getElementById('pc-upload-screen').style.display = 'block';
+    document.getElementById('pc-editor').style.display = 'none';
+    document.getElementById('pc-file').value = '';
+    document.getElementById('pc-thumbs').innerHTML = '';
+  }
+
+  function pcUpdateEst() {
+    const q = parseInt(document.getElementById('pc-q')?.value || 80) / 100;
+    document.getElementById('pc-ql').textContent = Math.round(q * 100);
+    if (!_pcOrigSize) return;
+    // rough estimate: metadata removal ~5%, image quality scales rest
+    const est = Math.round(_pcOrigSize * (0.05 + q * 0.75));
+    document.getElementById('pc-est-size').textContent = fmtSize(est) + ` (${Math.round((1 - est / _pcOrigSize) * 100)}% menos)`;
   }
 
   async function pcCompress() {
@@ -2206,7 +2514,6 @@ const ToolFn = (() => {
     try {
       const { PDFDocument } = await _loadPdfLib();
       const pdf = await PDFDocument.load(await _pcFile.arrayBuffer(), { ignoreEncryption:true });
-      // Eliminar metadata para reducir tamaño
       pdf.setTitle(''); pdf.setAuthor(''); pdf.setSubject('');
       pdf.setKeywords([]); pdf.setProducer(''); pdf.setCreator('');
       const bytes = await pdf.save({ useObjectStreams: true });
@@ -2221,49 +2528,115 @@ const ToolFn = (() => {
   }
 
   // ── pdf to jpg ──
-  let _pjFile = null, _pjPages = 0;
+  let _pjFile = null, _pjPages = 0, _pjPdfDoc = null;
 
   async function pjLoad() {
     const f = document.getElementById('pj-file').files[0]; if (!f) return;
     _pjFile = f;
-    document.getElementById('pj-name').textContent = f.name;
+    document.getElementById('pj-filename').textContent = f.name;
+    document.getElementById('pj-upload-screen').style.display = 'none';
+    document.getElementById('pj-editor').style.display = 'block';
+
     const pdfjs = await _loadPdfJs();
-    const pdf = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
-    _pjPages = pdf.numPages;
+    _pjPdfDoc = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
+    _pjPages = _pjPdfDoc.numPages;
     document.getElementById('pj-pages-info').textContent = `${_pjPages} páginas · ${fmtSize(f.size)}`;
-    document.getElementById('pj-info').style.display = 'block';
+
+    const thumbsEl = document.getElementById('pj-thumbs');
+    thumbsEl.innerHTML = '';
+    for (let i = 1; i <= _pjPages; i++) {
+      const page = await _pjPdfDoc.getPage(i);
+      const vp = page.getViewport({ scale: 0.3 });
+      const c = document.createElement('canvas');
+      c.width = vp.width; c.height = vp.height;
+      await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      const wrap = document.createElement('div');
+      wrap.className = 'pr-thumb';
+      wrap.innerHTML = `<div class="pr-thumb__canvas-wrap"><canvas width="${vp.width}" height="${vp.height}" style="width:100%;display:block"></canvas></div><p class="pr-thumb__num">${i}</p>`;
+      wrap.querySelector('canvas').getContext('2d').drawImage(c, 0, 0);
+      thumbsEl.appendChild(wrap);
+    }
   }
 
-  async function pjConvert() {
+  function pjReset() {
+    _pjFile = null; _pjPdfDoc = null;
+    document.getElementById('pj-upload-screen').style.display = 'block';
+    document.getElementById('pj-editor').style.display = 'none';
+    document.getElementById('pj-file').value = '';
+    document.getElementById('pj-thumbs').innerHTML = '';
+    document.getElementById('pj-previews').innerHTML = '';
+  }
+
+  function pjUpdateScaleLabel() {
+    const v = parseFloat(document.getElementById('pj-scale').value);
+    const labels = {1:'Estándar (1x)',1.5:'Media (1.5x)',2:'Alta (2x)',2.5:'Muy alta (2.5x)',3:'Máxima (3x)'};
+    document.getElementById('pj-scale-lbl').textContent = labels[v] || v + 'x';
+  }
+
+  function pjUpdateQLLabel() {
+    document.getElementById('pj-ql').textContent = document.getElementById('pj-quality').value;
+  }
+
+  async function pjConvert(asZip = false) {
     if (!_pjFile) return;
     toggleLoader('pj-loader', true);
     const previews = document.getElementById('pj-previews');
     previews.innerHTML = '';
+    const progressEl = document.getElementById('pj-progress');
     try {
       const pdfjs = await _loadPdfJs();
-      const scale = parseFloat(document.getElementById('pj-quality').value);
+      const scale = parseFloat(document.getElementById('pj-scale').value);
+      const quality = parseInt(document.getElementById('pj-quality').value) / 100;
       const pdf = await pdfjs.getDocument({ data: await _pjFile.arrayBuffer() }).promise;
+      const blobs = [];
+
       for (let i = 1; i <= pdf.numPages; i++) {
+        progressEl.textContent = `Página ${i} de ${pdf.numPages}…`;
         const page = await pdf.getPage(i);
         const vp = page.getViewport({ scale });
         const canvas = document.createElement('canvas');
         canvas.width = vp.width; canvas.height = vp.height;
         await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-        canvas.toBlob(blob => {
-          const url = URL.createObjectURL(blob);
-          const wrap = document.createElement('div');
-          wrap.style.cssText = 'text-align:center';
-          wrap.innerHTML = `<img src="${url}" style="width:100%;border-radius:6px;border:1px solid var(--border)">
-            <a href="${url}" download="taro-pag${i}.jpg" style="display:block;font-size:.68rem;color:var(--accent);font-family:var(--mono);margin-top:.2rem">⬇️ pag ${i}</a>`;
-          previews.appendChild(wrap);
-          const a = document.createElement('a'); a.href = url;
+
+        await new Promise(resolve => {
+          canvas.toBlob(blob => {
+            const url = URL.createObjectURL(blob);
+            blobs.push({ blob, name: `taro-pag${i}.jpg` });
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'text-align:center';
+            wrap.innerHTML = `<img src="${url}" style="width:100%;border-radius:6px;border:1px solid var(--border)">
+              <a href="${url}" download="taro-pag${i}.jpg" style="display:block;font-size:.68rem;color:var(--accent);font-family:var(--mono);margin-top:.2rem">⬇️ pag ${i}</a>`;
+            previews.appendChild(wrap);
+            resolve();
+          }, 'image/jpeg', quality);
+        });
+
+        if (!asZip) {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blobs[blobs.length-1].blob);
           a.download = `taro-pag${i}.jpg`; a.click();
-        }, 'image/jpeg', 0.92);
-        await new Promise(r => setTimeout(r, 300));
+          await new Promise(r => setTimeout(r, 300));
+        }
       }
+
+      if (asZip) {
+        // Use JSZip if available, else fallback to individual downloads
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+        const zip = new JSZip();
+        blobs.forEach(({ blob, name }) => zip.file(name, blob));
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(zipBlob);
+        a.download = 'taro-jpg.zip'; a.click();
+      }
+
       toggleLoader('pj-loader', false);
+      progressEl.textContent = '';
       Audio.success();
-    } catch(e) { toggleLoader('pj-loader',false); Audio.error(); }
+    } catch(e) {
+      toggleLoader('pj-loader',false);
+      progressEl.textContent = '❌ ' + e.message;
+      Audio.error();
+    }
   }
 
   // ── pdf unlock ──
@@ -2272,9 +2645,66 @@ const ToolFn = (() => {
   async function puLoad() {
     const f = document.getElementById('pu-file').files[0]; if (!f) return;
     _puFile = f;
-    document.getElementById('pu-name').textContent = f.name;
-    document.getElementById('pu-orig-size').textContent = `Tamaño: ${fmtSize(f.size)}`;
-    document.getElementById('pu-info').style.display = 'block';
+    document.getElementById('pu-filename').textContent = f.name;
+    document.getElementById('pu-upload-screen').style.display = 'none';
+    document.getElementById('pu-editor').style.display = 'block';
+    document.getElementById('pu-orig-size').textContent = fmtSize(f.size);
+
+    // detect restrictions via PDF-lib
+    try {
+      const { PDFDocument } = await _loadPdfLib();
+      const pdf = await PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption: true });
+      // pdf-lib doesn't expose permission flags directly but we can infer from context
+      const enc = pdf.context.lookup(pdf.context.trailerInfo.Encrypt);
+      const hasEnc = !!enc;
+      const badge = (ok) => ok
+        ? `<span style="color:var(--accent)">✅ Permitido</span>`
+        : `<span style="color:var(--accent2)">🔒 Restringido</span>`;
+      if (hasEnc) {
+        document.getElementById('pu-r-print-val').innerHTML = badge(false);
+        document.getElementById('pu-r-copy-val').innerHTML  = badge(false);
+        document.getElementById('pu-r-edit-val').innerHTML  = badge(false);
+      } else {
+        document.getElementById('pu-r-print-val').innerHTML = badge(true);
+        document.getElementById('pu-r-copy-val').innerHTML  = badge(true);
+        document.getElementById('pu-r-edit-val').innerHTML  = badge(true);
+      }
+    } catch(e) {
+      ['print','copy','edit'].forEach(k => {
+        document.getElementById('pu-r-'+k+'-val').textContent = 'No disponible';
+      });
+    }
+
+    document.getElementById('pu-pages-info').textContent = `${fmtSize(f.size)}`;
+
+    // generate thumbnails
+    try {
+      const pdfjs = await _loadPdfJs();
+      const pdf = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
+      document.getElementById('pu-pages-info').textContent = `${pdf.numPages} páginas · ${fmtSize(f.size)}`;
+      const thumbsEl = document.getElementById('pu-thumbs');
+      thumbsEl.innerHTML = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const vp = page.getViewport({ scale: 0.3 });
+        const c = document.createElement('canvas');
+        c.width = vp.width; c.height = vp.height;
+        await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+        const wrap = document.createElement('div');
+        wrap.className = 'pr-thumb';
+        wrap.innerHTML = `<div class="pr-thumb__canvas-wrap"><canvas width="${vp.width}" height="${vp.height}" style="width:100%;display:block"></canvas></div><p class="pr-thumb__num">${i}</p>`;
+        wrap.querySelector('canvas').getContext('2d').drawImage(c, 0, 0);
+        thumbsEl.appendChild(wrap);
+      }
+    } catch(e) { /* thumbnails optional */ }
+  }
+
+  function puReset() {
+    _puFile = null;
+    document.getElementById('pu-upload-screen').style.display = 'block';
+    document.getElementById('pu-editor').style.display = 'none';
+    document.getElementById('pu-file').value = '';
+    document.getElementById('pu-thumbs').innerHTML = '';
   }
 
   async function puUnlock() {
@@ -2540,23 +2970,72 @@ const ToolFn = (() => {
     } catch(e) { toggleLoader('pr-loader',false); showResult('pr-result','❌ '+e.message,true); Audio.error(); }
   }
   // ── pdf delete pages ──
-  let _pdFile = null, _pdPagesTotal = 0;
+  let _pdFile = null, _pdPagesTotal = 0, _pdSelected = new Set();
 
   async function pdLoad() {
     const f = document.getElementById('pd-file').files[0]; if (!f) return;
-    _pdFile = f;
-    document.getElementById('pd-name').textContent = f.name;
-    const { PDFDocument } = await _loadPdfLib();
-    const pdf = await PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption:true });
-    _pdPagesTotal = pdf.getPageCount();
+    _pdFile = f; _pdSelected = new Set();
+    document.getElementById('pd-filename').textContent = f.name;
+    document.getElementById('pd-upload-screen').style.display = 'none';
+    document.getElementById('pd-editor').style.display = 'block';
+
+    const pdfjs = await _loadPdfJs();
+    const pdf = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
+    _pdPagesTotal = pdf.numPages;
     document.getElementById('pd-pages-info').textContent = `${_pdPagesTotal} páginas · ${fmtSize(f.size)}`;
-    document.getElementById('pd-info').style.display = 'block';
+
+    const thumbsEl = document.getElementById('pd-thumbs');
+    thumbsEl.innerHTML = '';
+    for (let i = 1; i <= _pdPagesTotal; i++) {
+      const page = await pdf.getPage(i);
+      const vp = page.getViewport({ scale: 0.3 });
+      const c = document.createElement('canvas');
+      c.width = vp.width; c.height = vp.height;
+      await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      const wrap = document.createElement('div');
+      wrap.className = 'pr-thumb'; wrap.dataset.page = i;
+      wrap.innerHTML = `<div class="pr-thumb__canvas-wrap"><canvas width="${vp.width}" height="${vp.height}" style="width:100%;display:block"></canvas><div class="pr-thumb__overlay" id="pd-ov-${i}"></div></div><p class="pr-thumb__num">${i}</p>`;
+      wrap.querySelector('canvas').getContext('2d').drawImage(c, 0, 0);
+      wrap.addEventListener('click', () => pdToggleSelect(i, wrap));
+      thumbsEl.appendChild(wrap);
+    }
+    pdUpdateInfo();
+  }
+
+  function pdReset() {
+    _pdFile = null; _pdPagesTotal = 0; _pdSelected = new Set();
+    document.getElementById('pd-upload-screen').style.display = 'block';
+    document.getElementById('pd-editor').style.display = 'none';
+    document.getElementById('pd-file').value = '';
+    document.getElementById('pd-thumbs').innerHTML = '';
+  }
+
+  function pdToggleSelect(pageNum, wrap) {
+    if (_pdSelected.has(pageNum)) {
+      _pdSelected.delete(pageNum);
+      wrap.classList.remove('pr-thumb--selected');
+      wrap.style.opacity = '1';
+    } else {
+      _pdSelected.add(pageNum);
+      wrap.classList.add('pr-thumb--selected');
+      wrap.style.opacity = '.45';
+    }
+    pdUpdateInfo();
+  }
+
+  function pdUpdateInfo() {
+    const toDelete = [..._pdSelected].sort((a,b)=>a-b);
+    const keep = _pdPagesTotal - toDelete.length;
+    const selInfo  = document.getElementById('pd-sel-info');
+    const keepInfo = document.getElementById('pd-keep-info');
+    selInfo.textContent  = toDelete.length ? toDelete.join(', ') : 'ninguna';
+    keepInfo.textContent = keep > 0 ? `${keep} página${keep>1?'s':''} restante${keep>1?'s':''}` : '⚠️ Quedaría vacío';
   }
 
   async function pdDelete() {
     if (!_pdFile) return;
-    const toDelete = _parsePageRanges(document.getElementById('pd-pages').value, _pdPagesTotal);
-    if (!toDelete.length) { showResult('pd-result','❌ Indicá las páginas a eliminar.',true); Audio.error(); return; }
+    const toDelete = [..._pdSelected];
+    if (!toDelete.length) { showResult('pd-result','❌ Seleccioná al menos una página.',true); Audio.error(); return; }
     if (toDelete.length >= _pdPagesTotal) { showResult('pd-result','❌ No podés eliminar todas las páginas.',true); Audio.error(); return; }
     toggleLoader('pd-loader', true);
     try {
@@ -2577,13 +3056,52 @@ const ToolFn = (() => {
   }
 
   // ── pdf ocr ──
-  let _poFile = null;
+  let _poFile = null, _poPagesTotal = 0, _poScope = 'all', _poSelected = new Set();
 
   async function poLoad() {
     const f = document.getElementById('po-file').files[0]; if (!f) return;
-    _poFile = f;
+    _poFile = f; _poSelected = new Set(); _poPagesTotal = 0;
     document.getElementById('po-name').textContent = f.name;
     document.getElementById('po-info').style.display = 'block';
+
+    const isPdf = f.type === 'application/pdf';
+    const pdfOptsEl = document.getElementById('po-pdf-opts');
+    pdfOptsEl.style.display = isPdf ? 'block' : 'none';
+
+    if (isPdf) {
+      const pdfjs = await _loadPdfJs();
+      const pdf = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
+      _poPagesTotal = pdf.numPages;
+      const thumbsEl = document.getElementById('po-thumbs');
+      thumbsEl.innerHTML = '';
+      for (let i = 1; i <= _poPagesTotal; i++) {
+        const page = await pdf.getPage(i);
+        const vp = page.getViewport({ scale: 0.25 });
+        const c = document.createElement('canvas');
+        c.width = vp.width; c.height = vp.height;
+        await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+        const wrap = document.createElement('div');
+        wrap.className = 'pr-thumb'; wrap.dataset.page = i;
+        wrap.style.cssText = 'width:52px;flex-shrink:0';
+        wrap.innerHTML = `<div class="pr-thumb__canvas-wrap" style="height:70px"><canvas width="${vp.width}" height="${vp.height}" style="width:100%;height:100%;object-fit:cover;display:block"></canvas></div><p class="pr-thumb__num">${i}</p>`;
+        wrap.querySelector('canvas').getContext('2d').drawImage(c, 0, 0);
+        wrap.addEventListener('click', () => poToggleSelect(i, wrap));
+        thumbsEl.appendChild(wrap);
+      }
+    }
+  }
+
+  function poSetScope(scope, btn) {
+    _poScope = scope;
+    document.querySelectorAll('#po-pdf-opts .pr-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('po-sel-hint').style.display = scope === 'sel' ? 'block' : 'none';
+  }
+
+  function poToggleSelect(pageNum, wrap) {
+    if (_poScope !== 'sel') return;
+    if (_poSelected.has(pageNum)) { _poSelected.delete(pageNum); wrap.classList.remove('pr-thumb--selected'); }
+    else { _poSelected.add(pageNum); wrap.classList.add('pr-thumb--selected'); }
   }
 
   async function poOCR() {
@@ -2591,38 +3109,73 @@ const ToolFn = (() => {
     toggleLoader('po-loader', true);
     document.getElementById('po-result').style.display = 'none';
     const progress = document.getElementById('po-progress');
+    const progressWrap = document.getElementById('po-progress-wrap');
+    const progressBar  = document.getElementById('po-progress-bar');
+    const progressPct  = document.getElementById('po-progress-pct');
+    const progressLbl  = document.getElementById('po-progress-label');
+    progressWrap.style.display = 'block';
     progress.textContent = 'Cargando Tesseract...';
     try {
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js');
       const lang = document.getElementById('po-lang').value;
-      let imageUrl;
-      if (_poFile.type === 'application/pdf') {
-        // Renderizar primera página como imagen
-        const pdfjs = await _loadPdfJs();
-        const pdf = await pdfjs.getDocument({ data: await _poFile.arrayBuffer() }).promise;
-        const page = await pdf.getPage(1);
-        const vp = page.getViewport({ scale: 2 });
-        const canvas = document.createElement('canvas');
-        canvas.width = vp.width; canvas.height = vp.height;
-        await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-        imageUrl = canvas.toDataURL('image/png');
-      } else {
-        imageUrl = URL.createObjectURL(_poFile);
+      const isPdf = _poFile.type === 'application/pdf';
+
+      let pagesToProcess = [];
+      if (isPdf) {
+        if (_poScope === 'all') pagesToProcess = Array.from({length:_poPagesTotal},(_,i)=>i+1);
+        else pagesToProcess = [..._poSelected].sort((a,b)=>a-b);
+        if (!pagesToProcess.length) pagesToProcess = [1];
       }
-      progress.textContent = 'Analizando imagen...';
-      const result = await Tesseract.recognize(imageUrl, lang, {
-        logger: m => { if (m.status==='recognizing text') progress.textContent = `Reconociendo: ${Math.round(m.progress*100)}%`; }
-      });
+
+      const pdfjs = isPdf ? await _loadPdfJs() : null;
+      const pdfDoc = isPdf ? await pdfjs.getDocument({ data: await _poFile.arrayBuffer() }).promise : null;
+
+      let allText = '';
+      const total = isPdf ? pagesToProcess.length : 1;
+
+      for (let idx = 0; idx < total; idx++) {
+        const pageLabel = isPdf ? `Página ${pagesToProcess[idx]}/${_poPagesTotal}` : 'Imagen';
+        progressLbl.textContent = `${pageLabel} — reconociendo...`;
+        progressBar.style.width = Math.round(idx / total * 100) + '%';
+        progressPct.textContent = Math.round(idx / total * 100) + '%';
+
+        let imageUrl;
+        if (isPdf) {
+          const page = await pdfDoc.getPage(pagesToProcess[idx]);
+          const vp = page.getViewport({ scale: 2 });
+          const canvas = document.createElement('canvas');
+          canvas.width = vp.width; canvas.height = vp.height;
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+          imageUrl = canvas.toDataURL('image/png');
+        } else {
+          imageUrl = URL.createObjectURL(_poFile);
+        }
+
+        const result = await Tesseract.recognize(imageUrl, lang, {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              const pct = Math.round((idx / total + m.progress / total) * 100);
+              progressBar.style.width = pct + '%';
+              progressPct.textContent = pct + '%';
+              progressLbl.textContent = `${pageLabel} — ${Math.round(m.progress * 100)}%`;
+            }
+          }
+        });
+        const text = result.data.text.trim();
+        if (text) allText += (isPdf ? `[Página ${pagesToProcess[idx]}]\n` : '') + text + '\n\n';
+      }
+
       toggleLoader('po-loader', false);
+      progressWrap.style.display = 'none';
       progress.textContent = '';
-      const text = result.data.text.trim();
-      if (!text) throw new Error('No se encontró texto en la imagen');
-      document.getElementById('po-result').textContent = text;
+      if (!allText.trim()) throw new Error('No se encontró texto');
+      document.getElementById('po-result').textContent = allText.trim();
       document.getElementById('po-result').style.display = 'block';
       document.getElementById('po-result-copy').style.display = 'block';
       Audio.success();
     } catch(e) {
-      toggleLoader('po-loader',false);
+      toggleLoader('po-loader', false);
+      progressWrap.style.display = 'none';
       progress.textContent = '';
       document.getElementById('po-result').textContent = '❌ ' + e.message;
       document.getElementById('po-result').style.display = 'block';
@@ -2643,14 +3196,14 @@ const ToolFn = (() => {
     b64Action, genHash,
     timerToggle, timerLap, timerReset,
     genUUID, genUUIDs, fetchIP,
-    pmLoad, pmRemove, pmMerge,
-    psLoad, psSplit,
-    pcLoad, pcCompress,
-    pjLoad, pjConvert,
-    puLoad, puUnlock,
+    pmLoad, pmRemove, pmMerge, pmRenderList, pmDragStart, pmDrop,
+    psLoad, psReset, psSetScope, psToggleSelect, psHighlightRange, psSplit,
+    pcLoad, pcReset, pcUpdateEst, pcCompress,
+    pjLoad, pjReset, pjUpdateScaleLabel, pjUpdateQLLabel, pjConvert,
+    puLoad, puReset, puUnlock,
     prLoad, prReset, prSetMode, prOnSlider, prSnapDeg, prSetDeg, prSetScope, prToggleSelect, prUpdatePreview, prRotate,
-    pdLoad, pdDelete,
-    poLoad, poOCR,
+    pdLoad, pdReset, pdToggleSelect, pdDelete,
+    poLoad, poSetScope, poToggleSelect, poOCR,
     _dropName,
     irLoad, irSetMode, irToggleCompress, irSyncAR, irPreset, irPreviewLive, irDownload,
     mrLoad, mrProcess,
