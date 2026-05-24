@@ -438,3 +438,19 @@ footer span { color:var(--accent2); }
   background:var(--accent); color:#000; border-color:var(--accent); font-weight:700;
 }
 body.light .pr-deg-btn.active, body.light .pr-scope-btn.active { color:#fff; }
+
+/* ── pr mode buttons ── */
+.pr-mode-btn {
+  background:var(--bg2); border:1.5px solid var(--border);
+  border-radius:6px; padding:.28rem .65rem; color:var(--fg3);
+  font-size:.72rem; font-family:var(--mono); cursor:pointer;
+  transition:border-color .15s, color .15s, background .15s;
+}
+.pr-mode-btn:hover { border-color:var(--accent2); color:var(--accent2); }
+.pr-mode-btn.active {
+  background:var(--accent2); color:#000; border-color:var(--accent2); font-weight:700;
+}
+body.light .pr-mode-btn.active { color:#fff; }
+
+/* range slider accent */
+input[type="range"] { accent-color: var(--accent); }

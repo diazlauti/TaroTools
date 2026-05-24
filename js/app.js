@@ -857,12 +857,26 @@ const ToolUI = (() => {
             </div>
             <div class="pr-panel">
               <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.7rem">Opciones de rotación</p>
-              <label>Grado</label>
-              <div class="pr-deg-group">
-                <button class="pr-deg-btn active" onclick="ToolFn.prSetDeg(90,this)">90° →</button>
-                <button class="pr-deg-btn" onclick="ToolFn.prSetDeg(180,this)">180°</button>
-                <button class="pr-deg-btn" onclick="ToolFn.prSetDeg(270,this)">← 270°</button>
+
+              <label>Modo</label>
+              <div class="pr-deg-group" style="margin-bottom:.6rem">
+                <button class="pr-mode-btn active" onclick="ToolFn.prSetMode('rotate',this)">🔄 Rotar</button>
+                <button class="pr-mode-btn" onclick="ToolFn.prSetMode('mirror-h',this)">↔ Espejo H</button>
+                <button class="pr-mode-btn" onclick="ToolFn.prSetMode('mirror-v',this)">↕ Espejo V</button>
               </div>
+
+              <div id="pr-rotate-opts">
+                <label>Ángulo: <span id="pr-deg-label" style="color:var(--accent);font-family:var(--mono)">90°</span></label>
+                <input type="range" id="pr-deg-slider" min="0" max="359" value="90" step="1"
+                  oninput="ToolFn.prOnSlider(this.value)"
+                  style="width:100%;margin:.3rem 0 .2rem;accent-color:var(--accent)">
+                <div class="pr-deg-group" style="margin-top:.35rem">
+                  <button class="pr-deg-btn active" onclick="ToolFn.prSnapDeg(90)">90°</button>
+                  <button class="pr-deg-btn" onclick="ToolFn.prSnapDeg(180)">180°</button>
+                  <button class="pr-deg-btn" onclick="ToolFn.prSnapDeg(270)">270°</button>
+                </div>
+              </div>
+
               <label style="margin-top:.9rem">Páginas</label>
               <div class="pr-scope-group">
                 <button class="pr-scope-btn active" onclick="ToolFn.prSetScope('all',this)">Todas</button>
@@ -2280,7 +2294,7 @@ const ToolFn = (() => {
   }
 
   // ── pdf rotate ──
-  let _prFile = null, _prPagesTotal = 0, _prDeg = 90, _prScope = 'all', _prSelected = new Set();
+  let _prFile = null, _prPagesTotal = 0, _prDeg = 90, _prScope = 'all', _prSelected = new Set(), _prMode = 'rotate';
 
   async function prLoad() {
     const f = document.getElementById('pr-file').files[0]; if (!f) return;
@@ -2331,6 +2345,38 @@ const ToolFn = (() => {
     document.getElementById('pr-file').value = '';
   }
 
+  function prSetMode(mode, btn) {
+    _prMode = mode;
+    document.querySelectorAll('.pr-mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const rotOpts = document.getElementById('pr-rotate-opts');
+    if (rotOpts) rotOpts.style.display = mode === 'rotate' ? 'block' : 'none';
+    prUpdatePreview();
+  }
+
+  function prOnSlider(val) {
+    _prDeg = parseInt(val);
+    const lbl = document.getElementById('pr-deg-label');
+    if (lbl) lbl.textContent = _prDeg + '°';
+    // quitar active de snap buttons
+    document.querySelectorAll('.pr-deg-btn').forEach(b => {
+      b.classList.toggle('active', parseInt(b.textContent) === _prDeg);
+    });
+    prUpdatePreview();
+  }
+
+  function prSnapDeg(deg) {
+    _prDeg = deg;
+    const slider = document.getElementById('pr-deg-slider');
+    if (slider) slider.value = deg;
+    const lbl = document.getElementById('pr-deg-label');
+    if (lbl) lbl.textContent = deg + '°';
+    document.querySelectorAll('.pr-deg-btn').forEach(b => {
+      b.classList.toggle('active', parseInt(b.textContent) === deg);
+    });
+    prUpdatePreview();
+  }
+
   function prSetDeg(deg, btn) {
     _prDeg = deg;
     document.querySelectorAll('.pr-deg-btn').forEach(b => b.classList.remove('active'));
@@ -2374,10 +2420,12 @@ const ToolFn = (() => {
     const pages = prGetTargetPages();
     const wrap = document.getElementById('pr-preview-wrap'); if (!wrap) return;
 
+    // badges en miniaturas
     document.querySelectorAll('.pr-thumb__rot-badge').forEach(b => b.textContent = '');
+    const badgeLabel = _prMode === 'rotate' ? _prDeg + '°' : (_prMode === 'mirror-h' ? '↔' : '↕');
     pages.forEach(n => {
       const badge = document.getElementById('pr-badge-' + n);
-      if (badge) badge.textContent = _prDeg + '°';
+      if (badge) badge.textContent = badgeLabel;
     });
 
     if (!pages.length) {
@@ -2390,16 +2438,30 @@ const ToolFn = (() => {
     toShow.forEach(n => {
       const srcCanvas = document.querySelector(`.pr-thumb[data-page="${n}"] canvas`);
       if (!srcCanvas) return;
-      const deg = _prDeg;
-      const swap = deg === 90 || deg === 270;
       const sw = srcCanvas.width, sh = srcCanvas.height;
-      const dw = swap ? sh : sw, dh = swap ? sw : sh;
+      let dw = sw, dh = sh;
+
+      if (_prMode === 'rotate') {
+        const swap = _prDeg === 90 || _prDeg === 270;
+        dw = swap ? sh : sw; dh = swap ? sw : sh;
+      }
+
       const c = document.createElement('canvas');
       c.width = dw; c.height = dh;
       const ctx = c.getContext('2d');
-      ctx.translate(dw/2, dh/2);
-      ctx.rotate(deg * Math.PI / 180);
-      ctx.drawImage(srcCanvas, -sw/2, -sh/2);
+
+      if (_prMode === 'rotate') {
+        ctx.translate(dw/2, dh/2);
+        ctx.rotate(_prDeg * Math.PI / 180);
+        ctx.drawImage(srcCanvas, -sw/2, -sh/2);
+      } else if (_prMode === 'mirror-h') {
+        ctx.translate(dw, 0); ctx.scale(-1, 1);
+        ctx.drawImage(srcCanvas, 0, 0);
+      } else {
+        ctx.translate(0, dh); ctx.scale(1, -1);
+        ctx.drawImage(srcCanvas, 0, 0);
+      }
+
       const div = document.createElement('div');
       div.style.cssText = 'text-align:center';
       div.innerHTML = `<p style="font-size:.6rem;color:var(--accent);font-family:var(--mono);margin-bottom:.2rem">pág ${n}</p>`;
@@ -2421,18 +2483,59 @@ const ToolFn = (() => {
     if (!pageNums.length) { showResult('pr-result','❌ Seleccioná al menos una página.',true); Audio.error(); return; }
     toggleLoader('pr-loader', true);
     try {
-      const { PDFDocument, degrees } = await _loadPdfLib();
-      const pdf = await PDFDocument.load(await _prFile.arrayBuffer(), { ignoreEncryption:true });
-      pageNums.forEach(n => {
-        const page = pdf.getPage(n-1);
-        page.setRotation(degrees((page.getRotation().angle + _prDeg) % 360));
-      });
-      const bytes = await pdf.save();
-      const blob = new Blob([bytes], {type:'application/pdf'});
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-      a.download = 'taro-rotated.pdf'; a.click();
-      toggleLoader('pr-loader', false);
-      showResult('pr-result', `✅ ${pageNums.length} página${pageNums.length>1?'s':''} rotada${pageNums.length>1?'s':''} ${_prDeg}°`);
+      if (_prMode === 'rotate') {
+        // rotación simple con pdf-lib
+        const { PDFDocument, degrees } = await _loadPdfLib();
+        const pdf = await PDFDocument.load(await _prFile.arrayBuffer(), { ignoreEncryption:true });
+        pageNums.forEach(n => {
+          const page = pdf.getPage(n-1);
+          page.setRotation(degrees((page.getRotation().angle + _prDeg) % 360));
+        });
+        const bytes = await pdf.save();
+        const blob = new Blob([bytes], {type:'application/pdf'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = 'taro-rotated.pdf'; a.click();
+        toggleLoader('pr-loader', false);
+        showResult('pr-result', `✅ ${pageNums.length} página${pageNums.length>1?'s':''} rotada${pageNums.length>1?'s':''} ${_prDeg}°`);
+      } else {
+        // mirror: renderizar cada página con canvas y reconstruir PDF
+        const pdfjs = await _loadPdfJs();
+        const { PDFDocument } = await _loadPdfLib();
+        const srcPdf = await pdfjs.getDocument({ data: await _prFile.arrayBuffer() }).promise;
+        const outPdf = await PDFDocument.create();
+
+        for (let i = 1; i <= srcPdf.numPages; i++) {
+          const page = await srcPdf.getPage(i);
+          const vp = page.getViewport({ scale: 2 });
+          const c = document.createElement('canvas');
+          c.width = vp.width; c.height = vp.height;
+          const ctx = c.getContext('2d');
+
+          if (pageNums.includes(i)) {
+            // aplicar espejo
+            if (_prMode === 'mirror-h') {
+              ctx.translate(vp.width, 0); ctx.scale(-1, 1);
+            } else {
+              ctx.translate(0, vp.height); ctx.scale(1, -1);
+            }
+          }
+          await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+          const imgData = c.toDataURL('image/jpeg', 0.92);
+          const imgBytes = await fetch(imgData).then(r => r.arrayBuffer());
+          const img = await outPdf.embedJpg(imgBytes);
+          const newPage = outPdf.addPage([vp.width, vp.height]);
+          newPage.drawImage(img, { x:0, y:0, width:vp.width, height:vp.height });
+        }
+
+        const bytes = await outPdf.save();
+        const blob = new Blob([bytes], {type:'application/pdf'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = 'taro-mirror.pdf'; a.click();
+        toggleLoader('pr-loader', false);
+        const label = _prMode === 'mirror-h' ? 'horizontal' : 'vertical';
+        showResult('pr-result', `✅ Espejo ${label} aplicado · ${pageNums.length} página${pageNums.length>1?'s':''}`);
+      }
       Audio.success();
     } catch(e) { toggleLoader('pr-loader',false); showResult('pr-result','❌ '+e.message,true); Audio.error(); }
   }
@@ -2545,7 +2648,7 @@ const ToolFn = (() => {
     pcLoad, pcCompress,
     pjLoad, pjConvert,
     puLoad, puUnlock,
-    prLoad, prReset, prSetDeg, prSetScope, prToggleSelect, prUpdatePreview, prRotate,
+    prLoad, prReset, prSetMode, prOnSlider, prSnapDeg, prSetDeg, prSetScope, prToggleSelect, prUpdatePreview, prRotate,
     pdLoad, pdDelete,
     poLoad, poOCR,
     _dropName,
