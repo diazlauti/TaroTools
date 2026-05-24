@@ -368,3 +368,73 @@ footer span { color:var(--accent2); }
   margin-top: .2rem;
   min-height: 1rem;
 }
+
+/* ─────────────────────────────────────────
+   14. PDF ROTATE WORKSPACE
+───────────────────────────────────────── */
+.pr-topbar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.5rem .6rem; background:var(--bg3);
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  margin-bottom:.7rem;
+}
+.pr-topbar__info { display:flex; align-items:baseline; gap:.4rem; overflow:hidden; }
+
+.pr-workspace {
+  display:grid; grid-template-columns:130px 1fr; gap:.7rem; align-items:start;
+}
+@media (max-width:600px) {
+  .pr-workspace { grid-template-columns:1fr; }
+}
+
+.pr-sidebar {
+  background:var(--bg3); border:1px solid var(--border);
+  border-radius:var(--radius-sm); padding:.5rem; max-height:420px;
+  overflow-y:auto;
+}
+
+.pr-thumbs { display:flex; flex-direction:column; gap:.4rem; }
+
+.pr-thumb {
+  cursor:default; border-radius:6px; overflow:hidden;
+  border:2px solid var(--border); transition:border-color .15s;
+  position:relative;
+}
+.pr-thumb--selectable { cursor:pointer; }
+.pr-thumb--selectable:hover { border-color:var(--accent2); }
+.pr-thumb--active { border-color:var(--accent) !important; }
+.pr-thumb__canvas-wrap { position:relative; }
+.pr-thumb__overlay {
+  position:absolute; inset:0; display:flex;
+  align-items:flex-end; justify-content:flex-end; padding:2px;
+}
+.pr-thumb__rot-badge {
+  background:var(--accent); color:#000; font-family:var(--mono);
+  font-size:.55rem; font-weight:700; padding:1px 4px; border-radius:3px;
+  display:none;
+}
+.pr-thumb__rot-badge:not(:empty) { display:block; }
+.pr-thumb__num {
+  font-family:var(--mono); font-size:.62rem; color:var(--fg3);
+  text-align:center; padding:2px 0; background:var(--bg3);
+}
+
+.pr-panel {
+  background:var(--bg3); border:1px solid var(--border);
+  border-radius:var(--radius-sm); padding:.7rem;
+}
+
+.pr-deg-group, .pr-scope-group {
+  display:flex; gap:.3rem; flex-wrap:wrap; margin-top:.3rem;
+}
+.pr-deg-btn, .pr-scope-btn {
+  background:var(--bg2); border:1.5px solid var(--border);
+  border-radius:6px; padding:.28rem .65rem; color:var(--fg3);
+  font-size:.72rem; font-family:var(--mono); cursor:pointer;
+  transition:border-color .15s, color .15s, background .15s;
+}
+.pr-deg-btn:hover, .pr-scope-btn:hover { border-color:var(--accent2); color:var(--accent2); }
+.pr-deg-btn.active, .pr-scope-btn.active {
+  background:var(--accent); color:#000; border-color:var(--accent); font-weight:700;
+}
+body.light .pr-deg-btn.active, body.light .pr-scope-btn.active { color:#fff; }

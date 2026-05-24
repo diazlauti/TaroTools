@@ -828,28 +828,65 @@ const ToolUI = (() => {
       result('pu-result'),
 
     /* ── PDF ROTATE ── */
-    'pdf-rotate': () =>
-      infoBox('Rotá todas las páginas o páginas específicas de tu PDF.') +
-      `<input type="file" id="pr-file" accept="application/pdf" style="display:none" onchange="ToolFn.prLoad()">` +
-      `<div class="file-drop" onclick="document.getElementById('pr-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pr-file').files=event.dataTransfer.files;ToolFn.prLoad()">
-        <div class="file-drop__icon">🔄</div>
-        <div class="file-drop__title">Arrastrá un PDF acá</div>
-        <div class="file-drop__sub">o hacé click para elegir</div>
-        <div class="file-drop__name" id="pr-name"></div>
-      </div>` +
-      `<div id="pr-info" style="display:none">
-        <p id="pr-pages-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>
-        <label>Rotación</label>` +
-      sel('pr-deg',[['90','90° →'],['180','180°'],['270','270° ←']]) +
-      `<label>Páginas a rotar</label>` +
-      sel('pr-scope',[['all','Todas las páginas'],['range','Páginas específicas (ej: 1,3,5)']]) +
-      `<div id="pr-range-row" style="display:none;margin-top:.4rem">
-          <input type="text" id="pr-range" placeholder="ej: 1, 3, 5-7">
+    /* ── PDF ROTATE ── */
+    'pdf-rotate': () => {
+      const loaderHtml = loader('pr-loader','⏳ rotando PDF...');
+      const resultHtml = result('pr-result');
+      return `<div id="pr-upload-screen">` +
+        infoBox('Rotá páginas de tu PDF. Preview en vivo antes de descargar.') +
+        `<input type="file" id="pr-file" accept="application/pdf" style="display:none" onchange="ToolFn.prLoad()">
+        <div class="file-drop" onclick="document.getElementById('pr-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pr-file').files=event.dataTransfer.files;ToolFn.prLoad()">
+          <div class="file-drop__icon">🔄</div>
+          <div class="file-drop__title">Arrastrá un PDF acá</div>
+          <div class="file-drop__sub">o hacé click para elegir</div>
+          <div class="file-drop__name" id="pr-name"></div>
         </div>
-        <div class="btn-row"><button class="btn" onclick="ToolFn.prRotate()">🔄 Rotar y descargar</button></div>
-      </div>` +
-      loader('pr-loader','⏳ rotando PDF...') +
-      result('pr-result'),
+        </div>
+        <div id="pr-editor" style="display:none">
+          <div class="pr-topbar">
+            <div class="pr-topbar__info">
+              <span id="pr-filename" style="font-family:var(--mono);font-size:.78rem;color:var(--fg2)"></span>
+              <span id="pr-pages-info" style="font-family:var(--mono);font-size:.7rem;color:var(--fg3);margin-left:.6rem"></span>
+            </div>
+            <button class="btn btn--sec" onclick="ToolFn.prReset()" style="font-size:.7rem;padding:.25rem .6rem">✕ Cambiar PDF</button>
+          </div>
+          <div class="pr-workspace">
+            <div class="pr-sidebar" id="pr-sidebar">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Páginas</p>
+              <div id="pr-thumbs"></div>
+            </div>
+            <div class="pr-panel">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.7rem">Opciones de rotación</p>
+              <label>Grado</label>
+              <div class="pr-deg-group">
+                <button class="pr-deg-btn active" onclick="ToolFn.prSetDeg(90,this)">90° →</button>
+                <button class="pr-deg-btn" onclick="ToolFn.prSetDeg(180,this)">180°</button>
+                <button class="pr-deg-btn" onclick="ToolFn.prSetDeg(270,this)">← 270°</button>
+              </div>
+              <label style="margin-top:.9rem">Páginas</label>
+              <div class="pr-scope-group">
+                <button class="pr-scope-btn active" onclick="ToolFn.prSetScope('all',this)">Todas</button>
+                <button class="pr-scope-btn" onclick="ToolFn.prSetScope('sel',this)">Selección</button>
+                <button class="pr-scope-btn" onclick="ToolFn.prSetScope('range',this)">Rango</button>
+              </div>
+              <div id="pr-range-row" style="display:none;margin-top:.5rem">
+                <input type="text" id="pr-range" placeholder="ej: 1, 3, 5-7" oninput="ToolFn.prUpdatePreview()">
+              </div>
+              <div id="pr-sel-hint" style="display:none;font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin-top:.4rem">✦ Hacé click en las miniaturas para seleccionar</div>
+              <div style="margin-top:.9rem;padding:.6rem;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+                <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.35rem">Preview</p>
+                <div id="pr-preview-wrap" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;min-height:60px">
+                  <span style="font-size:.72rem;color:var(--fg3);font-family:var(--mono)">seleccioná páginas para previsualizar</span>
+                </div>
+              </div>
+              <div class="btn-row" style="margin-top:.9rem">
+                <button class="btn" onclick="ToolFn.prRotate()">🔄 Rotar y descargar</button>
+              </div>
+              ${loaderHtml}${resultHtml}
+            </div>
+          </div>
+        </div>`;
+    },
 
     /* ── PDF DELETE PAGES ── */
     'pdf-delete-p': () =>
@@ -2243,47 +2280,162 @@ const ToolFn = (() => {
   }
 
   // ── pdf rotate ──
-  let _prFile = null, _prPagesTotal = 0;
+  let _prFile = null, _prPagesTotal = 0, _prDeg = 90, _prScope = 'all', _prSelected = new Set();
 
   async function prLoad() {
     const f = document.getElementById('pr-file').files[0]; if (!f) return;
     _prFile = f;
-    document.getElementById('pr-name').textContent = f.name;
-    const { PDFDocument } = await _loadPdfLib();
-    const pdf = await PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption:true });
-    _prPagesTotal = pdf.getPageCount();
+    _prSelected = new Set();
+    _prScope = 'all';
+    _prDeg = 90;
+    document.getElementById('pr-filename').textContent = f.name;
+    document.getElementById('pr-upload-screen').style.display = 'none';
+    document.getElementById('pr-editor').style.display = 'block';
+
+    const pdfjs = await _loadPdfJs();
+    const pdf = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
+    _prPagesTotal = pdf.numPages;
     document.getElementById('pr-pages-info').textContent = `${_prPagesTotal} páginas · ${fmtSize(f.size)}`;
-    document.getElementById('pr-info').style.display = 'block';
-    document.getElementById('pr-scope').onchange = function() {
-      document.getElementById('pr-range-row').style.display = this.value==='range' ? 'block' : 'none';
-    };
+
+    const thumbsEl = document.getElementById('pr-thumbs');
+    thumbsEl.innerHTML = '';
+
+    for (let i = 1; i <= _prPagesTotal; i++) {
+      const page = await pdf.getPage(i);
+      const vp = page.getViewport({ scale: 0.3 });
+      const c = document.createElement('canvas');
+      c.width = vp.width; c.height = vp.height;
+      await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'pr-thumb';
+      wrap.dataset.page = i;
+      wrap.innerHTML = `
+        <div class="pr-thumb__canvas-wrap">
+          <canvas width="${vp.width}" height="${vp.height}" style="width:100%;display:block"></canvas>
+          <div class="pr-thumb__overlay"><span class="pr-thumb__rot-badge" id="pr-badge-${i}"></span></div>
+        </div>
+        <p class="pr-thumb__num">${i}</p>
+      `;
+      wrap.querySelector('canvas').getContext('2d').drawImage(c, 0, 0);
+      wrap.addEventListener('click', () => prToggleSelect(i, wrap));
+      thumbsEl.appendChild(wrap);
+    }
+    prUpdatePreview();
+  }
+
+  function prReset() {
+    _prFile = null; _prPagesTotal = 0; _prSelected = new Set();
+    document.getElementById('pr-upload-screen').style.display = 'block';
+    document.getElementById('pr-editor').style.display = 'none';
+    document.getElementById('pr-file').value = '';
+  }
+
+  function prSetDeg(deg, btn) {
+    _prDeg = deg;
+    document.querySelectorAll('.pr-deg-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    prUpdatePreview();
+  }
+
+  function prSetScope(scope, btn) {
+    _prScope = scope;
+    document.querySelectorAll('.pr-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('pr-range-row').style.display = scope === 'range' ? 'block' : 'none';
+    document.getElementById('pr-sel-hint').style.display = scope === 'sel' ? 'block' : 'none';
+    document.querySelectorAll('.pr-thumb').forEach(t => {
+      t.classList.toggle('pr-thumb--selectable', scope === 'sel');
+      if (scope !== 'sel') t.classList.remove('pr-thumb--active');
+    });
+    if (scope !== 'sel') _prSelected = new Set();
+    prUpdatePreview();
+  }
+
+  function prToggleSelect(pageNum, el) {
+    if (_prScope !== 'sel') return;
+    if (_prSelected.has(pageNum)) {
+      _prSelected.delete(pageNum);
+      el.classList.remove('pr-thumb--active');
+    } else {
+      _prSelected.add(pageNum);
+      el.classList.add('pr-thumb--active');
+    }
+    prUpdatePreview();
+  }
+
+  function prGetTargetPages() {
+    if (_prScope === 'all') return Array.from({length:_prPagesTotal},(_,i)=>i+1);
+    if (_prScope === 'sel') return [..._prSelected].sort((a,b)=>a-b);
+    return _parsePageRanges(document.getElementById('pr-range')?.value || '', _prPagesTotal);
+  }
+
+  function prUpdatePreview() {
+    const pages = prGetTargetPages();
+    const wrap = document.getElementById('pr-preview-wrap'); if (!wrap) return;
+
+    document.querySelectorAll('.pr-thumb__rot-badge').forEach(b => b.textContent = '');
+    pages.forEach(n => {
+      const badge = document.getElementById('pr-badge-' + n);
+      if (badge) badge.textContent = _prDeg + '°';
+    });
+
+    if (!pages.length) {
+      wrap.innerHTML = '<span style="font-size:.72rem;color:var(--fg3);font-family:var(--mono)">ninguna página seleccionada</span>';
+      return;
+    }
+
+    const toShow = pages.slice(0, 4);
+    wrap.innerHTML = '';
+    toShow.forEach(n => {
+      const srcCanvas = document.querySelector(`.pr-thumb[data-page="${n}"] canvas`);
+      if (!srcCanvas) return;
+      const deg = _prDeg;
+      const swap = deg === 90 || deg === 270;
+      const sw = srcCanvas.width, sh = srcCanvas.height;
+      const dw = swap ? sh : sw, dh = swap ? sw : sh;
+      const c = document.createElement('canvas');
+      c.width = dw; c.height = dh;
+      const ctx = c.getContext('2d');
+      ctx.translate(dw/2, dh/2);
+      ctx.rotate(deg * Math.PI / 180);
+      ctx.drawImage(srcCanvas, -sw/2, -sh/2);
+      const div = document.createElement('div');
+      div.style.cssText = 'text-align:center';
+      div.innerHTML = `<p style="font-size:.6rem;color:var(--accent);font-family:var(--mono);margin-bottom:.2rem">pág ${n}</p>`;
+      c.style.cssText = 'max-width:70px;max-height:90px;border-radius:4px;border:1.5px solid var(--accent);display:block';
+      div.prepend(c);
+      wrap.appendChild(div);
+    });
+    if (pages.length > 4) {
+      const more = document.createElement('span');
+      more.style.cssText = 'font-size:.7rem;color:var(--fg3);font-family:var(--mono);align-self:center';
+      more.textContent = '+' + (pages.length - 4) + ' más';
+      wrap.appendChild(more);
+    }
   }
 
   async function prRotate() {
     if (!_prFile) return;
+    const pageNums = prGetTargetPages();
+    if (!pageNums.length) { showResult('pr-result','❌ Seleccioná al menos una página.',true); Audio.error(); return; }
     toggleLoader('pr-loader', true);
     try {
       const { PDFDocument, degrees } = await _loadPdfLib();
       const pdf = await PDFDocument.load(await _prFile.arrayBuffer(), { ignoreEncryption:true });
-      const deg = parseInt(document.getElementById('pr-deg').value);
-      const scope = document.getElementById('pr-scope').value;
-      const pageNums = scope==='all'
-        ? Array.from({length:_prPagesTotal},(_,i)=>i+1)
-        : _parsePageRanges(document.getElementById('pr-range').value, _prPagesTotal);
       pageNums.forEach(n => {
         const page = pdf.getPage(n-1);
-        page.setRotation(degrees((page.getRotation().angle + deg) % 360));
+        page.setRotation(degrees((page.getRotation().angle + _prDeg) % 360));
       });
       const bytes = await pdf.save();
       const blob = new Blob([bytes], {type:'application/pdf'});
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
       a.download = 'taro-rotated.pdf'; a.click();
       toggleLoader('pr-loader', false);
-      showResult('pr-result', `✅ ${pageNums.length} páginas rotadas ${deg}°`);
+      showResult('pr-result', `✅ ${pageNums.length} página${pageNums.length>1?'s':''} rotada${pageNums.length>1?'s':''} ${_prDeg}°`);
       Audio.success();
     } catch(e) { toggleLoader('pr-loader',false); showResult('pr-result','❌ '+e.message,true); Audio.error(); }
   }
-
   // ── pdf delete pages ──
   let _pdFile = null, _pdPagesTotal = 0;
 
@@ -2393,7 +2545,7 @@ const ToolFn = (() => {
     pcLoad, pcCompress,
     pjLoad, pjConvert,
     puLoad, puUnlock,
-    prLoad, prRotate,
+    prLoad, prReset, prSetDeg, prSetScope, prToggleSelect, prUpdatePreview, prRotate,
     pdLoad, pdDelete,
     poLoad, poOCR,
     _dropName,
