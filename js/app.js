@@ -1915,17 +1915,104 @@ const ToolFn = (() => {
 
   function fvDownloadIco() {
     if (!_fvImg) return;
-    // Generar PNG de 32px y descargar como .ico (los navegadores modernos aceptan PNG dentro de .ico)
-    const c = document.createElement('canvas');
-    c.width = 32; c.height = 32;
-    c.getContext('2d').drawImage(_fvImg, 0, 0, 32, 32);
-    c.toBlob(blob => {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'favicon.ico';
-      a.click();
-      Audio.success();
-    }, 'image/png');
+
+    // Genera un .ico real multi-tamaño (16, 32, 48px) con BMP de 32bpp
+    function canvasToRawBMP(canvas) {
+      const w = canvas.width, h = canvas.height;
+      const ctx = canvas.getContext('2d');
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const pixels = imgData.data;
+
+      // BMP dentro de ICO: BITMAPINFOHEADER (40 bytes) + pixels XOR (BGRA, bottom-up) + mask AND
+      const rowSize = w * 4;
+      const xorSize = rowSize * h;
+      const andRowSize = Math.ceil(w / 8) * 4; // padded to 4 bytes
+      const andSize = andRowSize * h;
+      const totalSize = 40 + xorSize + andSize;
+
+      const buf = new ArrayBuffer(totalSize);
+      const view = new DataView(buf);
+
+      // BITMAPINFOHEADER
+      view.setUint32(0, 40, true);           // biSize
+      view.setInt32(4, w, true);             // biWidth
+      view.setInt32(8, h * 2, true);         // biHeight (doble: XOR + AND)
+      view.setUint16(12, 1, true);           // biPlanes
+      view.setUint16(14, 32, true);          // biBitCount
+      view.setUint32(16, 0, true);           // biCompression (BI_RGB)
+      view.setUint32(20, xorSize, true);     // biSizeImage
+      // resto en 0
+
+      // Píxeles XOR: BGRA, bottom-up
+      let offset = 40;
+      for (let row = h - 1; row >= 0; row--) {
+        for (let col = 0; col < w; col++) {
+          const i = (row * w + col) * 4;
+          view.setUint8(offset++, pixels[i + 2]); // B
+          view.setUint8(offset++, pixels[i + 1]); // G
+          view.setUint8(offset++, pixels[i]);     // R
+          view.setUint8(offset++, pixels[i + 3]); // A
+        }
+      }
+      // AND mask: todo ceros (imagen opaca con canal alpha)
+      for (let i = 0; i < andSize; i++) view.setUint8(offset++, 0);
+
+      return new Uint8Array(buf);
+    }
+
+    const sizes = [16, 32, 48];
+    const bmpData = sizes.map(sz => {
+      const c = document.createElement('canvas');
+      c.width = sz; c.height = sz;
+      c.getContext('2d').drawImage(_fvImg, 0, 0, sz, sz);
+      return canvasToRawBMP(c);
+    });
+
+    // ICO header: ICONDIR + ICONDIRENTRY * n + data
+    const numImages = sizes.length;
+    const headerSize = 6 + 16 * numImages;
+    let dataOffset = headerSize;
+    const parts = [];
+
+    // ICONDIR
+    const iconDir = new DataView(new ArrayBuffer(6));
+    iconDir.setUint16(0, 0, true);         // reserved
+    iconDir.setUint16(2, 1, true);         // type = 1 (ICO)
+    iconDir.setUint16(4, numImages, true); // count
+    parts.push(new Uint8Array(iconDir.buffer));
+
+    // ICONDIRENTRY * n
+    const entries = new DataView(new ArrayBuffer(16 * numImages));
+    bmpData.forEach((bmp, idx) => {
+      const sz = sizes[idx];
+      const base = idx * 16;
+      entries.setUint8(base + 0, sz === 256 ? 0 : sz); // width (0 = 256)
+      entries.setUint8(base + 1, sz === 256 ? 0 : sz); // height
+      entries.setUint8(base + 2, 0);                   // colorCount
+      entries.setUint8(base + 3, 0);                   // reserved
+      entries.setUint16(base + 4, 1, true);            // planes
+      entries.setUint16(base + 6, 32, true);           // bitCount
+      entries.setUint32(base + 8, bmp.length, true);   // sizeInBytes
+      entries.setUint32(base + 12, dataOffset, true);  // offset
+      dataOffset += bmp.length;
+    });
+    parts.push(new Uint8Array(entries.buffer));
+
+    // data
+    bmpData.forEach(bmp => parts.push(bmp));
+
+    // merge
+    const totalLen = parts.reduce((acc, p) => acc + p.length, 0);
+    const merged = new Uint8Array(totalLen);
+    let pos = 0;
+    parts.forEach(p => { merged.set(p, pos); pos += p.length; });
+
+    const blob = new Blob([merged], { type: 'image/x-icon' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'favicon.ico';
+    a.click();
+    Audio.success();
   }
 
   function _dropName(id) {
