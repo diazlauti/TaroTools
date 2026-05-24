@@ -55,7 +55,7 @@ const I18n = (() => {
     { id:'b8',  icon:'✏️', cat:'texto',      type:'ai-soon',      soon:true },
     { id:'b9',  icon:'🌐', cat:'texto',      type:'ai-soon',      soon:true },
     { id:'b10', icon:'📝', cat:'texto',      type:'ai-soon',      soon:true },
-    { id:'b11', icon:'⬇️', cat:'media',      type:'ai-soon',      soon:true },
+    { id:'b11', icon:'⬇️', cat:'media',      type:'cobalt-dl'     },
     { id:'b12', icon:'◼️', cat:'util',       type:'qr-gen'        },
     { id:'b13', icon:'🎨', cat:'util',       type:'color-conv'    },
     { id:'b14', icon:'🔡', cat:'texto',      type:'case-conv'     },
@@ -68,7 +68,6 @@ const I18n = (() => {
     { id:'b21', icon:'📏', cat:'imagen',     type:'img-resize'    },
     { id:'b22', icon:'🚫', cat:'imagen',     type:'meta-remove'   },
     { id:'b23', icon:'🌐', cat:'imagen',     type:'favicon-gen'   },
-    { id:'b24', icon:'✂️',  cat:'imagen',     type:'ai-soon',      soon:true },
   ];
 
   const STRINGS = {
@@ -100,7 +99,7 @@ const I18n = (() => {
         b11:'Descargador video/audio', b12:'Generador de QR', b13:'Conversor de colores',
         b14:'Conversor de mayúsculas', b15:'Contador de palabras', b16:'Base64',
         b17:'Generador de hash', b18:'Cronómetro', b19:'Generador de UUID', b20:'¿Cuál es mi IP?',
-        b21:'Redimensionar imagen', b22:'Borrar metadatos', b23:'Generador de favicon',
+        b21:'Redimensionar imagen', b22:'Borrar metadatos', b23:'Generador de favicon', b24:'Borrar fondo',
       },
       toolDescs:{
         b1:'Reducí el tamaño de JPG/PNG con preview y comparación antes/después.',
@@ -123,6 +122,10 @@ const I18n = (() => {
         b18:'Cronómetro con laps y historial de vueltas.',
         b19:'Generá IDs únicos universales al instante.',
         b20:'Consultá tu dirección IP pública.',
+        b21:'Redimensioná cualquier imagen a píxeles exactos o porcentaje, con preview en vivo y presets.',
+        b22:'Eliminá todos los metadatos EXIF de tu foto (GPS, cámara, fecha). 100% local.',
+        b23:'Convertí cualquier imagen a favicon .ico listo para usar en tu sitio web.',
+        b24:'Próximamente — eliminá el fondo de cualquier imagen automáticamente.',
       },
       langs:['Inglés','Español','Portugués','Francés','Alemán','Italiano','Japonés','Chino (simplificado)','Árabe','Ruso','Coreano','Hindi'],
     },
@@ -248,10 +251,9 @@ const I18n = (() => {
   }
 
   function set(lang) {
+    // idioma fijo en español — botones de idioma removidos
     Audio.click();
-    current = lang;
-    document.documentElement.lang = lang;
-    ['es','en','pt'].forEach(l => document.getElementById('lb-'+l).classList.toggle('active', l === lang));
+    current = 'es';
     const s = get();
     document.getElementById('tagline').textContent = s.tagline;
     document.getElementById('search').placeholder = s.search;
