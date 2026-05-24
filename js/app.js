@@ -6,7 +6,7 @@
 const CONFIG = {
   GEMINI_PROXY: '/.netlify/functions/gemini',
   GEMINI_MODEL: 'gemini-2.0-flash',
-  COBALT_API: 'https://api.cobalt.tools/api/json',
+  COBALT_API: 'https://api.cobalt.tools',
   QR_API: 'https://api.qrserver.com/v1/create-qr-code/',
   IP_API: 'https://api.ipify.org?format=json',
   ADMIN_PASS_HASH: 'a0f50e4075fa8fc1c8acce4c6ab92f7713913eb7906850bb25cc3a72f88e4550',
@@ -1114,20 +1114,95 @@ const ToolUI = (() => {
     },
 
     /* ── COBALT DL ── */
-    'cobalt-dl': () =>
-      `<div style="border:2px dashed var(--accent2);border-radius:12px;padding:1.2rem;margin-bottom:.8rem;text-align:center">
-        <div style="font-size:2rem;margin-bottom:.4rem">🚧</div>
-        <div style="font-family:var(--mono);font-size:.85rem;color:var(--accent2);font-weight:600;margin-bottom:.3rem">EN CONSTRUCCIÓN</div>
-        <div style="font-size:.75rem;color:var(--fg3);font-family:var(--mono);line-height:1.6">Esta herramienta está temporalmente deshabilitada.<br>Mientras tanto, podés usar <a href="https://cobalt.tools" target="_blank" style="color:var(--accent)">cobalt.tools</a> directamente.</div>
+    'cobalt-dl': () => {
+      const platforms = [
+        { name:'YouTube',    icon:'▶️', hint:'youtube.com / youtu.be' },
+        { name:'TikTok',     icon:'🎵', hint:'tiktok.com' },
+        { name:'Instagram',  icon:'📸', hint:'instagram.com' },
+        { name:'Twitter/X',  icon:'🐦', hint:'x.com / twitter.com' },
+        { name:'Reddit',     icon:'🟠', hint:'reddit.com' },
+        { name:'SoundCloud', icon:'☁️', hint:'soundcloud.com' },
+        { name:'Twitch',     icon:'💜', hint:'twitch.tv clips' },
+        { name:'Vimeo',      icon:'🎞️', hint:'vimeo.com' },
+      ];
+      const platformsHtml = platforms.map(p =>
+        `<div title="${p.hint}" style="display:flex;flex-direction:column;align-items:center;gap:.2rem;cursor:default">
+          <span style="font-size:1.3rem">${p.icon}</span>
+          <span style="font-size:.58rem;font-family:var(--mono);color:var(--fg3)">${p.name}</span>
+        </div>`
+      ).join('');
+
+      return infoBox(`Motor: <a href="https://cobalt.tools" target="_blank" rel="noopener">cobalt.tools</a> — procesamiento 100% del lado del servidor, sin guardar tus archivos.`) +
+      `<div style="display:flex;gap:.9rem;flex-wrap:wrap;margin-bottom:1rem;padding:.7rem;background:var(--bg3);border-radius:10px;border:1px solid var(--border)">${platformsHtml}</div>` +
+
+      label('URL del video, audio o post') +
+      `<div style="position:relative">
+        <input type="text" id="dl-url" placeholder="https://youtube.com/watch?v=..." oninput="ToolFn.dlValidateUrl()" autocomplete="off" spellcheck="false" style="padding-right:2.5rem">
+        <span id="dl-url-status" style="position:absolute;right:.7rem;top:50%;transform:translateY(-50%);font-size:1rem;transition:opacity .2s;opacity:0"></span>
       </div>` +
-      infoBox('Descargá de <b>YouTube, TikTok, Instagram, Twitter/X, Reddit</b> y más. Motor: <a href="https://cobalt.tools" target="_blank">cobalt.tools</a>.') +
-      label('URL del video o post') +
-      `<input type="text" id="dl-url" placeholder="https://youtube.com/watch?v=..." disabled style="opacity:.5;cursor:not-allowed">` +
-      label('Formato de descarga') +
-      sel('dl-fmt',[['mp4','🎬 MP4 — video + audio'],['mp3','🎵 MP3 — solo audio']]) +
-      label('Calidad de video (solo MP4)') +
-      sel('dl-quality',[['max','Máxima disponible'],['1080','1080p Full HD'],['720','720p HD'],['480','480p'],['360','360p']]) +
-      `<div class="btn-row"><button class="btn" id="dl-btn" disabled style="opacity:.5;cursor:not-allowed">⬇️ Obtener enlace</button></div>`,
+
+      `<div id="dl-meta" style="display:none;margin:.5rem 0;padding:.7rem .9rem;background:var(--bg3);border-radius:10px;border:1px solid var(--border);animation:fadeIn .2s">
+        <div style="display:flex;gap:.8rem;align-items:flex-start">
+          <img id="dl-thumb" src="" alt="thumbnail" style="width:80px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0;display:none">
+          <div style="min-width:0;flex:1">
+            <div id="dl-meta-title" style="font-family:var(--mono);font-size:.78rem;color:var(--fg2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+            <div id="dl-meta-site" style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-top:.2rem"></div>
+          </div>
+        </div>
+      </div>` +
+
+      `<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.5rem">
+        <div>
+          <label style="margin-top:0">Modo</label>
+          <select id="dl-mode" onchange="ToolFn.dlToggleMode()">
+            <option value="auto">🎬 Video + audio</option>
+            <option value="audio">🎵 Solo audio</option>
+            <option value="mute">🔇 Solo video (sin audio)</option>
+          </select>
+        </div>
+        <div id="dl-quality-col">
+          <label style="margin-top:0">Calidad de video</label>
+          <select id="dl-quality">
+            <option value="max">Máxima disponible</option>
+            <option value="1080" selected>1080p Full HD</option>
+            <option value="720">720p HD</option>
+            <option value="480">480p</option>
+            <option value="360">360p</option>
+          </select>
+        </div>
+        <div id="dl-audio-col" style="display:none">
+          <label style="margin-top:0">Formato de audio</label>
+          <select id="dl-audiofmt">
+            <option value="mp3">MP3 (compatible universal)</option>
+            <option value="ogg">OGG (libre)</option>
+            <option value="opus">Opus (alta compresión)</option>
+            <option value="wav">WAV (sin pérdida)</option>
+            <option value="best">Mejor disponible</option>
+          </select>
+        </div>
+        <div id="dl-bitrate-col" style="display:none">
+          <label style="margin-top:0">Bitrate</label>
+          <select id="dl-bitrate">
+            <option value="320">320 kbps (máxima)</option>
+            <option value="256">256 kbps</option>
+            <option value="128" selected>128 kbps (estándar)</option>
+            <option value="96">96 kbps (ligero)</option>
+            <option value="64">64 kbps (muy ligero)</option>
+          </select>
+        </div>
+      </div>` +
+
+      `<div class="btn-row">
+        <button class="btn" id="dl-btn" onclick="ToolFn.cobaltDl()">⬇️ Obtener enlace de descarga</button>
+      </div>` +
+      loader('dl-loader', '⏳ procesando...') +
+      `<div id="dl-result" style="margin-top:.6rem"></div>` +
+      `<style>
+        @keyframes fadeIn { from { opacity:0; transform:translateY(-4px) } to { opacity:1; transform:translateY(0) } }
+        #dl-url-status.ok  { opacity:1; }
+        #dl-url-status.err { opacity:1; }
+      </style>`;
+    },
 
     /* ── QR GEN ── */
     'qr-gen': () =>
@@ -1653,53 +1728,183 @@ const ToolFn = (() => {
     }
   }
 
-  // ── cobalt ──
+// ── cobalt url validate ──
+  let _dlDebounce;
+  function dlValidateUrl() {
+    clearTimeout(_dlDebounce);
+    const inp = document.getElementById('dl-url');
+    const status = document.getElementById('dl-url-status');
+    const val = inp.value.trim();
+    if (!val) { status.textContent = ''; status.className = ''; return; }
+    _dlDebounce = setTimeout(() => {
+      try {
+        const u = new URL(val);
+        const validHosts = [
+          'youtube.com','youtu.be','www.youtube.com',
+          'tiktok.com','www.tiktok.com',
+          'instagram.com','www.instagram.com',
+          'twitter.com','x.com','www.twitter.com','www.x.com',
+          'reddit.com','www.reddit.com',
+          'soundcloud.com','www.soundcloud.com',
+          'twitch.tv','www.twitch.tv','clips.twitch.tv',
+          'vimeo.com','www.vimeo.com',
+          'dailymotion.com','www.dailymotion.com',
+          'facebook.com','www.facebook.com',
+          'bilibili.com','www.bilibili.com',
+        ];
+        const host = u.hostname.replace(/^www\./,'');
+        const known = validHosts.some(h => u.hostname === h || u.hostname.endsWith('.'+h.replace(/^www\./,'')));
+        if (known || u.protocol === 'https:') {
+          status.textContent = '✓';
+          status.style.color = 'var(--accent)';
+          // mostrar meta simplificado (solo dominio + hint)
+          document.getElementById('dl-meta').style.display = 'block';
+          document.getElementById('dl-meta-title').textContent = val.length > 60 ? val.slice(0,57)+'…' : val;
+          document.getElementById('dl-meta-site').textContent = u.hostname;
+        } else {
+          status.textContent = '⚠';
+          status.style.color = 'var(--accent2)';
+        }
+      } catch(e) {
+        status.textContent = '✕';
+        status.style.color = '#ff8899';
+        document.getElementById('dl-meta').style.display = 'none';
+      }
+    }, 350);
+  }
+
+  function dlToggleMode() {
+    const mode = document.getElementById('dl-mode').value;
+    const isAudio = mode === 'audio';
+    document.getElementById('dl-quality-col').style.display  = isAudio ? 'none' : '';
+    document.getElementById('dl-audio-col').style.display    = isAudio ? '' : 'none';
+    document.getElementById('dl-bitrate-col').style.display  = isAudio ? '' : 'none';
+  }
+
   async function cobaltDl() {
-    const url = document.getElementById('dl-url').value.trim(); if (!url) return;
-    const fmt     = document.getElementById('dl-fmt').value;
+    const url  = document.getElementById('dl-url').value.trim();
+    if (!url) {
+      showResult('dl-result', '⚠️ Ingresá una URL para continuar.', true);
+      return;
+    }
+    try { new URL(url); } catch(e) {
+      showResult('dl-result', '⚠️ La URL no es válida. Verificá que empiece con https://', true);
+      return;
+    }
+
+    const mode    = document.getElementById('dl-mode').value;
     const quality = document.getElementById('dl-quality').value;
+    const audiofmt = document.getElementById('dl-audiofmt')?.value || 'mp3';
+    const bitrate  = document.getElementById('dl-bitrate')?.value  || '128';
     const btn = document.getElementById('dl-btn');
-    btn.disabled = true; btn.textContent = 'Procesando...';
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Procesando...';
     toggleLoader('dl-loader', true);
-    const res = document.getElementById('dl-result'); res.innerHTML = '';
+    document.getElementById('dl-result').innerHTML = '';
+
+    const body = {
+      url,
+      downloadMode: mode,
+      videoQuality: mode !== 'audio' ? quality : undefined,
+      audioFormat:  mode === 'audio' ? audiofmt : undefined,
+      audioBitrate: mode === 'audio' ? bitrate : undefined,
+      filenameStyle: 'pretty',
+    };
+    // limpiar keys undefined
+    Object.keys(body).forEach(k => body[k] === undefined && delete body[k]);
+
+    const ERRORS = {
+      'error.api.auth.jwt.missing':    'Esta instancia requiere autenticación. Intentá en cobalt.tools directamente.',
+      'error.api.auth.key.missing':    'Esta instancia requiere una API key.',
+      'error.api.rate_exceeded':       'Demasiadas solicitudes. Esperá un momento e intentá de nuevo.',
+      'error.api.content.too_long':    'El video es demasiado largo para procesar.',
+      'error.api.fetch.short_link':    'No se pudo expandir el enlace corto.',
+      'error.api.fetch.empty':         'No se encontró contenido en esa URL.',
+      'error.api.fetch.fail':          'No se pudo obtener el contenido. La URL puede ser privada o inválida.',
+      'error.api.link.unsupported':    'Esta plataforma no está soportada. Probá con YouTube, TikTok, Instagram u otras.',
+      'error.api.content.video.unavailable': 'El video no está disponible (puede ser privado, eliminado o con restricción regional).',
+      'error.api.content.age_restricted': 'El contenido tiene restricción de edad.',
+    };
+
     try {
-      const body = { url, downloadMode: fmt === 'mp3' ? 'audio' : 'auto' };
-      if (quality !== 'max' && fmt !== 'mp3') body.videoQuality = quality;
       const r = await fetch(CONFIG.COBALT_API, {
         method: 'POST',
-        headers: { 'Content-Type':'application/json', 'Accept':'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept':       'application/json',
+        },
         body: JSON.stringify(body),
       });
+
       const data = await r.json();
       toggleLoader('dl-loader', false);
-      btn.disabled = false; btn.textContent = '⬇️ Obtener enlace';
-      if (data.url) {
-        res.innerHTML =
-          `✅ Enlace generado correctamente<br>` +
-          `<a href="${data.url}" target="_blank" class="dl-link">⬇️ Descargar ${fmt.toUpperCase()}</a><br>` +
-          `<small style="color:var(--fg3);font-size:.7rem;margin-top:.3rem;display:block">
-            Si no descarga automáticamente → click derecho sobre el botón → "Guardar enlace como"
-          </small>`;
+      btn.disabled = false;
+      btn.textContent = '⬇️ Obtener enlace de descarga';
+
+      if (!r.ok || data.status === 'error') {
+        const code = data?.error?.code || '';
+        const msg  = ERRORS[code] || (code ? `Error: ${code}` : 'No se pudo procesar esta URL.');
+        const hint = code === 'error.api.link.unsupported'
+          ? '<br><small style="color:var(--fg3);font-size:.7rem">Plataformas soportadas: YouTube, TikTok, Instagram, Twitter/X, Reddit, Vimeo, SoundCloud y más.</small>'
+          : '<br><small style="color:var(--fg3);font-size:.7rem">Si el problema persiste, intentá directamente en <a href="https://cobalt.tools" target="_blank" style="color:var(--accent)">cobalt.tools</a>.</small>';
+        showResult('dl-result', `⚠️ ${msg}${hint}`, true);
+        Audio.error();
+        return;
+      }
+
+      if (data.status === 'tunnel' || data.status === 'redirect') {
+        const dlUrl   = data.url;
+        const fname   = data.filename || 'taro-download';
+        const estSize = r.headers.get('Estimated-Content-Length');
+        const sizeStr = estSize ? ` · ~${fmtSize(parseInt(estSize))}` : '';
+        const modeLabel = mode === 'audio' ? `${audiofmt.toUpperCase()} · ${bitrate} kbps` : `${quality === 'max' ? 'calidad máxima' : quality+'p'}`;
+        showResult('dl-result',
+          `✅ Listo — ${modeLabel}${sizeStr}<br>` +
+          `<a href="${dlUrl}" target="_blank" class="dl-link">⬇️ Descargar "${fname}"</a><br>` +
+          `<small style="color:var(--fg3);font-size:.7rem;margin-top:.4rem;display:block">` +
+          `Si no descarga automáticamente → click derecho → "Guardar enlace como"</small>`
+        );
         Audio.success();
+
       } else if (data.status === 'picker') {
-        res.innerHTML =
-          `✅ Se encontraron múltiples archivos:<br>` +
-          data.picker.map((p,i) =>
-            `<a href="${p.url}" target="_blank" class="dl-link" style="margin:.25rem .25rem 0 0">⬇️ Archivo ${i+1}</a>`
-          ).join('');
+        const items = data.picker || [];
+        const pickerHtml = items.map((p, i) => {
+          const thumb = p.thumb ? `<img src="${p.thumb}" style="width:60px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--border);flex-shrink:0" alt="">` : '';
+          return `<div style="display:flex;align-items:center;gap:.6rem;padding:.5rem;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+            ${thumb}
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.72rem;color:var(--fg3);font-family:var(--mono)">${p.type || 'archivo'} ${i+1}</div>
+            </div>
+            <a href="${p.url}" target="_blank" class="dl-link" style="margin:0;flex-shrink:0">⬇️</a>
+          </div>`;
+        }).join('');
+        showResult('dl-result',
+          `✅ Se encontraron ${items.length} archivos:<br>` +
+          `<div style="display:flex;flex-direction:column;gap:.4rem;margin-top:.5rem">${pickerHtml}</div>`
+        );
         Audio.success();
+
       } else {
-        res.innerHTML =
-          `<span style="color:#ff8899">⚠️ ${data.text || 'No se pudo procesar esta URL.'}</span><br>` +
-          `<small style="color:var(--fg3);font-size:.7rem">Probá con otra plataforma o verificá que la URL sea correcta.</small>`;
+        showResult('dl-result',
+          `⚠️ Respuesta inesperada del servidor (status: ${data.status || 'desconocido'}).<br>` +
+          `<small style="color:var(--fg3);font-size:.7rem">Probá en <a href="https://cobalt.tools" target="_blank" style="color:var(--accent)">cobalt.tools</a> directamente.</small>`,
+          true
+        );
         Audio.error();
       }
+
     } catch(e) {
       toggleLoader('dl-loader', false);
-      btn.disabled = false; btn.textContent = '⬇️ Obtener enlace';
-      res.innerHTML =
-        `<span style="color:#ff8899">⚠️ Error de conexión: ${e.message}</span><br>` +
-        `<small style="color:var(--fg3);font-size:.7rem">Verificá tu conexión e intentá de nuevo.</small>`;
+      btn.disabled = false;
+      btn.textContent = '⬇️ Obtener enlace de descarga';
+      const isNetwork = e instanceof TypeError && e.message.includes('fetch');
+      showResult('dl-result',
+        isNetwork
+          ? `⚠️ No se pudo conectar con cobalt.tools.<br><small style="color:var(--fg3);font-size:.7rem">Verificá tu conexión o intentá de nuevo en unos minutos. El servidor puede estar temporalmente caído.</small>`
+          : `⚠️ Error inesperado: ${e.message}`,
+        true
+      );
       Audio.error();
     }
   }
