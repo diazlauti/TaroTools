@@ -35,6 +35,7 @@ const Audio = (() => {
     error()   { beep(200,.12,'sawtooth',.1); },
     unlock()  { [500,700,900,1200].forEach((f,i)=>setTimeout(()=>beep(f,.1,'sine',.12),i*70)); },
     delete()  { beep(300,.1,'sawtooth',.1); setTimeout(()=>beep(180,.12,'sawtooth',.08),90); },
+    alarm()   { [660,880,660,880,660,880].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.14),i*190)); },
   };
 })();
 
@@ -77,13 +78,19 @@ const I18n = (() => {
     { id:'c6',  icon:'🔄', cat:'pdf',        type:'pdf-rotate'    },
     { id:'c7',  icon:'🗑️', cat:'pdf',        type:'pdf-delete-p'  },
     { id:'c8',  icon:'🔍', cat:'pdf',        type:'pdf-ocr'       },
+    { id:'d1',  icon:'🔑', cat:'util',       type:'pwd-gen',      isNew:true },
+    { id:'d2',  icon:'{ }',cat:'util',       type:'json-fmt',     isNew:true },
+    { id:'d3',  icon:'🆚', cat:'texto',      type:'text-diff',    isNew:true },
+    { id:'d4',  icon:'🧮', cat:'conversion', type:'unit-conv',    isNew:true },
+    { id:'d5',  icon:'🍅', cat:'util',       type:'countdown-timer', isNew:true },
+    { id:'d6',  icon:'🌈', cat:'util',       type:'palette-gen',  isNew:true },
   ];
 
   const STRINGS = {
     es: {
       tagline:'herramientas útiles · sin virus · sin drama',
       search:'Buscar herramienta...',
-      mq:'✦ TARO\'S TOOLS ✦ COMPRESOR ✦ PDF ✦ TRADUCTOR ✦ RESUMIDOR ✦ DESCARGADOR ✦ CONVERTIDOR ✦ CORRECTOR ✦ VIDEO ✦ AUDIO ✦ QR ✦ COLORES ✦',
+      mq:'✦ TARO\'S TOOLS ✦ COMPRESOR ✦ PDF ✦ TRADUCTOR ✦ RESUMIDOR ✦ DESCARGADOR ✦ CONVERTIDOR ✦ CORRECTOR ✦ VIDEO ✦ AUDIO ✦ QR ✦ COLORES ✦ CONTRASEÑAS ✦ JSON ✦ DIFF ✦ POMODORO ✦ PALETAS ✦ UNIDADES ✦',
       tabs:['Todas','Archivos','PDF','Imagen','Texto','Conversión','Media','Utilidades'],
       catKeys:['all','archivo','pdf','imagen','texto','conversion','media','util'],
       catNames:{ archivo:'📁 Archivos', pdf:'📄 PDF', imagen:'🖼️ Imagen', texto:'📝 Texto', conversion:'🔄 Conversión', media:'🎬 Media', util:'⚡ Utilidades' },
@@ -110,6 +117,8 @@ const I18n = (() => {
         b17:'Generador de hash', b18:'Cronómetro', b19:'Generador de UUID', b20:'¿Cuál es mi IP?',
         b21:'Redimensionar imagen', b22:'Borrar metadatos', b23:'Generador de favicon', b24:'Borrar fondo',
         c1:'Combinar PDFs', c2:'Dividir PDF', c3:'Comprimir PDF', c4:'PDF a JPG', c5:'Desbloquear PDF', c6:'Rotar PDF', c7:'Borrar páginas', c8:'OCR — imagen a texto',
+        d1:'Generador de contraseñas', d2:'Formateador de JSON', d3:'Comparador de texto',
+        d4:'Conversor de unidades', d5:'Temporizador Pomodoro', d6:'Paleta de colores',
       },
       toolDescs:{
         b1:'Reducí el tamaño de JPG/PNG con preview y comparación antes/después.',
@@ -144,6 +153,12 @@ const I18n = (() => {
         c6:'Rotá páginas de tu PDF en 90°, 180° o 270°.',
         c7:'Eliminá páginas específicas de un PDF.',
         c8:'Extraé texto de imágenes o PDFs escaneados con OCR.',
+        d1:'Generá contraseñas seguras y aleatorias con medidor de fortaleza. 100% local.',
+        d2:'Formateá, validá y minificá JSON al instante.',
+        d3:'Compará dos textos y visualizá las diferencias palabra por palabra.',
+        d4:'Convertí entre unidades de longitud, peso, volumen, velocidad y temperatura.',
+        d5:'Temporizador con presets Pomodoro para enfocarte y tomar descansos.',
+        d6:'Generá paletas de colores armónicas: complementaria, análoga, triádica y más.',
       },
       langs:['Inglés','Español','Portugués','Francés','Alemán','Italiano','Japonés','Chino (simplificado)','Árabe','Ruso','Coreano','Hindi'],
     },
@@ -312,7 +327,11 @@ const UI = (() => {
     Audio.click();
     theme = theme === 'dark' ? 'light' : 'dark';
     document.body.classList.toggle('light', theme === 'light');
-    document.getElementById('theme-btn').textContent = theme === 'dark' ? '☀' : '☾';
+    const btn = document.getElementById('theme-btn');
+    btn.textContent = theme === 'dark' ? '☀' : '☾';
+    btn.classList.remove('spin-once');
+    void btn.offsetWidth; // reinicia la animación si se clickea rápido varias veces
+    btn.classList.add('spin-once');
   }
 
   function openModal(id) {
@@ -381,6 +400,7 @@ const Tools = (() => {
     const s = I18n.get();
     const fragment = document.createDocumentFragment();
     const cats = [...new Set(allTools().map(t => t.cat))];
+    let _cardStaggerIdx = 0;
 
     cats.forEach(cat => {
       const filtered = allTools().filter(t =>
@@ -402,12 +422,14 @@ const Tools = (() => {
       filtered.forEach(tool => {
         const card = document.createElement('article');
         card.className = 'card' + (tool.soon ? ' card--soon' : '');
+        card.style.setProperty('--i', _cardStaggerIdx++);
         card.setAttribute('role', 'listitem');
         card.setAttribute('tabindex', '0');
         card.setAttribute('aria-label', tool.name);
         card.innerHTML =
           `<span class="card__cat" aria-hidden="true">${tool.cat}</span>` +
           (tool.soon ? `<span class="card__soon-badge">${s.soon}</span>` : '') +
+          (tool.isNew && !tool.soon ? `<span class="card__new-badge">✨ Nuevo</span>` : '') +
           `<div class="card__icon" aria-hidden="true">${tool.icon}</div>` +
           `<div class="card__name">${tool.name}</div>` +
           `<div class="card__desc">${tool.desc}</div>`;
@@ -444,6 +466,8 @@ const Tools = (() => {
       const inp = document.getElementById('qr-input');
       if (inp) inp.addEventListener('input', ToolFn.liveQR);
     }
+    if (tool.type === 'pwd-gen') ToolFn.pwdGenerate();
+    if (tool.type === 'unit-conv') ToolFn.unitCatChange();
   }
 
   return { filter, filterCat, renderTabs, renderGrid, allTools, openTool };
@@ -1358,6 +1382,110 @@ const ToolUI = (() => {
     'external-link': tool =>
       infoBox(tool.desc) +
       `<div class="btn-row"><a href="${tool.url}" target="_blank" rel="noopener" class="btn" style="text-decoration:none">Abrir ↗</a></div>`,
+
+    /* ── PASSWORD GENERATOR ── */
+    'pwd-gen': () =>
+      infoBox('Generá contraseñas seguras usando <b>crypto.getRandomValues</b>. Todo se genera en tu navegador, nunca se envía a ningún servidor.') +
+      `<div class="pwd-display" id="pwd-out">—</div>` +
+      `<div style="margin:.6rem 0">
+        <div class="pwd-strength-bar"><div class="pwd-strength-bar__fill" id="pwd-strength-fill"></div></div>
+        <p id="pwd-strength-label" style="font-size:.7rem;font-family:var(--mono);color:var(--fg3);margin-top:.3rem"></p>
+      </div>` +
+      label('Longitud: <span id="pwd-len-val">16</span> caracteres') +
+      `<input type="range" min="6" max="64" value="16" id="pwd-len" oninput="document.getElementById('pwd-len-val').textContent=this.value;ToolFn.pwdGenerate()" style="width:100%">` +
+      `<div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem .6rem;margin:.7rem 0">
+        <label style="display:flex;align-items:center;gap:.4rem;font-size:.78rem;cursor:pointer;margin:0"><input type="checkbox" id="pwd-lower" checked onchange="ToolFn.pwdGenerate()"> minúsculas (a-z)</label>
+        <label style="display:flex;align-items:center;gap:.4rem;font-size:.78rem;cursor:pointer;margin:0"><input type="checkbox" id="pwd-upper" checked onchange="ToolFn.pwdGenerate()"> MAYÚSCULAS (A-Z)</label>
+        <label style="display:flex;align-items:center;gap:.4rem;font-size:.78rem;cursor:pointer;margin:0"><input type="checkbox" id="pwd-num" checked onchange="ToolFn.pwdGenerate()"> números (0-9)</label>
+        <label style="display:flex;align-items:center;gap:.4rem;font-size:.78rem;cursor:pointer;margin:0"><input type="checkbox" id="pwd-sym" checked onchange="ToolFn.pwdGenerate()"> símbolos (!@#$…)</label>
+      </div>` +
+      `<div class="btn-row">
+        <button class="btn" onclick="ToolFn.pwdGenerate()">🔑 Generar otra</button>
+        <button class="btn btn--sec" onclick="UI.copyText(document.getElementById('pwd-out').textContent,this)">Copiar</button>
+      </div>`,
+
+    /* ── JSON FORMATTER ── */
+    'json-fmt': () =>
+      infoBox('Pegá un JSON para formatearlo, validarlo o minificarlo. Todo se procesa en tu navegador.') +
+      label('JSON') +
+      ta('json-input','{"ejemplo": [1, 2, 3]}','style="min-height:140px;font-family:var(--mono)"') +
+      `<div class="btn-row">
+        <button class="btn" onclick="ToolFn.jsonFormat('pretty')">🧾 Formatear</button>
+        <button class="btn btn--sec" onclick="ToolFn.jsonFormat('minify')">Minificar</button>
+      </div>` +
+      `<div id="json-stats" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin-top:.4rem;min-height:1rem"></div>` +
+      result('json-result') +
+      copyRow('json-result'),
+
+    /* ── TEXT DIFF ── */
+    'text-diff': () =>
+      infoBox('Compará dos textos y mirá las diferencias: <span class="diff-ins">agregado</span> y <span class="diff-del">eliminado</span>.') +
+      `<div class="diff-cols">
+        <div>${label('Texto A')}${ta('diff-a','Texto original...','style="min-height:110px"')}</div>
+        <div>${label('Texto B')}${ta('diff-b','Texto nuevo...','style="min-height:110px"')}</div>
+      </div>` +
+      `<div class="btn-row"><button class="btn" onclick="ToolFn.textDiffRun()">🆚 Comparar</button></div>` +
+      `<div id="diff-stats" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin-top:.4rem;min-height:1rem"></div>` +
+      result('diff-result'),
+
+    /* ── UNIT CONVERTER ── */
+    'unit-conv': () =>
+      infoBox('Convertí entre unidades de uso común al instante.') +
+      label('Categoría') +
+      `<select id="uc-cat" onchange="ToolFn.unitCatChange()">
+        <option value="longitud">📏 Longitud</option>
+        <option value="peso">⚖️ Peso</option>
+        <option value="volumen">🧪 Volumen</option>
+        <option value="velocidad">🚀 Velocidad</option>
+        <option value="temperatura">🌡️ Temperatura</option>
+      </select>` +
+      `<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:.5rem;align-items:end;margin-top:.6rem">
+        <div>
+          <label style="margin-top:0">Desde</label>
+          <input type="number" id="uc-val" value="1" oninput="ToolFn.unitConvert()">
+          <select id="uc-from" onchange="ToolFn.unitConvert()" style="margin-top:.35rem"></select>
+        </div>
+        <button class="btn btn--sec" onclick="ToolFn.unitSwap()" style="padding:.5rem .6rem;margin-bottom:.05rem" title="Invertir" aria-label="Invertir unidades">⇄</button>
+        <div>
+          <label style="margin-top:0">Hacia</label>
+          <input type="text" id="uc-out" readonly style="text-align:center;font-family:var(--mono);font-weight:700;color:var(--accent)">
+          <select id="uc-to" onchange="ToolFn.unitConvert()" style="margin-top:.35rem"></select>
+        </div>
+      </div>` +
+      `<div class="btn-row"><button class="btn btn--sec" onclick="UI.copyText(document.getElementById('uc-out').value,this)">Copiar resultado</button></div>`,
+
+    /* ── COUNTDOWN / POMODORO TIMER ── */
+    'countdown-timer': () =>
+      infoBox('Temporizador de cuenta regresiva con presets Pomodoro. Suena una alarma al terminar.') +
+      `<div class="timer-display" id="ct-display">25:00</div>` +
+      `<div style="background:var(--bg3);border-radius:30px;height:6px;overflow:hidden;margin:.7rem 0">
+        <div id="ct-bar" style="height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:30px;transition:width .2s;width:100%"></div>
+      </div>` +
+      `<div class="btn-row" style="justify-content:center">
+        <button class="btn" id="ct-start" onclick="ToolFn.ctToggle()">Iniciar</button>
+        <button class="btn btn--sec" onclick="ToolFn.ctReset()">Resetear</button>
+      </div>` +
+      `<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.9rem">
+        <button class="btn btn--sec" onclick="ToolFn.ctSetPreset(25)" style="font-size:.72rem;padding:.3rem .6rem">🍅 25 min — Foco</button>
+        <button class="btn btn--sec" onclick="ToolFn.ctSetPreset(5)" style="font-size:.72rem;padding:.3rem .6rem">☕ 5 min — Descanso</button>
+        <button class="btn btn--sec" onclick="ToolFn.ctSetPreset(15)" style="font-size:.72rem;padding:.3rem .6rem">🛋️ 15 min — Descanso largo</button>
+      </div>` +
+      `<div style="display:flex;align-items:center;gap:.5rem;margin-top:.7rem">
+        <label style="margin:0;white-space:nowrap">Personalizado (min)</label>
+        <input type="number" id="ct-custom" min="1" max="180" placeholder="ej: 10" oninput="ToolFn.ctSetCustom()">
+      </div>`,
+
+    /* ── COLOR PALETTE GENERATOR ── */
+    'palette-gen': () =>
+      infoBox('Generá paletas de colores armónicas a partir de un color base. Hacé click en un color para copiar su HEX.') +
+      `<div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.5rem">
+        <input type="text" id="pal-input" placeholder="#ff6ef7" value="#ff6ef7" style="flex:1">
+        <input type="color" id="pal-picker" value="#ff6ef7" oninput="document.getElementById('pal-input').value=this.value" style="width:44px;height:38px;padding:2px;border-radius:8px;cursor:pointer;border:1.5px solid var(--border)">
+      </div>` +
+      label('Esquema') +
+      sel('pal-scheme',[['complementario','Complementario'],['analogo','Análogo'],['triadico','Triádico'],['monocromatico','Monocromático'],['random','Aleatorio']]) +
+      `<div class="btn-row"><button class="btn" onclick="ToolFn.paletteGenerate()">🌈 Generar paleta</button></div>` +
+      `<div id="pal-result" class="pal-grid" style="display:none"></div>`,
   };
 
   function build(tool) {
@@ -3511,6 +3639,286 @@ const ToolFn = (() => {
     }
   }
 
+  // ── password generator ──
+  function pwdGenerate() {
+    const len   = parseInt(document.getElementById('pwd-len').value);
+    const useLower = document.getElementById('pwd-lower').checked;
+    const useUpper = document.getElementById('pwd-upper').checked;
+    const useNum   = document.getElementById('pwd-num').checked;
+    const useSym   = document.getElementById('pwd-sym').checked;
+    let charset = '';
+    if (useLower) charset += 'abcdefghijklmnopqrstuvwxyz';
+    if (useUpper) charset += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    if (useNum)   charset += '0123456789';
+    if (useSym)   charset += '!@#$%^&*()_+-=[]{}|;:,.<>?';
+    const out = document.getElementById('pwd-out');
+    if (!charset) {
+      out.textContent = '—';
+      document.getElementById('pwd-strength-fill').style.width = '0%';
+      document.getElementById('pwd-strength-label').textContent = 'Elegí al menos un tipo de carácter';
+      return;
+    }
+    const rnd = new Uint32Array(len);
+    crypto.getRandomValues(rnd);
+    let pwd = '';
+    for (let i = 0; i < len; i++) pwd += charset[rnd[i] % charset.length];
+    out.textContent = pwd;
+
+    const entropy = len * Math.log2(charset.length);
+    const fill  = document.getElementById('pwd-strength-fill');
+    const label = document.getElementById('pwd-strength-label');
+    let pct, txt, color;
+    if (entropy < 40)      { pct = 25;  txt = 'Débil';      color = '#ff4466'; }
+    else if (entropy < 60) { pct = 50;  txt = 'Media';      color = 'var(--accent2)'; }
+    else if (entropy < 90) { pct = 75;  txt = 'Fuerte';     color = 'var(--accent3)'; }
+    else                    { pct = 100; txt = 'Muy fuerte'; color = 'var(--accent)'; }
+    fill.style.width = pct + '%';
+    fill.style.background = color;
+    label.textContent = `${txt} · ~${Math.round(entropy)} bits de entropía`;
+    Audio.success();
+  }
+
+  // ── json formatter ──
+  function jsonFormat(mode) {
+    const raw = document.getElementById('json-input').value.trim();
+    if (!raw) return;
+    try {
+      const obj = JSON.parse(raw);
+      const out = mode === 'pretty' ? JSON.stringify(obj, null, 2) : JSON.stringify(obj);
+      showResult('json-result', '');
+      document.getElementById('json-result').textContent = out;
+      showCopyBtn('json-result', `() => document.getElementById('json-result').textContent`);
+      document.getElementById('json-stats').textContent =
+        `${fmtSize(new Blob([raw]).size)} → ${fmtSize(new Blob([out]).size)}`;
+      Audio.success();
+    } catch(e) {
+      showResult('json-result', '❌ JSON inválido: ' + e.message, true);
+      Audio.error();
+    }
+  }
+
+  // ── text diff ──
+  function _diffTokens(ta, tb) {
+    const n = ta.length, m = tb.length;
+    const dp = Array.from({ length: n + 1 }, () => new Int32Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) {
+      for (let j = m - 1; j >= 0; j--) {
+        dp[i][j] = ta[i] === tb[j] ? dp[i+1][j+1] + 1 : Math.max(dp[i+1][j], dp[i][j+1]);
+      }
+    }
+    const ops = [];
+    let i = 0, j = 0;
+    while (i < n && j < m) {
+      if (ta[i] === tb[j]) { ops.push(['eq', ta[i]]); i++; j++; }
+      else if (dp[i+1][j] >= dp[i][j+1]) { ops.push(['del', ta[i]]); i++; }
+      else { ops.push(['ins', tb[j]]); j++; }
+    }
+    while (i < n) { ops.push(['del', ta[i]]); i++; }
+    while (j < m) { ops.push(['ins', tb[j]]); j++; }
+    return ops;
+  }
+
+  function textDiffRun() {
+    const a = document.getElementById('diff-a').value;
+    const b = document.getElementById('diff-b').value;
+    if (!a && !b) return;
+    const ta = a.split(/(\s+)/), tb = b.split(/(\s+)/);
+    if (ta.length * tb.length > 1000000) {
+      showResult('diff-result', '⚠️ Los textos son demasiado largos para comparar en el navegador. Probá con fragmentos más cortos.', true);
+      Audio.error();
+      return;
+    }
+    const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const ops = _diffTokens(ta, tb);
+    const html = ops.map(([type, tok]) => {
+      if (type === 'eq') return esc(tok);
+      return `<span class="diff-${type}">${esc(tok)}</span>`;
+    }).join('');
+    const added   = ops.filter(o => o[0] === 'ins' && o[1].trim()).length;
+    const removed = ops.filter(o => o[0] === 'del' && o[1].trim()).length;
+    showResult('diff-result', html || '<span style="color:var(--fg3)">Sin diferencias — los textos son idénticos.</span>');
+    document.getElementById('diff-stats').textContent =
+      (added || removed) ? `+${added} agregadas · -${removed} eliminadas` : 'Los textos son idénticos';
+    Audio.success();
+  }
+
+  // ── unit converter ──
+  const UNIT_DATA = {
+    longitud:   { units: { mm:0.001, cm:0.01, m:1, km:1000, in:0.0254, ft:0.3048, yd:0.9144, mi:1609.344 } },
+    peso:       { units: { mg:0.001, g:1, kg:1000, oz:28.3495, lb:453.592, t:1000000 } },
+    volumen:    { units: { ml:0.001, l:1, gal:3.78541, m3:1000 } },
+    velocidad:  { units: { 'km/h':1, 'm/s':3.6, mph:1.60934, nudo:1.852 } },
+    temperatura:{ units: { '°C':null, '°F':null, 'K':null } },
+  };
+
+  function unitCatChange() {
+    const cat = document.getElementById('uc-cat').value;
+    const units = Object.keys(UNIT_DATA[cat].units);
+    const fromSel = document.getElementById('uc-from'), toSel = document.getElementById('uc-to');
+    fromSel.innerHTML = units.map(u => `<option value="${u}">${u}</option>`).join('');
+    toSel.innerHTML   = units.map(u => `<option value="${u}">${u}</option>`).join('');
+    if (units.length > 1) toSel.selectedIndex = 1;
+    unitConvert();
+  }
+
+  function _tempToC(v, unit) {
+    if (unit === '°C') return v;
+    if (unit === '°F') return (v - 32) * 5 / 9;
+    return v - 273.15;
+  }
+  function _cFromTemp(c, unit) {
+    if (unit === '°C') return c;
+    if (unit === '°F') return c * 9 / 5 + 32;
+    return c + 273.15;
+  }
+
+  function unitConvert() {
+    const cat  = document.getElementById('uc-cat').value;
+    const val  = parseFloat(document.getElementById('uc-val').value);
+    const from = document.getElementById('uc-from').value;
+    const to   = document.getElementById('uc-to').value;
+    const out  = document.getElementById('uc-out');
+    if (isNaN(val) || !from || !to) { out.value = ''; return; }
+    const result = cat === 'temperatura'
+      ? _cFromTemp(_tempToC(val, from), to)
+      : val * UNIT_DATA[cat].units[from] / UNIT_DATA[cat].units[to];
+    out.value = String(Math.round(result * 100000) / 100000);
+  }
+
+  function unitSwap() {
+    const fromSel = document.getElementById('uc-from'), toSel = document.getElementById('uc-to');
+    const tmp = fromSel.value; fromSel.value = toSel.value; toSel.value = tmp;
+    unitConvert();
+  }
+
+  // ── countdown / pomodoro timer ──
+  let ctMs = 1500000, ctTotalMs = 1500000, ctInterval = null, ctRunning = false;
+
+  function _ctUpdateDisplay() {
+    const disp = document.getElementById('ct-display'); if (!disp) return;
+    const totalSec = Math.ceil(ctMs / 1000);
+    const m = Math.floor(totalSec / 60), s = totalSec % 60;
+    disp.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    const bar = document.getElementById('ct-bar');
+    if (bar) bar.style.width = (ctTotalMs ? Math.round((ctMs / ctTotalMs) * 100) : 0) + '%';
+  }
+
+  function _ctClearDoneState() {
+    clearInterval(ctInterval); ctRunning = false;
+    const btn = document.getElementById('ct-start'); if (btn) btn.textContent = 'Iniciar';
+    document.getElementById('ct-display')?.classList.remove('timer-display--done');
+  }
+
+  function ctSetPreset(min) {
+    _ctClearDoneState();
+    ctTotalMs = min * 60000; ctMs = ctTotalMs;
+    const customInput = document.getElementById('ct-custom'); if (customInput) customInput.value = '';
+    _ctUpdateDisplay();
+  }
+
+  function ctSetCustom() {
+    const min = parseFloat(document.getElementById('ct-custom').value);
+    if (!min || min <= 0) return;
+    _ctClearDoneState();
+    ctTotalMs = Math.round(min * 60000); ctMs = ctTotalMs;
+    _ctUpdateDisplay();
+  }
+
+  function ctToggle() {
+    if (!ctTotalMs) return;
+    const btn = document.getElementById('ct-start');
+    if (!ctRunning) {
+      if (ctMs <= 0) return;
+      ctRunning = true;
+      const start = Date.now(), startMs = ctMs;
+      ctInterval = setInterval(() => {
+        ctMs = Math.max(0, startMs - (Date.now() - start));
+        _ctUpdateDisplay();
+        if (ctMs <= 0) ctFinish();
+      }, 200);
+      btn.textContent = 'Pausar';
+      Audio.click();
+    } else {
+      clearInterval(ctInterval); ctRunning = false;
+      btn.textContent = 'Iniciar';
+      Audio.click();
+    }
+  }
+
+  function ctReset() {
+    _ctClearDoneState();
+    ctMs = ctTotalMs;
+    _ctUpdateDisplay();
+  }
+
+  function ctFinish() {
+    clearInterval(ctInterval); ctRunning = false;
+    const btn = document.getElementById('ct-start'); if (btn) btn.textContent = 'Iniciar';
+    document.getElementById('ct-display')?.classList.add('timer-display--done');
+    Audio.alarm();
+    UI.showToast('⏰ ¡Tiempo cumplido!');
+  }
+
+  // ── color palette generator ──
+  function _hexToHsl(hex) {
+    const h = hex.replace('#','');
+    const r = parseInt(h.slice(0,2),16)/255, g = parseInt(h.slice(2,4),16)/255, b = parseInt(h.slice(4,6),16)/255;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    let hh = 0, ss = 0; const ll = (max+min)/2;
+    if (max !== min) {
+      const d = max-min;
+      ss = ll > .5 ? d/(2-max-min) : d/(max+min);
+      hh = max===r ? (g-b)/d+(g<b?6:0) : max===g ? (b-r)/d+2 : (r-g)/d+4;
+      hh *= 60;
+    }
+    return [hh, ss*100, ll*100];
+  }
+
+  function _hslToHex(h, s, l) {
+    h = ((h % 360) + 360) % 360; s /= 100; l /= 100;
+    const c = (1-Math.abs(2*l-1))*s, x = c*(1-Math.abs((h/60)%2-1)), m = l-c/2;
+    let r=0, g=0, b=0;
+    if (h<60){r=c;g=x;} else if (h<120){r=x;g=c;} else if (h<180){g=c;b=x;}
+    else if (h<240){g=x;b=c;} else if (h<300){r=x;b=c;} else {r=c;b=x;}
+    const to255 = v => Math.round((v+m)*255).toString(16).padStart(2,'0');
+    return '#'+to255(r)+to255(g)+to255(b);
+  }
+
+  function paletteGenerate() {
+    const scheme = document.getElementById('pal-scheme').value;
+    let hex = document.getElementById('pal-input').value.trim();
+    if (scheme !== 'random') {
+      if (!/^#?[0-9a-f]{6}$/i.test(hex)) {
+        UI.showToast('⚠️ Ingresá un HEX válido, ej: #ff6ef7');
+        Audio.error();
+        return;
+      }
+      if (!hex.startsWith('#')) hex = '#' + hex;
+    }
+    const lightness = [30, 45, 60, 75, 85];
+    const swatches = [];
+    if (scheme === 'random') {
+      for (let i = 0; i < 5; i++) swatches.push(_hslToHex(Math.random()*360, 65, lightness[i]));
+    } else {
+      const [h, s] = _hexToHsl(hex);
+      const sat = Math.max(s, 45);
+      const hueOffsets = {
+        complementario: [0, 0, 180, 180, 180],
+        analogo:        [-30, -15, 0, 15, 30],
+        triadico:       [0, 120, 120, 240, 240],
+        monocromatico:  [0, 0, 0, 0, 0],
+      }[scheme];
+      hueOffsets.forEach((off, i) => swatches.push(_hslToHex(h + off, sat, lightness[i])));
+    }
+    const resultEl = document.getElementById('pal-result');
+    resultEl.innerHTML = swatches.map(c => `
+      <div class="pal-swatch" style="background:${c}" onclick="UI.copyText('${c}',this.querySelector('.pal-swatch__code'))">
+        <span class="pal-swatch__code">${c}</span>
+      </div>`).join('');
+    resultEl.style.display = 'grid';
+    Audio.success();
+  }
+
   return {
     previewImg, onQualityChange, compressImg,
     previewConvertFiles, convertImg,
@@ -3537,6 +3945,12 @@ const ToolFn = (() => {
     irLoad, irSetMode, irToggleCompress, irSyncAR, irPreset, irPreviewLive, irDownload,
     mrLoad, mrProcess,
     fvLoad, fvDownloadPng, fvDownloadIco,
+    pwdGenerate,
+    jsonFormat,
+    textDiffRun,
+    unitCatChange, unitConvert, unitSwap,
+    ctSetPreset, ctSetCustom, ctToggle, ctReset,
+    paletteGenerate,
   };
 })();
 
