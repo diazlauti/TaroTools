@@ -83,6 +83,16 @@ const I18n = (() => {
     { id:'d4',  icon:'🧮', cat:'conversion', type:'unit-conv',    isNew:true },
     { id:'d5',  icon:'🍅', cat:'util',       type:'countdown-timer', isNew:true },
     { id:'d6',  icon:'🌈', cat:'util',       type:'palette-gen',  isNew:true },
+    { id:'e1',  icon:'🎼', cat:'externos',   type:'external-link', isNew:true, url:'https://everynoise.com/engenremap.html' },
+    { id:'e2',  icon:'🧪', cat:'externos',   type:'external-link', isNew:true, url:'https://regex101.com' },
+    { id:'e3',  icon:'🖊️', cat:'externos',   type:'external-link', isNew:true, url:'https://excalidraw.com' },
+    { id:'e4',  icon:'🕰️', cat:'externos',   type:'external-link', isNew:true, url:'https://web.archive.org' },
+    { id:'e5',  icon:'🚦', cat:'externos',   type:'external-link', isNew:true, url:'https://downforeveryoneorjustme.com' },
+    { id:'e6',  icon:'📸', cat:'externos',   type:'external-link', isNew:true, url:'https://carbon.now.sh' },
+    { id:'f1',  icon:'.*', cat:'texto',      type:'regex-test',   isNew:true },
+    { id:'f2',  icon:'¶',  cat:'texto',      type:'lorem-gen',    isNew:true },
+    { id:'f3',  icon:'🏷️', cat:'texto',      type:'slugify',      isNew:true },
+    { id:'f4',  icon:'🖌️', cat:'imagen',     type:'img-palette',  isNew:true },
   ];
 
   const STRINGS = {
@@ -90,9 +100,9 @@ const I18n = (() => {
       tagline:'herramientas útiles · sin virus · sin drama',
       search:'Buscar herramienta...',
       mq:'✦ TARO\'S TOOLS ✦ COMPRESOR ✦ PDF ✦ TRADUCTOR ✦ RESUMIDOR ✦ DESCARGADOR ✦ CONVERTIDOR ✦ CORRECTOR ✦ VIDEO ✦ AUDIO ✦ QR ✦ COLORES ✦ CONTRASEÑAS ✦ JSON ✦ DIFF ✦ POMODORO ✦ PALETAS ✦ UNIDADES ✦',
-      tabs:['Todas','Archivos','PDF','Imagen','Texto','Conversión','Media','Utilidades'],
-      catKeys:['all','archivo','pdf','imagen','texto','conversion','media','util'],
-      catNames:{ archivo:'📁 Archivos', pdf:'📄 PDF', imagen:'🖼️ Imagen', texto:'📝 Texto', conversion:'🔄 Conversión', media:'🎬 Media', util:'⚡ Utilidades' },
+      tabs:['Todas','Archivos','PDF','Imagen','Texto','Conversión','Media','Utilidades','Descubrí'],
+      catKeys:['all','archivo','pdf','imagen','texto','conversion','media','util','externos'],
+      catNames:{ archivo:'📁 Archivos', pdf:'📄 PDF', imagen:'🖼️ Imagen', texto:'📝 Texto', conversion:'🔄 Conversión', media:'🎬 Media', util:'⚡ Utilidades', externos:'🔗 Descubrí' },
       donBtn:'donar', donTitle:'💜 Apoyá a Taro',
       donDesc:'Si esta página te fue útil, invitame un café o hacé una donación.',
       adminTitle:'// panel admin', atTools:'herramientas', atAdd:'agregar', atCats:'categorías',
@@ -118,6 +128,10 @@ const I18n = (() => {
         c1:'Combinar PDFs', c2:'Dividir PDF', c3:'Comprimir PDF', c4:'PDF a JPG', c5:'Desbloquear PDF', c6:'Rotar PDF', c7:'Borrar páginas', c8:'OCR — imagen a texto',
         d1:'Generador de contraseñas', d2:'Formateador de JSON', d3:'Comparador de texto',
         d4:'Conversor de unidades', d5:'Temporizador Pomodoro', d6:'Paleta de colores',
+        e1:'Every Noise at Once', e2:'regex101', e3:'Excalidraw',
+        e4:'Wayback Machine', e5:'Down For Everyone Or Just Me', e6:'Carbon',
+        f1:'Probador de regex', f2:'Generador de Lorem Ipsum', f3:'Slugify',
+        f4:'Paleta de una imagen',
       },
       toolDescs:{
         b1:'Reducí el tamaño de JPG/PNG con preview y comparación antes/después.',
@@ -158,6 +172,16 @@ const I18n = (() => {
         d4:'Convertí entre unidades de longitud, peso, volumen, velocidad y temperatura.',
         d5:'Temporizador con presets Pomodoro para enfocarte y tomar descansos.',
         d6:'Generá paletas de colores armónicas: complementaria, análoga, triádica y más.',
+        e1:'El mapa de géneros musicales más completo de internet, generado algorítmicamente. Un agujero negro de horas.',
+        e2:'Probador de expresiones regulares con explicación en vivo de cada parte del patrón.',
+        e3:'Pizarra colaborativa gratis para bocetos, diagramas y wireframes a mano alzada.',
+        e4:'Archivo histórico de internet — mirá cómo era cualquier sitio web en el pasado.',
+        e5:'¿Un sitio está caído para todos o solo para vos? Te lo confirma al toque.',
+        e6:'Convertí fragmentos de código en capturas lindas para compartir.',
+        f1:'Probá expresiones regulares en vivo con resaltado de coincidencias y grupos capturados.',
+        f2:'Generá texto de relleno Lorem Ipsum en palabras, oraciones o párrafos para tus maquetas.',
+        f3:'Convertí cualquier texto en un slug apto para URLs, en vivo mientras escribís.',
+        f4:'Extraé los colores dominantes de cualquier imagen automáticamente. 100% local.',
       },
       langs:['Inglés','Español','Portugués','Francés','Alemán','Italiano','Japonés','Chino (simplificado)','Árabe','Ruso','Coreano','Hindi'],
     },
@@ -1440,6 +1464,62 @@ const ToolUI = (() => {
       infoBox(tool.desc) +
       `<div class="btn-row"><a href="${tool.url}" target="_blank" rel="noopener" class="btn" style="text-decoration:none">Abrir ↗</a></div>`,
 
+    /* ── REGEX TESTER ── */
+    'regex-test': () =>
+      infoBox('Probá expresiones regulares en vivo — las coincidencias se resaltan en el texto a medida que escribís. Todo corre en tu navegador.') +
+      label('Patrón') +
+      `<div style="display:flex;gap:.4rem;align-items:center">
+        <span style="font-family:var(--mono);color:var(--fg3)">/</span>
+        <input type="text" id="rx-pattern" placeholder="[a-z]+" oninput="ToolFn.regexRun()" style="flex:1;font-family:var(--mono)">
+        <span style="font-family:var(--mono);color:var(--fg3)">/</span>
+      </div>` +
+      `<div style="display:flex;gap:.9rem;flex-wrap:wrap;margin:.5rem 0">
+        ${['g','i','m','s'].map(f => `<label style="display:flex;align-items:center;gap:.3rem;font-size:.78rem;cursor:pointer;margin:0"><input type="checkbox" id="rx-flag-${f}" ${f==='g'?'checked':''} onchange="ToolFn.regexRun()"> ${f}</label>`).join('')}
+      </div>` +
+      label('Texto de prueba') +
+      ta('rx-test','Pegá el texto donde probar la regex...','style="min-height:120px" oninput="ToolFn.regexRun()"') +
+      `<div id="rx-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.5rem 0;min-height:1rem"></div>` +
+      `<div class="result-area" id="rx-result"></div>` +
+      `<div id="rx-groups" style="margin-top:.5rem;font-size:.72rem;font-family:var(--mono);color:var(--fg2);max-height:140px;overflow-y:auto"></div>`,
+
+    /* ── LOREM IPSUM ── */
+    'lorem-gen': () =>
+      infoBox('Generá texto de relleno <b>Lorem Ipsum</b> para maquetas y prototipos.') +
+      `<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
+        <div><label style="margin-top:0">Cantidad</label><input type="number" id="lorem-count" value="3" min="1" max="200"></div>
+        <div><label style="margin-top:0">Unidad</label>${sel('lorem-unit',[['parrafos','Párrafos'],['oraciones','Oraciones'],['palabras','Palabras']])}</div>
+      </div>` +
+      `<label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;cursor:pointer;margin-top:.6rem">
+        <input type="checkbox" id="lorem-classic" checked> Empezar con "Lorem ipsum dolor sit amet..."
+      </label>` +
+      `<div class="btn-row"><button class="btn" onclick="ToolFn.loremGenerate()">¶ Generar</button></div>` +
+      result('lorem-result') + copyRow('lorem-result'),
+
+    /* ── SLUGIFY ── */
+    'slugify': () =>
+      infoBox('Convertí cualquier texto en un slug apto para URLs: minúsculas, sin tildes ni símbolos, separado por guiones.') +
+      label('Texto') +
+      `<input type="text" id="slug-input" placeholder="Mi Título de Artículo: ¡Genial!" oninput="ToolFn.slugifyLive()">` +
+      `<div class="result-area" id="slug-output" style="font-family:var(--mono);text-align:center;margin-top:.7rem">—</div>` +
+      `<div class="btn-row"><button class="btn btn--sec" onclick="UI.copyText(document.getElementById('slug-output').textContent,this)">Copiar</button></div>`,
+
+    /* ── IMAGE DOMINANT COLOR PALETTE ── */
+    'img-palette': () =>
+      infoBox('Subí una imagen y extraé sus colores dominantes automáticamente. 100% local.') +
+      `<input type="file" id="ip-file" accept="image/*" style="display:none" onchange="ToolFn.imgPaletteLoad()">` +
+      `<div class="file-drop" id="ip-drop" onclick="document.getElementById('ip-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('ip-file').files=event.dataTransfer.files;ToolFn.imgPaletteLoad()">
+        <div class="file-drop__icon">🖌️</div>
+        <div class="file-drop__title">Arrastrá una imagen acá</div>
+        <div class="file-drop__sub">o hacé click para elegir</div>
+        <div class="file-drop__name" id="ip-name"></div>
+      </div>` +
+      `<div id="ip-info" style="display:none">
+        <img id="ip-preview" style="width:100%;max-height:180px;object-fit:contain;border-radius:10px;border:1.5px solid var(--border);margin:.6rem 0;background:var(--bg3)" alt="preview">
+        <label>Cantidad de colores: <span id="ip-count-val">6</span></label>
+        <input type="range" min="3" max="10" value="6" id="ip-count" oninput="document.getElementById('ip-count-val').textContent=this.value;ToolFn.imgPaletteExtract()" style="width:100%">
+        <div id="ip-result" class="pal-grid" style="display:none;margin-top:.8rem"></div>
+      </div>`,
+
     /* ── PASSWORD GENERATOR ── */
     'pwd-gen': () =>
       infoBox('Generá contraseñas seguras usando <b>crypto.getRandomValues</b>. Todo se genera en tu navegador, nunca se envía a ningún servidor.') +
@@ -1595,6 +1675,10 @@ const ToolFn = (() => {
   function fmtDur(sec) {
     const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
     return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+
+  function _escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
   function bufferToWav(buffer) {
@@ -4069,11 +4153,10 @@ const ToolFn = (() => {
       Audio.error();
       return;
     }
-    const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const ops = _diffTokens(ta, tb);
     const html = ops.map(([type, tok]) => {
-      if (type === 'eq') return esc(tok);
-      return `<span class="diff-${type}">${esc(tok)}</span>`;
+      if (type === 'eq') return _escHtml(tok);
+      return `<span class="diff-${type}">${_escHtml(tok)}</span>`;
     }).join('');
     const added   = ops.filter(o => o[0] === 'ins' && o[1].trim()).length;
     const removed = ops.filter(o => o[0] === 'del' && o[1].trim()).length;
@@ -4081,6 +4164,171 @@ const ToolFn = (() => {
     document.getElementById('diff-stats').textContent =
       (added || removed) ? `+${added} agregadas · -${removed} eliminadas` : 'Los textos son idénticos';
     Audio.success();
+  }
+
+  // ── regex tester ──
+  let _rxDebounce = null;
+
+  function regexRun() {
+    clearTimeout(_rxDebounce);
+    _rxDebounce = setTimeout(_regexRunNow, 150);
+  }
+
+  function _regexRunNow() {
+    const pattern = document.getElementById('rx-pattern').value;
+    const testStr = document.getElementById('rx-test').value;
+    const resultEl = document.getElementById('rx-result');
+    const infoEl = document.getElementById('rx-groups');
+    const statusEl = document.getElementById('rx-info');
+    infoEl.innerHTML = '';
+
+    if (!pattern) { resultEl.innerHTML = _escHtml(testStr); statusEl.textContent = ''; return; }
+    if (testStr.length > 20000) {
+      resultEl.innerHTML = '';
+      statusEl.textContent = '⚠️ El texto de prueba es muy largo. Probá con menos de 20.000 caracteres.';
+      statusEl.style.color = '#ff8899';
+      return;
+    }
+
+    const userFlags = ['g','i','m','s'].filter(f => document.getElementById('rx-flag-'+f).checked).join('');
+    let re;
+    try {
+      // forzamos 'g' para poder iterar todas las coincidencias, sin importar si el usuario tildó "g"
+      re = new RegExp(pattern, userFlags.includes('g') ? userFlags : userFlags + 'g');
+    } catch(e) {
+      resultEl.innerHTML = _escHtml(testStr);
+      statusEl.textContent = '❌ Regex inválida: ' + e.message;
+      statusEl.style.color = '#ff8899';
+      return;
+    }
+
+    let html = '', lastIndex = 0, count = 0, m;
+    const groupRows = [];
+    while ((m = re.exec(testStr)) !== null) {
+      count++;
+      html += _escHtml(testStr.slice(lastIndex, m.index));
+      html += `<mark class="rx-match">${_escHtml(m[0]) || '&nbsp;'}</mark>`;
+      lastIndex = m.index + m[0].length;
+      if (m.length > 1 && groupRows.length < 30) {
+        groupRows.push(`Match ${count}: ` + m.slice(1).map((g,i) => `$${i+1}=${g !== undefined ? '"'+_escHtml(g)+'"' : '—'}`).join(' · '));
+      }
+      if (m[0].length === 0) re.lastIndex++; // evita loop infinito con coincidencias vacías
+      if (count > 3000) break; // guard contra patrones/entradas patológicas
+    }
+    html += _escHtml(testStr.slice(lastIndex));
+    resultEl.innerHTML = html;
+    statusEl.style.color = '';
+    statusEl.textContent = count ? `${count} coincidencia${count>1?'s':''}` : 'Sin coincidencias';
+    infoEl.innerHTML = groupRows.map(r => `<div>${r}</div>`).join('');
+  }
+
+  // ── lorem ipsum ──
+  const LOREM_WORDS = ['lorem','ipsum','dolor','sit','amet','consectetur','adipiscing','elit','sed','do','eiusmod','tempor','incididunt','ut','labore','et','dolore','magna','aliqua','enim','ad','minim','veniam','quis','nostrud','exercitation','ullamco','laboris','nisi','aliquip','ex','ea','commodo','consequat','duis','aute','irure','in','reprehenderit','voluptate','velit','esse','cillum','fugiat','nulla','pariatur','excepteur','sint','occaecat','cupidatat','non','proident','sunt','culpa','qui','officia','deserunt','mollit','anim','id','est','laborum'];
+
+  function _loremWord() { return LOREM_WORDS[Math.floor(Math.random() * LOREM_WORDS.length)]; }
+  function _cap(w) { return w.charAt(0).toUpperCase() + w.slice(1); }
+
+  function _loremSentence() {
+    const n = 6 + Math.floor(Math.random() * 8);
+    const words = Array.from({ length: n }, _loremWord);
+    return _cap(words.join(' ')) + '.';
+  }
+
+  function _loremParagraph() {
+    const n = 4 + Math.floor(Math.random() * 3);
+    return Array.from({ length: n }, _loremSentence).join(' ');
+  }
+
+  function loremGenerate() {
+    const unit = document.getElementById('lorem-unit').value;
+    const count = Math.min(200, Math.max(1, parseInt(document.getElementById('lorem-count').value) || 1));
+    const classic = document.getElementById('lorem-classic').checked;
+    const CLASSIC_OPENER = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.';
+    let out;
+    if (unit === 'palabras') {
+      const words = Array.from({ length: count }, _loremWord);
+      const openerWords = CLASSIC_OPENER.replace('.', '').split(' ').map(w => w.toLowerCase());
+      if (classic) for (let i = 0; i < Math.min(openerWords.length, count); i++) words[i] = openerWords[i];
+      out = _cap(words.join(' ')) + '.';
+    } else if (unit === 'oraciones') {
+      const sentences = Array.from({ length: count }, _loremSentence);
+      if (classic) sentences[0] = CLASSIC_OPENER;
+      out = sentences.join(' ');
+    } else {
+      const paras = Array.from({ length: count }, _loremParagraph);
+      if (classic) paras[0] = CLASSIC_OPENER + ' ' + paras[0];
+      out = paras.join('\n\n');
+    }
+    showResult('lorem-result', '');
+    document.getElementById('lorem-result').textContent = out;
+    showCopyBtn('lorem-result', `() => document.getElementById('lorem-result').textContent`);
+    Audio.success();
+  }
+
+  // ── slugify ──
+  function _slugify(str) {
+    return str
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita tildes/diacriticos
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/[\s_]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  function slugifyLive() {
+    document.getElementById('slug-output').textContent = _slugify(document.getElementById('slug-input').value) || '—';
+  }
+
+  // ── image dominant color palette ──
+  let _ipImg = null;
+
+  function imgPaletteLoad() {
+    const f = document.getElementById('ip-file').files[0]; if (!f) return;
+    document.getElementById('ip-name').textContent = f.name;
+    const img = new Image();
+    img.onload = () => {
+      _ipImg = img;
+      document.getElementById('ip-preview').src = URL.createObjectURL(f);
+      document.getElementById('ip-info').style.display = 'block';
+      imgPaletteExtract();
+    };
+    img.src = URL.createObjectURL(f);
+  }
+
+  function imgPaletteExtract() {
+    if (!_ipImg) return;
+    const SIZE = 100; // reducimos la imagen para que el conteo de píxeles sea instantáneo
+    const c = document.createElement('canvas');
+    c.width = SIZE; c.height = SIZE;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(_ipImg, 0, 0, SIZE, SIZE);
+    const data = ctx.getImageData(0, 0, SIZE, SIZE).data;
+
+    const bucketSize = 24;
+    const buckets = new Map();
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i+3] < 128) continue; // ignoramos píxeles muy transparentes
+      const r = data[i], g = data[i+1], b = data[i+2];
+      const key = [r/bucketSize|0, g/bucketSize|0, b/bucketSize|0].join(',');
+      const entry = buckets.get(key) || { count: 0, r: 0, g: 0, b: 0 };
+      entry.count++; entry.r += r; entry.g += g; entry.b += b;
+      buckets.set(key, entry);
+    }
+
+    const count = parseInt(document.getElementById('ip-count').value);
+    const swatches = [...buckets.values()]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, count)
+      .map(e => '#' + [e.r, e.g, e.b].map(sum => Math.round(sum / e.count).toString(16).padStart(2,'0')).join(''));
+
+    const resultEl = document.getElementById('ip-result');
+    resultEl.innerHTML = swatches.map(hex => `
+      <div class="pal-swatch" style="background:${hex}" onclick="UI.copyText('${hex}',this.querySelector('.pal-swatch__code'))">
+        <span class="pal-swatch__code">${hex}</span>
+      </div>`).join('');
+    resultEl.style.display = 'grid';
   }
 
   // ── unit converter ──
@@ -4290,6 +4538,10 @@ const ToolFn = (() => {
     pwdGenerate,
     jsonFormat,
     textDiffRun,
+    regexRun,
+    loremGenerate,
+    slugifyLive,
+    imgPaletteLoad, imgPaletteExtract,
     unitCatChange, unitConvert, unitSwap,
     ctSetPreset, ctSetCustom, ctToggle, ctReset,
     paletteGenerate,

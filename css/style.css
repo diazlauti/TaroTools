@@ -520,6 +520,8 @@ body.light .pwd-display { box-shadow:0 0 18px rgba(119,0,204,.1); }
 .diff-cols { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
 @media (max-width:600px) { .diff-cols { grid-template-columns:1fr; } }
 .diff-ins { background:rgba(200,255,0,.22); color:var(--accent); border-radius:3px; padding:0 2px; }
+.rx-match { background:var(--accent); color:#000; border-radius:3px; padding:0 2px; font-weight:700; }
+body.light .rx-match { color:#fff; }
 .diff-del { background:rgba(255,110,247,.18); color:var(--accent2); text-decoration:line-through; border-radius:3px; padding:0 2px; }
 body.light .diff-ins { background:rgba(119,0,204,.14); }
 body.light .diff-del { background:rgba(204,0,170,.14); }
