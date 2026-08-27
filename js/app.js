@@ -51,10 +51,10 @@ const I18n = (() => {
     { id:'b4',  icon:'🎬', cat:'media',      type:'vid-compress'  },
     { id:'b5',  icon:'🎵', cat:'media',      type:'aud-compress'  },
     { id:'b6',  icon:'📄', cat:'archivo',    type:'pdf-text'      },
-    { id:'b7',  icon:'✂️', cat:'texto',      type:'ai-soon',      soon:true },
-    { id:'b8',  icon:'✏️', cat:'texto',      type:'ai-soon',      soon:true },
-    { id:'b9',  icon:'🌐', cat:'texto',      type:'ai-soon',      soon:true },
-    { id:'b10', icon:'📝', cat:'texto',      type:'ai-soon',      soon:true },
+    { id:'b7',  icon:'✂️', cat:'texto',      type:'ai-summarize'  },
+    { id:'b8',  icon:'✏️', cat:'texto',      type:'ai-correct'    },
+    { id:'b9',  icon:'🌐', cat:'texto',      type:'ai-translate'  },
+    { id:'b10', icon:'📝', cat:'texto',      type:'ai-expand'     },
     { id:'b11', icon:'⬇️', cat:'media',      type:'cobalt-dl'     },
     { id:'b12', icon:'◼️', cat:'util',       type:'qr-gen'        },
     { id:'b13', icon:'🎨', cat:'util',       type:'color-conv'    },
@@ -118,10 +118,10 @@ const I18n = (() => {
         b4:'Comprimí videos MP4 reduciendo resolución y bitrate.',
         b5:'Comprimí MP3, WAV u OGG con control de canales y sample rate.',
         b6:'Extraé el texto de cualquier PDF en segundos.',
-        b7:'Resumidor con IA — próximamente.',
-        b8:'Corrector con IA — próximamente.',
-        b9:'Traductor con IA — próximamente.',
-        b10:'Expandidor con IA — próximamente.',
+        b7:'Resumí cualquier texto largo en segundos con IA.',
+        b8:'Corregí ortografía y gramática de cualquier texto con IA.',
+        b9:'Traducí texto a más de 10 idiomas con IA.',
+        b10:'Expandí y desarrollá un texto corto con IA.',
         b11:'Descargá de YouTube, TikTok, Instagram y más.',
         b12:'Generá códigos QR con preview en vivo y colores personalizables.',
         b13:'Convertí entre HEX, RGB y HSL al instante.',
@@ -663,7 +663,7 @@ const ToolUI = (() => {
     /* ── META REMOVE ── */
     'meta-remove': () =>
       infoBox('Eliminá todos los metadatos EXIF de tu imagen (ubicación GPS, cámara, fecha, etc.). Procesamiento 100% local.') +
-      `<input type="file" id="mr-file" accept="image/jpeg,image/png,image/webp" style="display:none">` +
+      `<input type="file" id="mr-file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="ToolFn.mrLoad()">` +
       `<div class="file-drop" id="mr-drop" onclick="document.getElementById('mr-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('mr-file').files=event.dataTransfer.files;ToolFn.mrLoad()">
         <div class="file-drop__icon">🚫</div>
         <div class="file-drop__title">Arrastrá una imagen acá</div>
@@ -700,7 +700,7 @@ const ToolUI = (() => {
     /* ── FAVICON GEN ── */
     'favicon-gen': () =>
       infoBox('Convertí cualquier imagen a favicon. Se genera un <b>.ico</b> con múltiples tamaños (16, 32, 48px) listo para usar en tu web.') +
-      `<input type="file" id="fv-file" accept="image/*" style="display:none">` +
+      `<input type="file" id="fv-file" accept="image/*" style="display:none" onchange="ToolFn.fvLoad()">` +
       `<div class="file-drop" id="fv-drop" onclick="document.getElementById('fv-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('fv-file').files=event.dataTransfer.files;ToolFn.fvLoad()">
         <div class="file-drop__icon">🌐</div>
         <div class="file-drop__title">Arrastrá una imagen acá</div>
@@ -1112,6 +1112,50 @@ const ToolUI = (() => {
         <p>${s.soonDesc}<br><br>Las herramientas de IA con <b>Gemini</b> van a estar disponibles pronto. ¡Volvé a revisar!</p>
       </div>`;
     },
+
+    /* ── AI SUMMARIZE ── */
+    'ai-summarize': () =>
+      infoBox('Resumí cualquier texto con <b>IA</b>. Pegá el texto, elegí el largo del resumen y listo.') +
+      label('Texto a resumir') +
+      ta('ai-sum-input','Pegá el texto que querés resumir...','style="min-height:140px"') +
+      label('Largo del resumen') +
+      sel('ai-sum-len',[['corto','Corto (2-3 líneas)'],['medio','Medio (un párrafo)'],['largo','Largo (detallado)']]) +
+      `<div class="btn-row"><button class="btn" onclick="ToolFn.aiSummarize()">✂️ Resumir</button></div>` +
+      loader('ai-sum-loader','⏳ pensando...') +
+      result('ai-sum-result') +
+      copyRow('ai-sum-result'),
+
+    /* ── AI CORRECT ── */
+    'ai-correct': () =>
+      infoBox('Corregí ortografía, gramática y puntuación de cualquier texto con <b>IA</b>.') +
+      label('Texto a corregir') +
+      ta('ai-cor-input','Pegá el texto que querés corregir...','style="min-height:140px"') +
+      `<div class="btn-row"><button class="btn" onclick="ToolFn.aiCorrect()">✏️ Corregir</button></div>` +
+      loader('ai-cor-loader','⏳ corrigiendo...') +
+      result('ai-cor-result') +
+      copyRow('ai-cor-result'),
+
+    /* ── AI TRANSLATE ── */
+    'ai-translate': () =>
+      infoBox('Traducí cualquier texto a más de 10 idiomas con <b>IA</b>.') +
+      label('Texto a traducir') +
+      ta('ai-tr-input','Pegá el texto que querés traducir...','style="min-height:120px"') +
+      label('Idioma destino') +
+      sel('ai-tr-lang', I18n.get().langs.map(l => [l, l])) +
+      `<div class="btn-row"><button class="btn" onclick="ToolFn.aiTranslate()">🌐 Traducir</button></div>` +
+      loader('ai-tr-loader','⏳ traduciendo...') +
+      result('ai-tr-result') +
+      copyRow('ai-tr-result'),
+
+    /* ── AI EXPAND ── */
+    'ai-expand': () =>
+      infoBox('Expandí un texto corto agregando más detalle y desarrollo con <b>IA</b>.') +
+      label('Texto a expandir') +
+      ta('ai-exp-input','Pegá el texto que querés expandir...','style="min-height:120px"') +
+      `<div class="btn-row"><button class="btn" onclick="ToolFn.aiExpand()">📝 Expandir</button></div>` +
+      loader('ai-exp-loader','⏳ escribiendo...') +
+      result('ai-exp-result') +
+      copyRow('ai-exp-result'),
 
     /* ── COBALT DL ── */
     'cobalt-dl': () => {
@@ -1924,15 +1968,25 @@ const ToolFn = (() => {
     }, 400);
   }
 
-  function downloadQR() {
+  async function downloadQR() {
     const txt = document.getElementById('qr-input').value.trim(); if (!txt) return;
     const size = document.getElementById('qr-size').value;
     const bg   = document.getElementById('qr-bg').value.replace('#','');
     const fg   = document.getElementById('qr-fg').value.replace('#','');
     const url  = `${CONFIG.QR_API}?size=${size}x${size}&data=${encodeURIComponent(txt)}&bgcolor=${bg}&color=${fg}&margin=10`;
-    const a = document.createElement('a');
-    a.href = url; a.download = 'taro-qr.png'; a.target = '_blank';
-    a.click(); Audio.success();
+    // el atributo download solo se respeta en same-origin/blob: — bajamos la imagen para forzar el nombre de archivo
+    try {
+      const blob = await (await fetch(url)).blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'taro-qr.png';
+      a.click();
+      Audio.success();
+    } catch(e) {
+      // fallback: abrir directamente si el fetch falla (CORS, offline, etc.)
+      const a = document.createElement('a');
+      a.href = url; a.download = 'taro-qr.png'; a.target = '_blank';
+      a.click(); Audio.success();
+    }
   }
 
   // ── color conv ──
@@ -2009,6 +2063,75 @@ const ToolFn = (() => {
     document.getElementById('wc-l').textContent  = txt ? txt.split('\n').length : 0;
     document.getElementById('wc-p').textContent  = txt.trim() ? txt.trim().split(/\n\s*\n/).length : 0;
     document.getElementById('wc-r').textContent  = readSec < 60 ? readSec+'s' : Math.ceil(readSec/60)+'min';
+  }
+
+  // ── AI tools (Gemini proxy) ──
+  async function _callGemini(prompt) {
+    const r = await fetch(CONFIG.GEMINI_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }] }),
+    });
+    let data;
+    try { data = await r.json(); } catch(e) { throw new Error('Respuesta inválida del servidor'); }
+    if (!r.ok) throw new Error(data?.error || `Error del servidor (${r.status})`);
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('La IA no devolvió ningún resultado. Probá de nuevo.');
+    return text.trim();
+  }
+
+  async function _runAiTool({ inputId, loaderId, resultId, btnLabel, buildPrompt }) {
+    const txt = document.getElementById(inputId).value.trim();
+    if (!txt) return;
+    toggleLoader(loaderId, true);
+    document.getElementById(resultId).style.display = 'none';
+    try {
+      const out = await _callGemini(buildPrompt(txt));
+      toggleLoader(loaderId, false);
+      showResult(resultId, '');
+      document.getElementById(resultId).textContent = out;
+      showCopyBtn(resultId, `() => document.getElementById('${resultId}').textContent`);
+      Audio.success();
+    } catch(e) {
+      toggleLoader(loaderId, false);
+      showResult(resultId, '⚠️ ' + e.message, true);
+      Audio.error();
+    }
+  }
+
+  function aiSummarize() {
+    const lengthMap = {
+      corto: 'en 2 o 3 oraciones muy breves',
+      medio: 'en un párrafo corto',
+      largo: 'de forma detallada pero concisa, en varios párrafos si hace falta',
+    };
+    const length = document.getElementById('ai-sum-len').value;
+    _runAiTool({
+      inputId: 'ai-sum-input', loaderId: 'ai-sum-loader', resultId: 'ai-sum-result',
+      buildPrompt: txt => `Resumí el siguiente texto en español, ${lengthMap[length]}. Devolvé únicamente el resumen, sin introducciones ni comentarios adicionales:\n\n${txt}`,
+    });
+  }
+
+  function aiCorrect() {
+    _runAiTool({
+      inputId: 'ai-cor-input', loaderId: 'ai-cor-loader', resultId: 'ai-cor-result',
+      buildPrompt: txt => `Corregí la ortografía, gramática y puntuación del siguiente texto, manteniendo el idioma y el estilo originales. Devolvé únicamente el texto corregido, sin explicaciones ni comentarios:\n\n${txt}`,
+    });
+  }
+
+  function aiTranslate() {
+    const lang = document.getElementById('ai-tr-lang').value;
+    _runAiTool({
+      inputId: 'ai-tr-input', loaderId: 'ai-tr-loader', resultId: 'ai-tr-result',
+      buildPrompt: txt => `Traducí el siguiente texto al idioma "${lang}". Devolvé únicamente la traducción, sin explicaciones ni comentarios adicionales:\n\n${txt}`,
+    });
+  }
+
+  function aiExpand() {
+    _runAiTool({
+      inputId: 'ai-exp-input', loaderId: 'ai-exp-loader', resultId: 'ai-exp-result',
+      buildPrompt: txt => `Expandí y desarrollá el siguiente texto agregando más detalle, ejemplos y contexto, manteniendo el idioma y el tono originales. Devolvé únicamente el texto expandido, sin explicaciones ni comentarios adicionales:\n\n${txt}`,
+    });
   }
 
   // ── base64 ──
@@ -3398,6 +3521,7 @@ const ToolFn = (() => {
     liveQR, downloadQR,
     liveColor, convertColor,
     convertCase, updateWC,
+    aiSummarize, aiCorrect, aiTranslate, aiExpand,
     b64Action, genHash,
     timerToggle, timerLap, timerReset,
     genUUID, genUUIDs, fetchIP,
