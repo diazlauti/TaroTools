@@ -8,7 +8,16 @@ exports.handler = async (event) => {
 
   const apiKey = process.env.TARO_KEY;
   if (!apiKey) {
-    return { statusCode: 500, headers: corsHeaders(), body: JSON.stringify({ error: 'API key no configurada' }) };
+    return {
+      statusCode: 500,
+      headers: corsHeaders(),
+      body: JSON.stringify({
+        error: 'Falta configurar la variable de entorno TARO_KEY en Netlify. ' +
+          'Es gratis: creá una cuenta en openrouter.ai, generá una API key ' +
+          '(no hace falta tarjeta para el modelo gratuito ya configurado) y ' +
+          'agregala en Netlify → Site settings → Environment variables → TARO_KEY.',
+      }),
+    };
   }
 
   let body;

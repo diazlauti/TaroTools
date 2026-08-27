@@ -2157,6 +2157,7 @@ const ToolFn = (() => {
       'error.api.link.unsupported':    'Esta plataforma no está soportada. Probá con YouTube, TikTok, Instagram u otras.',
       'error.api.content.video.unavailable': 'El video no está disponible (puede ser privado, eliminado o con restricción regional).',
       'error.api.content.age_restricted': 'El contenido tiene restricción de edad.',
+      'error.proxy.fetch_failed': 'No se pudo conectar con el servicio de descarga. Puede estar temporalmente caído o bloqueando al servidor — probá de nuevo en un rato, o directamente en cobalt.tools.',
     };
 
     try {
