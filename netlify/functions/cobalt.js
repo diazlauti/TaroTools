@@ -2,6 +2,17 @@
 // Proxy para la API de Cobalt v2.
 // La request sale del servidor Netlify, no del browser,
 // así evita el bloqueo de autenticación.
+//
+// La instancia pública oficial (api.cobalt.tools) a veces bloquea IPs de
+// proveedores cloud (como las de Netlify Functions) por su protección
+// anti-abuso de Cloudflare. Si eso pasa, no hace falta tocar código: se
+// puede apuntar a otra instancia pública (elegí una activa en
+// https://cobalt.tools → ⚙️ Configuración → Instancia de procesamiento,
+// o self-hosteá la tuya) configurando la variable de entorno
+// COBALT_INSTANCE en Netlify. Si esa instancia requiere API key, se puede
+// pasar con COBALT_API_KEY.
+
+const DEFAULT_INSTANCE = 'https://api.cobalt.tools';
 
 exports.handler = async (event) => {
   const cors = {
@@ -26,13 +37,17 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Falta la URL' }) };
   }
 
+  const instance = (process.env.COBALT_INSTANCE || DEFAULT_INSTANCE).replace(/\/$/, '');
+  const apiKey = process.env.COBALT_API_KEY;
+
   try {
-    const response = await fetch('https://api.cobalt.tools', {
+    const response = await fetch(instance, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'User-Agent': 'tarostools/1.0 (+https://tarostools.netlify.app)',
+        ...(apiKey ? { 'Authorization': `Api-Key ${apiKey}` } : {}),
       },
       body: JSON.stringify(body),
     });
