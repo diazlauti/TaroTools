@@ -1557,7 +1557,11 @@ const ToolUI = (() => {
     /* ── TEXT DIFF ── */
     'text-diff': () =>
       infoBox('Compará dos textos y mirá las diferencias: <span class="diff-ins">agregado</span> y <span class="diff-del">eliminado</span>.') +
-      `<div class="diff-cols">
+      `<div class="pr-scope-group">
+        <button class="pr-scope-btn active" id="diff-mode-word" onclick="ToolFn.diffSetMode('word')">Por palabra</button>
+        <button class="pr-scope-btn" id="diff-mode-line" onclick="ToolFn.diffSetMode('line')">Por línea</button>
+      </div>` +
+      `<div class="diff-cols" style="margin-top:.6rem">
         <div>${label('Texto A')}${ta('diff-a','Texto original...','style="min-height:110px"')}</div>
         <div>${label('Texto B')}${ta('diff-b','Texto nuevo...','style="min-height:110px"')}</div>
       </div>` +
@@ -1894,6 +1898,12 @@ const ToolFn = (() => {
 
   async function compressVid() {
     const f = document.getElementById('vc-file').files[0]; if (!f) return;
+    if (typeof MediaRecorder === 'undefined' || !HTMLCanvasElement.prototype.captureStream) {
+      document.getElementById('vc-result').innerHTML =
+        '<span style="color:#ff8899">Tu navegador no soporta grabación de video en canvas. Probá con una versión reciente de Chrome, Firefox o Edge.</span>';
+      Audio.error();
+      return;
+    }
     const btn = document.getElementById('vc-btn');
     btn.disabled = true; btn.textContent = 'Procesando...';
     toggleLoader('vc-loader', true);
@@ -2841,6 +2851,13 @@ const ToolFn = (() => {
   // ── favicon gen ──
   let _fvImg = null;
 
+  // recorta al centro en vez de estirar, para no distorsionar logos no cuadrados
+  function _drawCover(ctx, img, size) {
+    const scale = Math.max(size / img.width, size / img.height);
+    const w = img.width * scale, h = img.height * scale;
+    ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+  }
+
   function fvLoad() {
     const input = document.getElementById('fv-file');
     const f = input.files[0]; if (!f) return;
@@ -2852,7 +2869,7 @@ const ToolFn = (() => {
         const id = sz === 192 ? 'fv-p192' : `fv-p${sz}`;
         const c = document.getElementById(id);
         c.width = sz; c.height = sz;
-        c.getContext('2d').drawImage(img, 0, 0, sz, sz);
+        _drawCover(c.getContext('2d'), img, sz);
       });
       document.getElementById('fv-info').style.display = 'block';
     };
@@ -2863,7 +2880,7 @@ const ToolFn = (() => {
     if (!_fvImg) return;
     const c = document.createElement('canvas');
     c.width = sz; c.height = sz;
-    c.getContext('2d').drawImage(_fvImg, 0, 0, sz, sz);
+    _drawCover(c.getContext('2d'), _fvImg, sz);
     c.toBlob(blob => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -2924,7 +2941,7 @@ const ToolFn = (() => {
     const bmpData = sizes.map(sz => {
       const c = document.createElement('canvas');
       c.width = sz; c.height = sz;
-      c.getContext('2d').drawImage(_fvImg, 0, 0, sz, sz);
+      _drawCover(c.getContext('2d'), _fvImg, sz);
       return canvasToRawBMP(c);
     });
 
@@ -4143,11 +4160,21 @@ const ToolFn = (() => {
     return ops;
   }
 
+  let _diffMode = 'word';
+
+  function diffSetMode(mode) {
+    _diffMode = mode;
+    document.getElementById('diff-mode-word').classList.toggle('active', mode === 'word');
+    document.getElementById('diff-mode-line').classList.toggle('active', mode === 'line');
+  }
+
   function textDiffRun() {
     const a = document.getElementById('diff-a').value;
     const b = document.getElementById('diff-b').value;
     if (!a && !b) return;
-    const ta = a.split(/(\s+)/), tb = b.split(/(\s+)/);
+    const isLine = _diffMode === 'line';
+    const tokenize = isLine ? s => s.split('\n') : s => s.split(/(\s+)/);
+    const ta = tokenize(a), tb = tokenize(b);
     if (ta.length * tb.length > 1000000) {
       showResult('diff-result', '⚠️ Los textos son demasiado largos para comparar en el navegador. Probá con fragmentos más cortos.', true);
       Audio.error();
@@ -4157,7 +4184,7 @@ const ToolFn = (() => {
     const html = ops.map(([type, tok]) => {
       if (type === 'eq') return _escHtml(tok);
       return `<span class="diff-${type}">${_escHtml(tok)}</span>`;
-    }).join('');
+    }).join(isLine ? '\n' : '');
     const added   = ops.filter(o => o[0] === 'ins' && o[1].trim()).length;
     const removed = ops.filter(o => o[0] === 'del' && o[1].trim()).length;
     showResult('diff-result', html || '<span style="color:var(--fg3)">Sin diferencias — los textos son idénticos.</span>');
@@ -4537,7 +4564,7 @@ const ToolFn = (() => {
     bgLoad, bgAutoDetect, bgApply, bgDownload,
     pwdGenerate,
     jsonFormat,
-    textDiffRun,
+    textDiffRun, diffSetMode,
     regexRun,
     loremGenerate,
     slugifyLive,
@@ -4640,6 +4667,11 @@ const Admin = (() => {
         : '';
 
       body.innerHTML =
+        `<div class="btn-row" style="margin-bottom:.9rem">
+          <button class="btn btn--sec" onclick="Admin.exportBackup()" style="font-size:.7rem;padding:.3rem .6rem">⬇️ Exportar backup</button>
+          <button class="btn btn--sec" onclick="document.getElementById('admin-import-file').click()" style="font-size:.7rem;padding:.3rem .6rem">⬆️ Importar backup</button>
+          <input type="file" id="admin-import-file" accept="application/json" style="display:none" onchange="Admin.importBackup(this.files[0]);this.value=''">
+        </div>` +
         `<p style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.5px">Herramientas base</p>` +
         baseHTML +
         (extra.length ? `<p style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin:.8rem 0 .5rem;text-transform:uppercase;letter-spacing:.5px">Herramientas personalizadas</p>` + extraHTML : '') +
@@ -4656,6 +4688,38 @@ const Admin = (() => {
         `<label>${s.fields.url}</label><input type="text" id="a-url" placeholder="${s.ph.url}">` +
         `<div class="btn-row"><button class="btn" onclick="Admin.addTool()">${s.addBtn}</button></div>`;
     }
+  }
+
+  function exportBackup() {
+    const data = { extra, hidden, exportedAt: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'tarotools-backup.json';
+    a.click();
+    UI.showToast('✦ backup descargado');
+    Audio.success();
+  }
+
+  function importBackup(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (!Array.isArray(data.extra) || !Array.isArray(data.hidden)) throw new Error('formato inválido');
+        extra = data.extra;
+        hidden = data.hidden;
+        saveExtra(); saveHidden();
+        Tools.renderGrid(); renderBody();
+        UI.showToast('✦ backup importado');
+        Audio.success();
+      } catch(e) {
+        UI.showToast('⚠️ Archivo de backup inválido');
+        Audio.error();
+      }
+    };
+    reader.readAsText(file);
   }
 
   function toggleHide(id) {
@@ -4732,6 +4796,7 @@ const Admin = (() => {
     switchTab, renderPanel, renderBody,
     toggleHide, moveUp, moveDown,
     startEdit, saveEdit, deleteTool, addTool,
+    exportBackup, importBackup,
   };
 })();
 
