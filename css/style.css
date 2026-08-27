@@ -541,6 +541,13 @@ body.light .timer-display { text-shadow:none; }
   cursor:pointer; transition:transform .15s, box-shadow .15s;
 }
 .pal-swatch:hover { transform:translateY(-3px) scale(1.03); box-shadow:0 6px 18px rgba(0,0,0,.35); }
+.bg-canvas-wrap {
+  border-radius:10px; overflow:hidden; border:1.5px solid var(--border);
+  background:
+    repeating-conic-gradient(#8888 0% 25%, transparent 0% 50%) 0 0/16px 16px,
+    var(--bg3);
+}
+.bg-canvas-wrap canvas { width:100%; display:block; max-height:340px; cursor:crosshair; }
 .pal-swatch__code {
   font-family:var(--mono); font-size:.62rem; font-weight:700;
   background:rgba(0,0,0,.55); color:#fff; padding:2px 6px; border-radius:5px;

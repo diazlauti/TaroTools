@@ -7,7 +7,6 @@ const CONFIG = {
   GEMINI_PROXY: '/.netlify/functions/gemini',
   GEMINI_MODEL: 'gemini-2.0-flash',
   COBALT_API: '/.netlify/functions/cobalt',
-  QR_API: 'https://api.qrserver.com/v1/create-qr-code/',
   IP_API: 'https://api.ipify.org?format=json',
   ADMIN_PASS_HASH: 'a0f50e4075fa8fc1c8acce4c6ab92f7713913eb7906850bb25cc3a72f88e4550',
 };
@@ -69,7 +68,7 @@ const I18n = (() => {
     { id:'b21', icon:'📏', cat:'imagen',     type:'img-resize'    },
     { id:'b22', icon:'🚫', cat:'imagen',     type:'meta-remove'   },
     { id:'b23', icon:'🌐', cat:'imagen',     type:'favicon-gen'   },
-    { id:'b24', icon:'✂️',  cat:'imagen',     type:'ai-soon',      soon:true },
+    { id:'b24', icon:'✂️',  cat:'imagen',     type:'bg-remove',    isNew:true },
     { id:'c1',  icon:'🔗', cat:'pdf',        type:'pdf-merge'     },
     { id:'c2',  icon:'✂️', cat:'pdf',        type:'pdf-split'     },
     { id:'c3',  icon:'🗜️', cat:'pdf',        type:'pdf-compress'  },
@@ -144,7 +143,7 @@ const I18n = (() => {
         b21:'Redimensioná cualquier imagen a píxeles exactos o porcentaje, con preview en vivo y presets.',
         b22:'Eliminá todos los metadatos EXIF de tu foto (GPS, cámara, fecha). 100% local.',
         b23:'Convertí cualquier imagen a favicon .ico listo para usar en tu sitio web.',
-        b24:'Próximamente — eliminá el fondo de cualquier imagen automáticamente.',
+        b24:'Quitá el fondo de una imagen por color, sin IA: elegí el color de fondo y ajustá la tolerancia. Ideal para fondos lisos.',
         c1:'Combiná varios PDFs en uno solo, en el orden que quieras.',
         c2:'Dividí un PDF por páginas o rangos.',
         c3:'Reducí el peso de tu PDF sin perder calidad visible.',
@@ -524,7 +523,7 @@ const ToolUI = (() => {
 
     /* ── IMG COMPRESS ── */
     'img-compress': () =>
-      infoBox('Soporta <b>JPG, PNG, WEBP</b>. Preview en vivo antes/después. Todo en tu navegador.') +
+      infoBox('Soporta <b>JPG, PNG, WEBP</b>. Preview en vivo antes/después. Todo en tu navegador. El resultado es JPG: si tu PNG tiene transparencia, se rellena con fondo blanco.') +
       label('Imagen') +
       `${dropZone('ic-file','image/jpeg,image/png,image/webp','ToolFn.previewImg()','Arrastrá una imagen acá')}` +
       label('Calidad: <span id="ic-ql">75</span>%') +
@@ -833,7 +832,7 @@ const ToolUI = (() => {
       const loaderHtml = loader('pc-loader','⏳ comprimiendo PDF...');
       const resultHtml = result('pc-result');
       return `<div id="pc-upload-screen">` +
-        infoBox('Reducí el peso del PDF. Para PDFs con imágenes podés ajustar la calidad. 100% local.') +
+        infoBox('Reducí el peso del PDF quitando metadatos innecesarios. Para reducciones grandes, activá el modo agresivo. 100% local.') +
         `<input type="file" id="pc-file" accept="application/pdf" style="display:none" onchange="ToolFn.pcLoad()">
         <div class="file-drop" onclick="document.getElementById('pc-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pc-file').files=event.dataTransfer.files;ToolFn.pcLoad()">
           <div class="file-drop__icon">🗜️</div>
@@ -866,9 +865,13 @@ const ToolUI = (() => {
                   <span id="pc-est-size" style="color:var(--accent)">—</span>
                 </div>
               </div>
-              <label>Calidad de imágenes: <span id="pc-ql" style="color:var(--accent);font-family:var(--mono)">80</span>%</label>
+              <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;cursor:pointer;margin-top:0">
+                <input type="checkbox" id="pc-aggressive" onchange="ToolFn.pcUpdateEst()"> Modo agresivo
+              </label>
+              <p style="font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin:.25rem 0 .6rem">Convierte cada página en imagen para lograr mucha más reducción — el texto deja de ser seleccionable/buscable.</p>
+              <label>Calidad de imagen (modo agresivo): <span id="pc-ql" style="color:var(--accent);font-family:var(--mono)">80</span>%</label>
               <input type="range" min="10" max="99" value="80" id="pc-q" oninput="ToolFn.pcUpdateEst()" style="width:100%;margin:.25rem 0 .4rem;accent-color:var(--accent)">
-              <p style="font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.6rem">Afecta imágenes embebidas. Calidad más baja = archivo más pequeño.</p>
+              <p style="font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.6rem">Sin modo agresivo, solo se eliminan metadatos (título, autor, etc.) y el archivo se reduce apenas.</p>
               <div class="btn-row">
                 <button class="btn" onclick="ToolFn.pcCompress()">🗜️ Comprimir y descargar</button>
               </div>
@@ -1127,15 +1130,32 @@ const ToolUI = (() => {
       `<div class="result-area" id="po-result" style="display:none;max-height:260px;overflow-y:auto"></div>` +
       copyRow('po-result'),
 
-    /* ── AI SOON ── */
-    'ai-soon': () => {
-      const s = I18n.get();
-      return `<div class="soon-screen">
-        <div class="soon-icon">🤖</div>
-        <h3>${s.soon}</h3>
-        <p>${s.soonDesc}<br><br>Las herramientas de IA con <b>Gemini</b> van a estar disponibles pronto. ¡Volvé a revisar!</p>
-      </div>`;
-    },
+    /* ── BACKGROUND REMOVE (chroma-key local) ── */
+    'bg-remove': () =>
+      infoBox('Quitá el fondo de una imagen <b>por color</b> — sin IA, sin subir nada a ningún servidor. Funciona mejor con fondos lisos (fotos de producto, logos). Hacé click sobre el fondo en la imagen para elegir el color a quitar.') +
+      `<input type="file" id="bg-file" accept="image/*" style="display:none" onchange="ToolFn.bgLoad()">` +
+      `<div class="file-drop" id="bg-drop" onclick="document.getElementById('bg-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('bg-file').files=event.dataTransfer.files;ToolFn.bgLoad()">
+        <div class="file-drop__icon">✂️</div>
+        <div class="file-drop__title">Arrastrá una imagen acá</div>
+        <div class="file-drop__sub">o hacé click para elegir · ideal con fondo liso</div>
+        <div class="file-drop__name" id="bg-name"></div>
+      </div>` +
+      `<div id="bg-info" style="display:none">
+        <div class="bg-canvas-wrap">
+          <canvas id="bg-canvas"></canvas>
+        </div>
+        <div style="display:flex;align-items:center;gap:.6rem;margin:.6rem 0">
+          <span style="font-size:.72rem;color:var(--fg3);font-family:var(--mono)">Color de fondo</span>
+          <span id="bg-color-swatch" style="width:22px;height:22px;border-radius:6px;border:1.5px solid var(--border);display:inline-block"></span>
+          <span id="bg-color-hex" style="font-family:var(--mono);font-size:.75rem;color:var(--fg2)"></span>
+        </div>
+        <label>Tolerancia: <span id="bg-tol-val">40</span></label>
+        <input type="range" min="0" max="120" value="40" id="bg-tol" oninput="document.getElementById('bg-tol-val').textContent=this.value;ToolFn.bgApply()" style="width:100%">
+        <div class="btn-row">
+          <button class="btn" onclick="ToolFn.bgDownload()">⬇️ Descargar PNG</button>
+          <button class="btn btn--sec" onclick="ToolFn.bgAutoDetect()">🎯 Auto-detectar (esquinas)</button>
+        </div>
+      </div>`,
 
     /* ── AI SUMMARIZE ── */
     'ai-summarize': () =>
@@ -1274,7 +1294,7 @@ const ToolUI = (() => {
 
     /* ── QR GEN ── */
     'qr-gen': () =>
-      infoBox('Preview en vivo mientras escribís. Personalizá colores y tamaño.') +
+      infoBox('Preview en vivo mientras escribís. Personalizá colores y tamaño. Se genera 100% local, sin conexión a ningún servicio externo.') +
       label('Contenido del QR') +
       `<input type="text" id="qr-input" placeholder="https://... o cualquier texto" oninput="ToolFn.liveQR()">` +
       `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-top:.5rem">` +
@@ -1283,7 +1303,7 @@ const ToolUI = (() => {
       `<div><label style="margin-top:0">Color QR</label><input type="color" id="qr-fg" value="#000000" oninput="ToolFn.liveQR()" style="width:100%;height:36px;padding:2px;border-radius:var(--radius-sm);cursor:pointer;border:1.5px solid var(--border)"></div>` +
       `</div>` +
       `<div id="qr-preview-wrap" style="margin:.9rem 0;text-align:center;display:none">
-        <img id="qr-live" style="border-radius:10px;border:2px solid var(--border);max-width:180px" alt="QR preview">
+        <canvas id="qr-live" style="border-radius:10px;border:2px solid var(--border);width:180px;height:180px;image-rendering:pixelated" aria-label="QR preview"></canvas>
       </div>` +
       `<div class="btn-row">
         <button class="btn" onclick="ToolFn.downloadQR()">⬇️ Descargar QR</button>
@@ -1297,6 +1317,7 @@ const ToolUI = (() => {
       `<div style="display:flex;gap:.5rem;align-items:center">
         <input type="text" id="col-input" placeholder="#ff6ef7  /  rgb(255,110,247)  /  hsl(303,100%,71%)" style="flex:1">
         <input type="color" id="col-picker" value="#ff6ef7" oninput="document.getElementById('col-input').value=this.value;ToolFn.liveColor()" style="width:44px;height:38px;padding:2px;border-radius:8px;cursor:pointer;border:1.5px solid var(--border)">
+        ${'EyeDropper' in window ? `<button class="btn btn--sec" onclick="ToolFn.pickScreenColor()" title="Elegir color de la pantalla" aria-label="Elegir color de la pantalla" style="padding:.5rem .6rem">💧</button>` : ''}
       </div>` +
       `<div class="color-preview" id="col-preview" style="background:#ff6ef7"></div>` +
       `<div class="btn-row"><button class="btn" onclick="ToolFn.convertColor()">Convertir</button></div>` +
@@ -1331,18 +1352,46 @@ const ToolUI = (() => {
 
     /* ── BASE64 ── */
     'base64': () =>
-      infoBox('Codificá texto a Base64 o decodificá Base64 a texto. Útil para desarrollo.') +
-      label('Texto') + ta('b64-input','Texto normal o Base64...') +
-      `<div class="btn-row">
-        <button class="btn" onclick="ToolFn.b64Action('enc')">Codificar → Base64</button>
-        <button class="btn btn--sec" onclick="ToolFn.b64Action('dec')">Decodificar ← Base64</button>
+      infoBox('Codificá texto a Base64 o decodificá Base64 a texto. También podés codificar un archivo entero. Útil para desarrollo.') +
+      `<div class="pr-scope-group">
+        <button class="pr-scope-btn active" id="b64-mode-text" onclick="ToolFn.b64SetMode('text')">Texto</button>
+        <button class="pr-scope-btn" id="b64-mode-file" onclick="ToolFn.b64SetMode('file')">Archivo</button>
+      </div>` +
+      `<div id="b64-text-panel" style="margin-top:.6rem">` +
+        label('Texto') + ta('b64-input','Texto normal o Base64...') +
+        `<div class="btn-row">
+          <button class="btn" onclick="ToolFn.b64Action('enc')">Codificar → Base64</button>
+          <button class="btn btn--sec" onclick="ToolFn.b64Action('dec')">Decodificar ← Base64</button>
+        </div>` +
+      `</div>` +
+      `<div id="b64-file-panel" style="display:none;margin-top:.6rem">
+        <input type="file" id="b64-file" style="display:none" onchange="ToolFn.b64FileLoad()">
+        <div class="file-drop" onclick="document.getElementById('b64-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('b64-file').files=event.dataTransfer.files;ToolFn.b64FileLoad()">
+          <div class="file-drop__icon">💾</div>
+          <div class="file-drop__title">Arrastrá cualquier archivo acá</div>
+          <div class="file-drop__sub">o hacé click para elegir</div>
+          <div class="file-drop__name" id="b64-file-name"></div>
+        </div>
       </div>` +
       result('b64-result') + copyRow('b64-result'),
 
     /* ── HASH GEN ── */
     'hash-gen': () =>
-      infoBox('Generá un hash criptográfico de cualquier texto. Útil para verificar integridad.') +
-      label('Texto') + ta('hash-input','Texto a hashear...') +
+      infoBox('Generá un hash criptográfico de un texto o de un archivo. Útil para verificar integridad.') +
+      `<div class="pr-scope-group">
+        <button class="pr-scope-btn active" id="hash-mode-text" onclick="ToolFn.hashSetMode('text')">Texto</button>
+        <button class="pr-scope-btn" id="hash-mode-file" onclick="ToolFn.hashSetMode('file')">Archivo</button>
+      </div>` +
+      `<div id="hash-text-panel" style="margin-top:.6rem">${label('Texto')}${ta('hash-input','Texto a hashear...')}</div>` +
+      `<div id="hash-file-panel" style="display:none;margin-top:.6rem">
+        <input type="file" id="hash-file" style="display:none" onchange="ToolFn._dropName('hash-file')">
+        <div class="file-drop" onclick="document.getElementById('hash-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('hash-file').files=event.dataTransfer.files;ToolFn._dropName('hash-file')">
+          <div class="file-drop__icon">🔐</div>
+          <div class="file-drop__title">Arrastrá cualquier archivo acá</div>
+          <div class="file-drop__sub">o hacé click para elegir</div>
+          <div class="file-drop__name" id="hash-file-name"></div>
+        </div>
+      </div>` +
       label('Algoritmo') +
       sel('hash-algo',[['SHA-256','SHA-256 (recomendado)'],['SHA-1','SHA-1'],['SHA-512','SHA-512']]) +
       `<div class="btn-row"><button class="btn" onclick="ToolFn.genHash()">Generar hash</button></div>` +
@@ -1364,9 +1413,17 @@ const ToolUI = (() => {
     'uuid-gen': () =>
       infoBox('Un <b>UUID v4</b> es un identificador único universal. Se genera localmente, no se envía a ningún servidor.') +
       `<div class="result-area" id="uuid-out" style="font-family:var(--mono);font-size:.9rem;text-align:center;letter-spacing:1px;word-break:break-all">—</div>` +
+      `<div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap;margin-top:.6rem">
+        <div style="display:flex;align-items:center;gap:.4rem">
+          <label style="margin:0;white-space:nowrap">Cantidad</label>
+          <input type="number" id="uuid-count" value="1" min="1" max="50" style="width:70px">
+        </div>
+        <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer;margin:0">
+          <input type="checkbox" id="uuid-no-dash"> sin guiones
+        </label>
+      </div>` +
       `<div class="btn-row">
-        <button class="btn" onclick="ToolFn.genUUID()">Generar UUID</button>
-        <button class="btn btn--sec" onclick="ToolFn.genUUIDs()">Generar 5</button>
+        <button class="btn" onclick="ToolFn.genUUIDs()">🆔 Generar</button>
         <button class="btn btn--sec" onclick="UI.copyText(document.getElementById('uuid-out').textContent,this)">Copiar</button>
       </div>`,
 
@@ -1581,14 +1638,24 @@ const ToolFn = (() => {
     _doLiveCompress();
   }
 
+  // JPEG no soporta transparencia: sin esto, los píxeles transparentes de un PNG
+  // salen negros en vez de blancos al exportar a canvas.toBlob('image/jpeg', ...)
+  function _drawOpaque(img) {
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, 0, 0);
+    return c;
+  }
+
   function _doLiveCompress() {
     if (!_origFile) return;
     const q = document.getElementById('ic-q').value / 100;
     const img = new Image();
     img.onload = () => {
-      const c = document.createElement('canvas');
-      c.width = img.width; c.height = img.height;
-      c.getContext('2d').drawImage(img, 0, 0);
+      const c = _drawOpaque(img);
       c.toBlob(blob => {
         const href = URL.createObjectURL(blob);
         const after = document.getElementById('ic-after');
@@ -1617,9 +1684,7 @@ const ToolFn = (() => {
     const q = document.getElementById('ic-q').value / 100;
     const img = new Image();
     img.onload = () => {
-      const c = document.createElement('canvas');
-      c.width = img.width; c.height = img.height;
-      c.getContext('2d').drawImage(img, 0, 0);
+      const c = _drawOpaque(img);
       c.toBlob(blob => {
         const href = URL.createObjectURL(blob);
         const pct = Math.round((1 - blob.size / _origFile.size) * 100);
@@ -1657,9 +1722,11 @@ const ToolFn = (() => {
     Array.from(files).forEach(f => {
       const img = new Image();
       img.onload = () => {
-        const c = document.createElement('canvas');
-        c.width = img.width; c.height = img.height;
-        c.getContext('2d').drawImage(img, 0, 0);
+        const c = fmt === 'image/jpeg' ? _drawOpaque(img) : document.createElement('canvas');
+        if (fmt !== 'image/jpeg') {
+          c.width = img.width; c.height = img.height;
+          c.getContext('2d').drawImage(img, 0, 0);
+        }
         c.toBlob(blob => {
           const name = f.name.replace(/\.[^.]+$/, '.' + ext);
           const a = document.createElement('a');
@@ -1710,9 +1777,7 @@ const ToolFn = (() => {
             const ratio = Math.min(pw/img.width, ph/img.height);
             const w = img.width*ratio, h = img.height*ratio;
             if (!first) pdf.addPage(); first = false;
-            const c = document.createElement('canvas');
-            c.width = img.width; c.height = img.height;
-            c.getContext('2d').drawImage(img, 0, 0);
+            const c = _drawOpaque(img);
             pdf.addImage(c.toDataURL('image/jpeg',.85),'JPEG',(pw-w)/2,(ph-h)/2,w,h);
             resolve();
           };
@@ -2081,40 +2146,61 @@ const ToolFn = (() => {
     }
   }
 
-  // ── QR ──
+  // ── QR (generado 100% local, sin depender de una API externa) ──
+  async function _loadQrLib() {
+    if (window.qrcode) return window.qrcode;
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js');
+    return window.qrcode;
+  }
+
+  async function _renderQR(canvas, text, size, bg, fg) {
+    const qrLib = await _loadQrLib();
+    const qr = qrLib(0, 'M'); // typeNumber 0 = auto (elige el tamaño mínimo que entre)
+    qr.addData(text);
+    qr.make();
+    const count = qr.getModuleCount();
+    const margin = 2; // módulos de quiet zone
+    const totalModules = count + margin * 2;
+    const cell = Math.max(1, Math.floor(size / totalModules));
+    const px = cell * totalModules;
+    canvas.width = px; canvas.height = px;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, px, px);
+    ctx.fillStyle = fg;
+    for (let r = 0; r < count; r++) {
+      for (let c = 0; c < count; c++) {
+        if (qr.isDark(r, c)) ctx.fillRect((c + margin) * cell, (r + margin) * cell, cell, cell);
+      }
+    }
+  }
+
   function liveQR() {
     clearTimeout(_qrDebounce);
-    _qrDebounce = setTimeout(() => {
+    _qrDebounce = setTimeout(async () => {
       const txt  = document.getElementById('qr-input').value.trim(); if (!txt) return;
-      const size = document.getElementById('qr-size').value;
-      const bg   = document.getElementById('qr-bg').value.replace('#','');
-      const fg   = document.getElementById('qr-fg').value.replace('#','');
-      const url  = `${CONFIG.QR_API}?size=${size}x${size}&data=${encodeURIComponent(txt)}&bgcolor=${bg}&color=${fg}&margin=10`;
-      const wrap = document.getElementById('qr-preview-wrap');
-      wrap.style.display = 'block';
-      document.getElementById('qr-live').src = url;
+      const size = parseInt(document.getElementById('qr-size').value);
+      const bg   = document.getElementById('qr-bg').value;
+      const fg   = document.getElementById('qr-fg').value;
+      try {
+        await _renderQR(document.getElementById('qr-live'), txt, size, bg, fg);
+        document.getElementById('qr-preview-wrap').style.display = 'block';
+      } catch(e) {
+        UI.showToast('⚠️ Texto muy largo para un QR');
+      }
     }, 400);
   }
 
-  async function downloadQR() {
-    const txt = document.getElementById('qr-input').value.trim(); if (!txt) return;
-    const size = document.getElementById('qr-size').value;
-    const bg   = document.getElementById('qr-bg').value.replace('#','');
-    const fg   = document.getElementById('qr-fg').value.replace('#','');
-    const url  = `${CONFIG.QR_API}?size=${size}x${size}&data=${encodeURIComponent(txt)}&bgcolor=${bg}&color=${fg}&margin=10`;
-    // el atributo download solo se respeta en same-origin/blob: — bajamos la imagen para forzar el nombre de archivo
-    try {
-      const blob = await (await fetch(url)).blob();
+  function downloadQR() {
+    const canvas = document.getElementById('qr-live');
+    if (!canvas.width) return;
+    canvas.toBlob(blob => {
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob); a.download = 'taro-qr.png';
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-qr.png';
       a.click();
       Audio.success();
-    } catch(e) {
-      // fallback: abrir directamente si el fetch falla (CORS, offline, etc.)
-      const a = document.createElement('a');
-      a.href = url; a.download = 'taro-qr.png'; a.target = '_blank';
-      a.click(); Audio.success();
-    }
+    }, 'image/png');
   }
 
   // ── color conv ──
@@ -2126,6 +2212,17 @@ const ToolFn = (() => {
       else if (raw.startsWith('rgb')) { [r,g,b] = raw.match(/\d+/g).map(Number); }
       if (!isNaN(r)) document.getElementById('col-preview').style.background = `rgb(${r},${g},${b})`;
     } catch(e) {}
+  }
+
+  async function pickScreenColor() {
+    if (!('EyeDropper' in window)) return;
+    try {
+      const result = await new EyeDropper().open();
+      document.getElementById('col-input').value = result.sRGBHex;
+      document.getElementById('col-picker').value = result.sRGBHex;
+      liveColor();
+      Audio.success();
+    } catch(e) { /* el usuario canceló la selección */ }
   }
 
   function convertColor() {
@@ -2208,9 +2305,16 @@ const ToolFn = (() => {
     return text.trim();
   }
 
+  const AI_MAX_CHARS = 6000;
+
   async function _runAiTool({ inputId, loaderId, resultId, btnLabel, buildPrompt }) {
     const txt = document.getElementById(inputId).value.trim();
     if (!txt) return;
+    if (txt.length > AI_MAX_CHARS) {
+      showResult(resultId, `⚠️ El texto es muy largo (${txt.length} caracteres). Probá con menos de ${AI_MAX_CHARS}.`, true);
+      Audio.error();
+      return;
+    }
     toggleLoader(loaderId, true);
     document.getElementById(resultId).style.display = 'none';
     try {
@@ -2263,6 +2367,15 @@ const ToolFn = (() => {
   }
 
   // ── base64 ──
+  function b64SetMode(mode) {
+    document.getElementById('b64-mode-text').classList.toggle('active', mode === 'text');
+    document.getElementById('b64-mode-file').classList.toggle('active', mode === 'file');
+    document.getElementById('b64-text-panel').style.display = mode === 'text' ? 'block' : 'none';
+    document.getElementById('b64-file-panel').style.display = mode === 'file' ? 'block' : 'none';
+    document.getElementById('b64-result').style.display = 'none';
+    document.getElementById('b64-result-copy').style.display = 'none';
+  }
+
   function b64Action(mode) {
     const txt = document.getElementById('b64-input').value; if (!txt) return;
     try {
@@ -2274,12 +2387,42 @@ const ToolFn = (() => {
     } catch(e) { showResult('b64-result','Error: texto inválido para decodificar',true); Audio.error(); }
   }
 
+  function b64FileLoad() {
+    const f = document.getElementById('b64-file').files[0]; if (!f) return;
+    document.getElementById('b64-file-name').textContent = `${f.name} · ${fmtSize(f.size)}`;
+    const reader = new FileReader();
+    reader.onload = () => {
+      showResult('b64-result', '');
+      document.getElementById('b64-result').textContent = reader.result;
+      showCopyBtn('b64-result', `() => document.getElementById('b64-result').textContent`);
+      Audio.success();
+    };
+    reader.onerror = () => { showResult('b64-result','Error al leer el archivo',true); Audio.error(); };
+    reader.readAsDataURL(f);
+  }
+
   // ── hash ──
+  function hashSetMode(mode) {
+    document.getElementById('hash-mode-text').classList.toggle('active', mode === 'text');
+    document.getElementById('hash-mode-file').classList.toggle('active', mode === 'file');
+    document.getElementById('hash-text-panel').style.display = mode === 'text' ? 'block' : 'none';
+    document.getElementById('hash-file-panel').style.display = mode === 'file' ? 'block' : 'none';
+    document.getElementById('hash-result').style.display = 'none';
+  }
+
   async function genHash() {
-    const txt = document.getElementById('hash-input').value; if (!txt) return;
+    const isFile = document.getElementById('hash-mode-file').classList.contains('active');
     const algo = document.getElementById('hash-algo').value;
-    const buf  = await crypto.subtle.digest(algo, new TextEncoder().encode(txt));
-    const hash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    let buf;
+    if (isFile) {
+      const f = document.getElementById('hash-file').files[0]; if (!f) return;
+      buf = await f.arrayBuffer();
+    } else {
+      const txt = document.getElementById('hash-input').value; if (!txt) return;
+      buf = new TextEncoder().encode(txt);
+    }
+    const digest = await crypto.subtle.digest(algo, buf);
+    const hash = Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
     document.getElementById('hash-result').style.display = 'block';
     document.getElementById('hash-result').textContent = hash;
     showCopyBtn('hash-result', `() => document.getElementById('hash-result').textContent`);
@@ -2348,8 +2491,13 @@ const ToolFn = (() => {
       return (c==='x' ? r : r&0x3|0x8).toString(16);
     });
   }
-  function genUUID()  { document.getElementById('uuid-out').textContent = _uuid(); Audio.success(); }
-  function genUUIDs() { document.getElementById('uuid-out').textContent = Array.from({length:5},_uuid).join('\n'); Audio.success(); }
+  function genUUIDs() {
+    const count = Math.min(50, Math.max(1, parseInt(document.getElementById('uuid-count').value) || 1));
+    const noDash = document.getElementById('uuid-no-dash').checked;
+    document.getElementById('uuid-out').textContent =
+      Array.from({ length: count }, _uuid).map(u => noDash ? u.replace(/-/g,'') : u).join('\n');
+    Audio.success();
+  }
 
   // ── ip ──
   async function fetchIP() {
@@ -2499,13 +2647,72 @@ const ToolFn = (() => {
   // ── meta remove ──
   let _mrFile = null;
 
-  function mrLoad() {
+  // Lector mínimo de EXIF (JPEG/APP1) — solo los tags más relevantes para mostrarle
+  // al usuario qué información personal tiene realmente la foto antes de borrarla.
+  function _readExif(buf) {
+    try {
+      const view = new DataView(buf);
+      if (view.getUint16(0) !== 0xFFD8) return null;
+      let offset = 2;
+      while (offset + 4 <= view.byteLength) {
+        const marker = view.getUint16(offset);
+        if ((marker & 0xFF00) !== 0xFF00) break;
+        const segLen = view.getUint16(offset + 2);
+        if (marker === 0xFFE1 && offset + 4 + 6 <= view.byteLength &&
+            view.getUint32(offset + 4) === 0x45786966) {
+          const tiffStart = offset + 4 + 6;
+          const little = view.getUint16(tiffStart) === 0x4949;
+          const get16 = o => view.getUint16(o, little);
+          const get32 = o => view.getUint32(o, little);
+          const ifdOffset = tiffStart + get32(tiffStart + 4);
+          const entries = get16(ifdOffset);
+          const NAMES = { 0x010F:'Make', 0x0110:'Model', 0x0132:'Fecha', 0x8825:'GPS' };
+          const tags = {};
+          for (let i = 0; i < entries; i++) {
+            const eo = ifdOffset + 2 + i * 12;
+            if (eo + 12 > view.byteLength) break;
+            const tag = get16(eo), type = get16(eo + 2), count = get32(eo + 4);
+            if (!(tag in NAMES)) continue;
+            if (tag === 0x8825) { tags.GPS = true; continue; }
+            if (type === 2) {
+              const strOffset = count > 4 ? tiffStart + get32(eo + 8) : eo + 8;
+              let str = '';
+              for (let j = 0; j < count - 1 && strOffset + j < view.byteLength; j++) {
+                const c = view.getUint8(strOffset + j);
+                if (c === 0) break;
+                str += String.fromCharCode(c);
+              }
+              if (str.trim()) tags[NAMES[tag]] = str.trim();
+            }
+          }
+          return tags;
+        }
+        offset += 2 + segLen;
+      }
+      return null;
+    } catch(e) { return null; }
+  }
+
+  async function mrLoad() {
     const input = document.getElementById('mr-file');
     const f = input.files[0]; if (!f) return;
     _mrFile = f;
     document.getElementById('mr-name').textContent = f.name;
     document.getElementById('mr-orig-size').textContent = fmtSize(f.size);
-    document.getElementById('mr-orig-meta').textContent = '⚠️ Puede tener metadatos EXIF';
+    const metaEl = document.getElementById('mr-orig-meta');
+    metaEl.textContent = '⏳ analizando...';
+    if (f.type === 'image/jpeg') {
+      const exif = _readExif(await f.arrayBuffer());
+      const parts = [];
+      if (exif) {
+        if (exif.Make || exif.Model) parts.push(`📷 ${[exif.Make, exif.Model].filter(Boolean).join(' ')}`);
+        if (exif.Fecha) parts.push(`🕐 ${exif.Fecha}`);
+        if (exif.GPS) parts.push('📍 ubicación GPS');
+      }
+      metaEl.textContent = parts.length ? `⚠️ Encontrado: ${parts.join(' · ')}` : '✓ No se detectaron metadatos EXIF';
+    } else {
+      metaEl.textContent = 'Los archivos PNG/WEBP no suelen incluir EXIF';
+    }
     const url = URL.createObjectURL(f);
     document.getElementById('mr-before').src = url;
     document.getElementById('mr-after').style.opacity = '.5';
@@ -2688,6 +2895,93 @@ const ToolFn = (() => {
     const file = document.getElementById(id)?.files?.[0];
     const nameEl = document.getElementById(id + '-name');
     if (nameEl && file) nameEl.textContent = file.name;
+  }
+
+  // ── background remove (chroma-key local) ──
+  let _bgImg = null, _bgColor = null;
+
+  function bgLoad() {
+    const f = document.getElementById('bg-file').files[0]; if (!f) return;
+    document.getElementById('bg-name').textContent = f.name;
+    const img = new Image();
+    img.onload = () => {
+      _bgImg = img;
+      const canvas = document.getElementById('bg-canvas');
+      canvas.width = img.width; canvas.height = img.height;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      canvas.onclick = _bgPickColor;
+      document.getElementById('bg-info').style.display = 'block';
+      bgAutoDetect();
+    };
+    img.src = URL.createObjectURL(f);
+  }
+
+  function _bgSampleAt(x, y) {
+    const c = document.createElement('canvas');
+    c.width = _bgImg.width; c.height = _bgImg.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(_bgImg, 0, 0);
+    const d = ctx.getImageData(x, y, 1, 1).data;
+    return { r: d[0], g: d[1], b: d[2] };
+  }
+
+  function _bgPickColor(e) {
+    const canvas = document.getElementById('bg-canvas');
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.min(canvas.width - 1, Math.max(0, Math.floor((e.clientX - rect.left) * (canvas.width / rect.width))));
+    const y = Math.min(canvas.height - 1, Math.max(0, Math.floor((e.clientY - rect.top) * (canvas.height / rect.height))));
+    _bgColor = _bgSampleAt(x, y);
+    _bgUpdateSwatch();
+    bgApply();
+    Audio.click();
+  }
+
+  function bgAutoDetect() {
+    if (!_bgImg) return;
+    const w = _bgImg.width, h = _bgImg.height;
+    const corners = [[0,0],[w-1,0],[0,h-1],[w-1,h-1]];
+    let r=0, g=0, b=0;
+    corners.forEach(([x,y]) => { const s = _bgSampleAt(x,y); r+=s.r; g+=s.g; b+=s.b; });
+    _bgColor = { r: Math.round(r/4), g: Math.round(g/4), b: Math.round(b/4) };
+    _bgUpdateSwatch();
+    bgApply();
+  }
+
+  function _bgUpdateSwatch() {
+    if (!_bgColor) return;
+    const hex = '#' + [_bgColor.r,_bgColor.g,_bgColor.b].map(v => v.toString(16).padStart(2,'0')).join('');
+    document.getElementById('bg-color-swatch').style.background = hex;
+    document.getElementById('bg-color-hex').textContent = hex;
+  }
+
+  function bgApply() {
+    if (!_bgImg || !_bgColor) return;
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(_bgImg, 0, 0);
+    const tol = parseInt(document.getElementById('bg-tol').value);
+    const feather = 24; // banda de transición suave para que el borde no quede dentado
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imgData.data;
+    const { r: br, g: bg, b: bb } = _bgColor;
+    for (let i = 0; i < data.length; i += 4) {
+      const dr = data[i] - br, dg = data[i+1] - bg, db = data[i+2] - bb;
+      const dist = Math.sqrt(dr*dr + dg*dg + db*db);
+      if (dist < tol) data[i+3] = 0;
+      else if (dist < tol + feather) data[i+3] = Math.round(data[i+3] * (dist - tol) / feather);
+    }
+    ctx.putImageData(imgData, 0, 0);
+  }
+
+  function bgDownload() {
+    if (!_bgImg) return;
+    document.getElementById('bg-canvas').toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-sin-fondo.png';
+      a.click();
+      Audio.success();
+    }, 'image/png');
   }
 
   // ════ PDF TOOLS — helper: cargar pdf-lib ════
@@ -2899,18 +3193,36 @@ const ToolFn = (() => {
       else if (_psScope === 'sel') pageNums = [..._psSelected].sort((a,b)=>a-b);
       else pageNums = _parsePageRanges(document.getElementById('ps-range').value, _psPagesTotal);
       if (!pageNums.length) throw new Error('No se encontraron páginas válidas');
+
+      const files = [];
       for (const num of pageNums) {
         const newPdf = await PDFDocument.create();
         const [page] = await newPdf.copyPages(srcPdf, [num-1]);
         newPdf.addPage(page);
         const bytes = await newPdf.save();
-        const blob = new Blob([bytes], {type:'application/pdf'});
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-        a.download = `taro-pag${num}.pdf`; a.click();
-        await new Promise(r => setTimeout(r, 200));
+        files.push({ name: `taro-pag${num}.pdf`, bytes });
       }
+
+      // más de 3 archivos: los navegadores bloquean/preguntan ante muchas descargas
+      // seguidas, así que los empaquetamos en un .zip en vez de dispararlas una por una.
+      if (files.length > 3) {
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+        const zip = new JSZip();
+        files.forEach(f => zip.file(f.name, f.bytes));
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(zipBlob);
+        a.download = 'taro-split.zip'; a.click();
+      } else {
+        for (const f of files) {
+          const blob = new Blob([f.bytes], {type:'application/pdf'});
+          const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+          a.download = f.name; a.click();
+          await new Promise(r => setTimeout(r, 200));
+        }
+      }
+
       toggleLoader('ps-loader', false);
-      showResult('ps-result', `✅ ${pageNums.length} páginas exportadas`);
+      showResult('ps-result', `✅ ${pageNums.length} páginas exportadas${files.length > 3 ? ' en un .zip' : ''}`);
       Audio.success();
     } catch(e) { toggleLoader('ps-loader',false); showResult('ps-result','❌ '+e.message,true); Audio.error(); }
   }
@@ -2956,29 +3268,58 @@ const ToolFn = (() => {
   }
 
   function pcUpdateEst() {
+    const aggressive = document.getElementById('pc-aggressive')?.checked;
     const q = parseInt(document.getElementById('pc-q')?.value || 80) / 100;
     document.getElementById('pc-ql').textContent = Math.round(q * 100);
     if (!_pcOrigSize) return;
-    // rough estimate: metadata removal ~5%, image quality scales rest
-    const est = Math.round(_pcOrigSize * (0.05 + q * 0.75));
-    document.getElementById('pc-est-size').textContent = fmtSize(est) + ` (${Math.round((1 - est / _pcOrigSize) * 100)}% menos)`;
+    // estimación aproximada: sin modo agresivo solo se limpian metadatos (~3%);
+    // con modo agresivo el tamaño depende fuerte de la calidad de rasterizado elegida
+    const est = aggressive
+      ? Math.round(_pcOrigSize * (0.15 + q * 0.6))
+      : Math.round(_pcOrigSize * 0.97);
+    document.getElementById('pc-est-size').textContent =
+      fmtSize(est) + ` (${Math.max(0, Math.round((1 - est / _pcOrigSize) * 100))}% menos)`;
   }
 
   async function pcCompress() {
     if (!_pcFile) return;
     toggleLoader('pc-loader', true);
     try {
-      const { PDFDocument } = await _loadPdfLib();
-      const pdf = await PDFDocument.load(await _pcFile.arrayBuffer(), { ignoreEncryption:true });
-      pdf.setTitle(''); pdf.setAuthor(''); pdf.setSubject('');
-      pdf.setKeywords([]); pdf.setProducer(''); pdf.setCreator('');
-      const bytes = await pdf.save({ useObjectStreams: true });
-      const blob = new Blob([bytes], {type:'application/pdf'});
+      const aggressive = document.getElementById('pc-aggressive').checked;
+      let blob;
+      if (aggressive) {
+        const quality = parseInt(document.getElementById('pc-q').value) / 100;
+        const pdfjs = await _loadPdfJs();
+        const { PDFDocument } = await _loadPdfLib();
+        const srcPdf = await pdfjs.getDocument({ data: await _pcFile.arrayBuffer() }).promise;
+        const outPdf = await PDFDocument.create();
+        for (let i = 1; i <= srcPdf.numPages; i++) {
+          const page = await srcPdf.getPage(i);
+          const vp = page.getViewport({ scale: 1.5 });
+          const c = document.createElement('canvas');
+          c.width = vp.width; c.height = vp.height;
+          await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+          const imgBytes = await fetch(c.toDataURL('image/jpeg', quality)).then(r => r.arrayBuffer());
+          const img = await outPdf.embedJpg(imgBytes);
+          const newPage = outPdf.addPage([vp.width, vp.height]);
+          newPage.drawImage(img, { x:0, y:0, width:vp.width, height:vp.height });
+        }
+        blob = new Blob([await outPdf.save()], {type:'application/pdf'});
+      } else {
+        const { PDFDocument } = await _loadPdfLib();
+        const pdf = await PDFDocument.load(await _pcFile.arrayBuffer(), { ignoreEncryption:true });
+        pdf.setTitle(''); pdf.setAuthor(''); pdf.setSubject('');
+        pdf.setKeywords([]); pdf.setProducer(''); pdf.setCreator('');
+        blob = new Blob([await pdf.save({ useObjectStreams: true })], {type:'application/pdf'});
+      }
       const saved = Math.round((1 - blob.size/_pcFile.size)*100);
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
       a.download = 'taro-compressed.pdf'; a.click();
       toggleLoader('pc-loader', false);
-      showResult('pc-result', `✅ ${fmtSize(_pcFile.size)} → ${fmtSize(blob.size)} ${saved>0?'(-'+saved+'%)':'(sin cambio)'}`);
+      showResult('pc-result',
+        `✅ ${fmtSize(_pcFile.size)} → ${fmtSize(blob.size)} ${saved>0?'(-'+saved+'%)':'(sin cambio)'}` +
+        (aggressive ? '<br><small style="color:var(--fg3)">Modo agresivo: el texto ya no es seleccionable.</small>' : '')
+      );
       Audio.success();
     } catch(e) { toggleLoader('pc-loader',false); showResult('pc-result','❌ '+e.message,true); Audio.error(); }
   }
@@ -3927,12 +4268,12 @@ const ToolFn = (() => {
     previewAudio, compressAudio,
     pdfToText, cobaltDl,
     liveQR, downloadQR,
-    liveColor, convertColor,
+    liveColor, convertColor, pickScreenColor,
     convertCase, updateWC,
     aiSummarize, aiCorrect, aiTranslate, aiExpand,
-    b64Action, genHash,
+    b64Action, b64SetMode, b64FileLoad, genHash, hashSetMode,
     timerToggle, timerLap, timerReset,
-    genUUID, genUUIDs, fetchIP,
+    genUUIDs, fetchIP,
     pmLoad, pmRemove, pmMerge, pmRenderList, pmDragStart, pmDrop,
     psLoad, psReset, psSetScope, psToggleSelect, psHighlightRange, psSplit,
     pcLoad, pcReset, pcUpdateEst, pcCompress,
@@ -3945,6 +4286,7 @@ const ToolFn = (() => {
     irLoad, irSetMode, irToggleCompress, irSyncAR, irPreset, irPreviewLive, irDownload,
     mrLoad, mrProcess,
     fvLoad, fvDownloadPng, fvDownloadIco,
+    bgLoad, bgAutoDetect, bgApply, bgDownload,
     pwdGenerate,
     jsonFormat,
     textDiffRun,
