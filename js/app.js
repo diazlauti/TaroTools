@@ -446,6 +446,7 @@ const Tools = (() => {
         const card = document.createElement('article');
         card.className = 'card' + (tool.soon ? ' card--soon' : '');
         card.style.setProperty('--i', _cardStaggerIdx++);
+        card.dataset.cat = tool.cat;
         card.setAttribute('role', 'listitem');
         card.setAttribute('tabindex', '0');
         card.setAttribute('aria-label', tool.name);
