@@ -451,7 +451,8 @@ body.light .toast { color:#fff; }
 .admin-tab.active { background:var(--accent2); color:#000; font-weight:700; }
 body.light .admin-tab.active { color:#fff; }
 
-.tool-item { display:flex; align-items:center; gap:.45rem; padding:.45rem .55rem; border:1px solid var(--border); border-radius:var(--radius-sm); margin-bottom:.35rem; background:var(--bg3); }
+.tool-item { display:flex; align-items:center; gap:.45rem; padding:.45rem .55rem; border:1px solid var(--border); border-left:3px solid transparent; border-radius:var(--radius-sm); margin-bottom:.35rem; background:var(--bg3); transition:border-color .15s; }
+.tool-item:hover { border-left-color:var(--accent2); }
 .tool-item__name { flex:1; font-size:.8rem; font-family:var(--mono); color:var(--fg2); }
 .tool-item__btn { background:none; border:1px solid var(--border); border-radius:6px; padding:.18rem .45rem; font-size:.68rem; font-family:var(--mono); color:var(--fg3); transition:border-color var(--transition), color var(--transition); }
 .tool-item__btn:hover { border-color:var(--accent2); color:var(--accent2); }
@@ -560,7 +561,7 @@ footer span { color:var(--accent2); }
 .pr-topbar {
   display:flex; align-items:center; justify-content:space-between;
   padding:.5rem .6rem; background:var(--bg3);
-  border:1px solid var(--border); border-radius:var(--radius-sm);
+  border:1px solid var(--border); border-left:3px solid var(--accent);
   margin-bottom:.7rem;
 }
 .pr-topbar__info { display:flex; align-items:baseline; gap:.4rem; overflow:hidden; }
@@ -607,7 +608,7 @@ footer span { color:var(--accent2); }
 }
 
 .pr-panel {
-  background:var(--bg3); border:1px solid var(--border);
+  background:var(--bg3); border:1px solid var(--border); border-left:3px solid var(--accent2);
   border-radius:var(--radius-sm); padding:.7rem;
 }
 
@@ -665,14 +666,19 @@ body.light .rx-match { color:#fff; }
 body.light .diff-ins { background:rgba(119,0,204,.14); }
 body.light .diff-del { background:rgba(204,0,170,.14); }
 
-/* countdown / pomodoro timer */
+/* countdown / pomodoro timer + cronómetro (comparten la misma clase) */
 .timer-display {
-  font-family:var(--mono); font-size:2.6rem; font-weight:700; text-align:center;
-  margin:1rem 0 .3rem; color:var(--accent); letter-spacing:3px;
+  font-family:var(--mono); font-size:2.3rem; font-weight:700; text-align:center;
+  margin:1rem 0 .3rem; color:var(--accent); letter-spacing:2px;
   text-shadow:0 0 20px rgba(200,255,0,.35);
+  background:var(--bg3); border:1.5px solid var(--border);
+  clip-path:polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  padding:1rem .6rem;
 }
 body.light .timer-display { text-shadow:none; }
 .timer-display--done { color:var(--accent2); animation:pulse .6s infinite; }
+
+.timer-laps > div:hover { background:var(--bg3); }
 
 /* color palette generator */
 .pal-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(85px,1fr)); gap:.5rem; margin-top:.8rem; }

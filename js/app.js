@@ -1426,7 +1426,7 @@ const ToolUI = (() => {
     /* ── TIMER ── */
     'timer': () =>
       infoBox('Cronómetro con laps. Presioná <b>Lap</b> para registrar una vuelta sin detener el tiempo.') +
-      `<div style="font-family:var(--mono);font-size:2.8rem;font-weight:700;text-align:center;margin:1.2rem 0;color:var(--accent);letter-spacing:3px;text-shadow:0 0 20px var(--accent)" id="timer-display">00:00:00.000</div>` +
+      `<div class="timer-display" id="timer-display">00:00:00.000</div>` +
       `<div class="btn-row" style="justify-content:center">
         <button class="btn" id="timer-start" onclick="ToolFn.timerToggle()">Iniciar</button>
         <button class="btn btn--sec" id="timer-lap" onclick="ToolFn.timerLap()" disabled>Lap</button>
