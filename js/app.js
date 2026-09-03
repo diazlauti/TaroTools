@@ -756,22 +756,22 @@ const ToolUI = (() => {
         <div class="file-drop__name" id="fv-name"></div>
       </div>` +
       `<div id="fv-info" style="display:none">
-        <div style="display:flex;gap:1rem;align-items:center;margin:.7rem 0;flex-wrap:wrap">
-          <div style="text-align:center">
-            <canvas id="fv-p16" width="16" height="16" style="border:1px solid var(--border);border-radius:3px;image-rendering:pixelated;width:32px;height:32px"></canvas>
-            <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);margin-top:.2rem">16px</p>
+        <div class="fv-preview-row">
+          <div class="fv-thumb fv-thumb--px">
+            <canvas id="fv-p16" width="16" height="16" style="width:32px;height:32px"></canvas>
+            <p>16px</p>
           </div>
-          <div style="text-align:center">
-            <canvas id="fv-p32" width="32" height="32" style="border:1px solid var(--border);border-radius:3px;image-rendering:pixelated;width:48px;height:48px"></canvas>
-            <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);margin-top:.2rem">32px</p>
+          <div class="fv-thumb fv-thumb--px">
+            <canvas id="fv-p32" width="32" height="32" style="width:48px;height:48px"></canvas>
+            <p>32px</p>
           </div>
-          <div style="text-align:center">
-            <canvas id="fv-p48" width="48" height="48" style="border:1px solid var(--border);border-radius:3px;image-rendering:pixelated;width:64px;height:64px"></canvas>
-            <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);margin-top:.2rem">48px</p>
+          <div class="fv-thumb fv-thumb--px">
+            <canvas id="fv-p48" width="48" height="48" style="width:64px;height:64px"></canvas>
+            <p>48px</p>
           </div>
-          <div style="text-align:center">
-            <canvas id="fv-p192" width="192" height="192" style="border:1px solid var(--border);border-radius:8px;width:80px;height:80px"></canvas>
-            <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);margin-top:.2rem">192px</p>
+          <div class="fv-thumb">
+            <canvas id="fv-p192" width="192" height="192" style="width:80px;height:80px"></canvas>
+            <p>192px</p>
           </div>
         </div>
         <div class="btn-row" style="flex-wrap:wrap;gap:.4rem">
