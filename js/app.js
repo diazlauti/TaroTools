@@ -11,6 +11,29 @@ const CONFIG = {
   ADMIN_PASS_HASH: 'a0f50e4075fa8fc1c8acce4c6ab92f7713913eb7906850bb25cc3a72f88e4550',
 };
 
+/* Escapa texto para insertarlo seguro tanto en nodos de texto como
+   dentro de atributos HTML (value="...", etc). Se usa en cualquier
+   lugar donde se arma HTML con datos que el usuario puede haber escrito
+   él mismo — ej. nombre/descripción de una herramienta personalizada
+   agregada desde el panel admin, o importada desde un backup — para
+   que no puedan quedar guardados como HTML/JS ejecutable. */
+function escHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/* Solo deja pasar URLs http(s) — una herramienta personalizada con una URL
+   tipo "javascript:..." en vez de un link real no debe poder ejecutar código
+   cuando alguien hace click en su botón "Abrir". */
+function safeUrl(u) {
+  try { return ['http:', 'https:'].includes(new URL(u, location.href).protocol) ? u : '#'; }
+  catch { return '#'; }
+}
+
 /* ═══════════════════════════════════════════════
    AUDIO MODULE
 ═══════════════════════════════════════════════ */
@@ -451,12 +474,12 @@ const Tools = (() => {
         card.setAttribute('tabindex', '0');
         card.setAttribute('aria-label', tool.name);
         card.innerHTML =
-          `<span class="card__cat" aria-hidden="true">${tool.cat}</span>` +
-          (tool.soon ? `<span class="card__soon-badge">${s.soon}</span>` : '') +
+          `<span class="card__cat" aria-hidden="true">${escHtml(tool.cat)}</span>` +
+          (tool.soon ? `<span class="card__soon-badge">${escHtml(s.soon)}</span>` : '') +
           (tool.isNew && !tool.soon ? `<span class="card__new-badge">✨ Nuevo</span>` : '') +
-          `<div class="card__icon" aria-hidden="true">${tool.icon}</div>` +
-          `<div class="card__name">${tool.name}</div>` +
-          `<div class="card__desc">${tool.desc}</div>`;
+          `<div class="card__icon" aria-hidden="true">${escHtml(tool.icon)}</div>` +
+          `<div class="card__name">${escHtml(tool.name)}</div>` +
+          `<div class="card__desc">${escHtml(tool.desc)}</div>`;
         card.onclick = () => openTool(tool);
         card.addEventListener('keydown', e => {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTool(tool); }
@@ -1462,8 +1485,8 @@ const ToolUI = (() => {
 
     /* ── EXTERNAL LINK ── */
     'external-link': tool =>
-      infoBox(tool.desc) +
-      `<div class="btn-row"><a href="${tool.url}" target="_blank" rel="noopener" class="btn" style="text-decoration:none">Abrir ↗</a></div>`,
+      infoBox(escHtml(tool.desc)) +
+      `<div class="btn-row"><a href="${escHtml(safeUrl(tool.url))}" target="_blank" rel="noopener" class="btn" style="text-decoration:none">Abrir ↗</a></div>`,
 
     /* ── REGEX TESTER ── */
     'regex-test': () =>
@@ -1632,7 +1655,7 @@ const ToolUI = (() => {
 
   function build(tool) {
     const builder = BUILDERS[tool.type];
-    if (!builder) return `<p style="color:var(--fg3)">${tool.desc}</p>`;
+    if (!builder) return `<p style="color:var(--fg3)">${escHtml(tool.desc)}</p>`;
     return builder(tool);
   }
 
@@ -4642,8 +4665,8 @@ const Admin = (() => {
       const baseHTML = allBase.map(t => {
         const isHidden = hidden.includes(t.id);
         return `<div class="tool-item" style="${isHidden ? 'opacity:.5' : ''}">
-          <span style="font-size:1rem">${t.icon}</span>
-          <span class="tool-item__name">${t.name} ${t.soon ? '<span style="font-size:.6rem;color:var(--accent2);font-family:var(--mono)">soon</span>' : ''}</span>
+          <span style="font-size:1rem">${escHtml(t.icon)}</span>
+          <span class="tool-item__name">${escHtml(t.name)} ${t.soon ? '<span style="font-size:.6rem;color:var(--accent2);font-family:var(--mono)">soon</span>' : ''}</span>
           <div style="display:flex;gap:.3rem">
             <button class="tool-item__btn" onclick="Admin.toggleHide('${t.id}')">
               ${isHidden ? s.showBtn : s.hideBtn}
@@ -4655,8 +4678,8 @@ const Admin = (() => {
       const extraHTML = extra.length
         ? extra.map((t, i) => `
           <div class="tool-item" id="ti-${i}">
-            <span style="font-size:1rem">${t.icon}</span>
-            <span class="tool-item__name">${t.name}</span>
+            <span style="font-size:1rem">${escHtml(t.icon)}</span>
+            <span class="tool-item__name">${escHtml(t.name)}</span>
             <div style="display:flex;gap:.3rem">
               <button class="tool-item__btn" onclick="Admin.moveUp(${i})" ${i===0?'disabled':''} style="${i===0?'opacity:.3':''}">${s.upBtn}</button>
               <button class="tool-item__btn" onclick="Admin.moveDown(${i})" ${i===extra.length-1?'disabled':''} style="${i===extra.length-1?'opacity:.3':''}">${s.downBtn}</button>
@@ -4755,11 +4778,11 @@ const Admin = (() => {
     div.style.display = 'block';
     div.innerHTML =
       `<div class="edit-form">` +
-      `<label>${s.fields.name}</label><input type="text" id="ei-n-${i}" value="${t.name}">` +
-      `<label>${s.fields.desc}</label><input type="text" id="ei-d-${i}" value="${t.desc}">` +
-      `<label>${s.fields.icon}</label><input type="text" id="ei-i-${i}" value="${t.icon}" style="width:65px">` +
-      `<label>${s.fields.cat}</label><select id="ei-c-${i}">${Object.entries(s.cats).map(([v,n])=>`<option value="${v}"${t.cat===v?' selected':''}>${n}</option>`).join('')}</select>` +
-      `<label>${s.fields.url}</label><input type="text" id="ei-u-${i}" value="${t.url||''}">` +
+      `<label>${s.fields.name}</label><input type="text" id="ei-n-${i}" value="${escHtml(t.name)}">` +
+      `<label>${s.fields.desc}</label><input type="text" id="ei-d-${i}" value="${escHtml(t.desc)}">` +
+      `<label>${s.fields.icon}</label><input type="text" id="ei-i-${i}" value="${escHtml(t.icon)}" style="width:65px">` +
+      `<label>${s.fields.cat}</label><select id="ei-c-${i}">${Object.entries(s.cats).map(([v,n])=>`<option value="${escHtml(v)}"${t.cat===v?' selected':''}>${escHtml(n)}</option>`).join('')}</select>` +
+      `<label>${s.fields.url}</label><input type="text" id="ei-u-${i}" value="${escHtml(t.url||'')}">` +
       `<div class="btn-row"><button class="btn" onclick="Admin.saveEdit(${i})">${s.saveBtn}</button></div></div>`;
   }
 
