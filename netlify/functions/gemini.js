@@ -40,7 +40,7 @@ exports.handler = async (event) => {
         'X-Title': "Taro's Tools",
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-v4-flash:free',
+        model: 'deepseek/deepseek-chat-v3.1:free',
         messages,
       }),
     });

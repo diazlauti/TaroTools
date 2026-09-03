@@ -5,7 +5,6 @@
 ═══════════════════════════════════════════════ */
 const CONFIG = {
   GEMINI_PROXY: '/.netlify/functions/gemini',
-  GEMINI_MODEL: 'gemini-2.0-flash',
   COBALT_API: '/.netlify/functions/cobalt',
   IP_API: 'https://api.ipify.org?format=json',
   ADMIN_PASS_HASH: 'a0f50e4075fa8fc1c8acce4c6ab92f7713913eb7906850bb25cc3a72f88e4550',
