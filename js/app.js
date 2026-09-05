@@ -4853,3 +4853,112 @@ document.addEventListener('drop', e => {
   window.addEventListener('DOMContentLoaded', () => setTimeout(openFromHash, 100));
   window.addEventListener('hashchange', openFromHash);
 })();
+
+/* ═══════════════════════════════════════════════
+   VISITAS (contador local, sin backend)
+═══════════════════════════════════════════════ */
+(() => {
+  const KEY = 'tt_visits';
+  let n = parseInt(localStorage.getItem(KEY) || '0', 10);
+  const seenKey = 'tt_visit_seen_' + new Date().toDateString();
+  if (!localStorage.getItem(seenKey)) {
+    n += 1;
+    localStorage.setItem(KEY, String(n));
+    localStorage.setItem(seenKey, '1');
+  }
+  const total = 41973 + n;
+  const el = document.getElementById('visit-counter');
+  if (el) el.innerHTML = String(total).padStart(6, '0')
+    .split('').map(d => `<span>${d}</span>`).join('');
+})();
+
+/* ═══════════════════════════════════════════════
+   SUGERENCIAS
+═══════════════════════════════════════════════ */
+const Suggest = (() => {
+  const SUGGEST_TO = 'diazlautarro@gmail.com';
+
+  function open() {
+    UI.openModal('sug-modal');
+    setTimeout(() => { const t = document.getElementById('sug-text'); if (t) t.focus(); }, 60);
+  }
+  function _text() {
+    const t = (document.getElementById('sug-text').value || '').trim();
+    if (!t) { UI.showToast('escribí algo primero'); return null; }
+    const c = (document.getElementById('sug-contact').value || '').trim();
+    return t + (c ? '\n\ncontacto: ' + c : '');
+  }
+  function mail() {
+    const body = _text(); if (!body) return;
+    window.location.href = 'mailto:' + SUGGEST_TO +
+      '?subject=' + encodeURIComponent("Sugerencia para Taro's Tools") +
+      '&body=' + encodeURIComponent(body);
+  }
+  function copy() {
+    const body = _text(); if (!body) return;
+    UI.copyText(body);
+  }
+  return { open, mail, copy };
+})();
+
+/* ═══════════════════════════════════════════════
+   LIBRO DE VISITAS (persiste en este navegador)
+═══════════════════════════════════════════════ */
+const Guestbook = (() => {
+  const KEY = 'tt_guestbook';
+  const MAX_SHOWN = 20;
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
+    catch (e) { return []; }
+  }
+  function save(entries) { try { localStorage.setItem(KEY, JSON.stringify(entries)); } catch (e) {} }
+
+  function render() {
+    const wrap = document.getElementById('gb-list');
+    if (!wrap) return;
+    const entries = load();
+    wrap.querySelectorAll('.gb__entry, .gb__empty').forEach(el => el.remove());
+
+    const frag = document.createDocumentFragment();
+    if (!entries.length) {
+      const p = document.createElement('p');
+      p.className = 'gb__empty';
+      p.textContent = 'nadie firmó todavía — sé el primero';
+      frag.appendChild(p);
+    } else {
+      entries.slice(0, MAX_SHOWN).forEach(entry => {
+        const p = document.createElement('p');
+        p.className = 'gb__entry';
+        const meta = document.createElement('span');
+        meta.className = 'gb__meta';
+        meta.textContent = entry.date;
+        const who = document.createElement('span');
+        who.className = 'gb__who';
+        who.textContent = entry.who;
+        p.appendChild(meta);
+        p.appendChild(document.createTextNode(' '));
+        p.appendChild(who);
+        p.appendChild(document.createElement('br'));
+        p.appendChild(document.createTextNode('> ' + entry.msg));
+        frag.appendChild(p);
+      });
+    }
+    wrap.insertBefore(frag, wrap.firstChild);
+  }
+
+  function sign() {
+    const msg = (prompt('Firmá el libro de visitas:') || '').trim();
+    if (!msg) return;
+    const who = (prompt('¿Tu nombre?') || 'anon').trim().slice(0, 30) || 'anon';
+    const entries = load();
+    entries.unshift({ date: new Date().toISOString().slice(0, 10), who, msg: msg.slice(0, 200) });
+    save(entries.slice(0, 100));
+    render();
+    Audio.success();
+    if (window.Missions) Missions.complete('gb');
+  }
+
+  render();
+  return { sign, render };
+})();
