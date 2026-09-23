@@ -41,8 +41,11 @@ function safeUrl(u) {
 const Audio = (() => {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   document.addEventListener('click', () => { if (ctx.state === 'suspended') ctx.resume(); }, { once: true });
+  let muted = false;
+  try { muted = localStorage.getItem('tt_muted') === '1'; } catch (e) {}
 
   function beep(freq = 440, dur = .08, type = 'square', vol = .1) {
+    if (muted) return;
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.connect(g); g.connect(ctx.destination);
     o.type = type;
@@ -65,6 +68,16 @@ const Audio = (() => {
     glitch()  { [220,180,260,140,320].forEach((f,i)=>setTimeout(()=>beep(f,.05,'sawtooth',.09),i*35)); },
     slot()    { [300,340,380,420,460,520,600,720].forEach((f,i)=>setTimeout(()=>beep(f,.045,'square',.07),i*55)); },
     tada()    { [520,660,780,1040].forEach((f,i)=>setTimeout(()=>beep(f,.12,'sine',.1),i*80)); },
+    dialup()  {
+      const seq = [1200,2100,1400,2400,1100,2600,1800,900,2200,1600];
+      seq.forEach((f,i) => setTimeout(() => beep(f, .09, i % 2 ? 'sawtooth' : 'square', .06), i * 95));
+    },
+    toggleMute() {
+      muted = !muted;
+      try { localStorage.setItem('tt_muted', muted ? '1' : '0'); } catch (e) {}
+      return muted;
+    },
+    isMuted() { return muted; },
   };
 })();
 
@@ -5419,6 +5432,14 @@ const Easter = (() => {
     help: () => UI.showToast('psst — probá "taro", "snake", "party", o el código Konami'),
     wasd: () => UI.showToast('¿buscás el juego? escribí "snake" 🐍'),
     gg: () => { UI.showToast('gg ✦'); Audio.blip(); },
+    dialup: () => { UI.showToast('📞 conectando a internet...'); Audio.dialup(); },
+    geocities: () => { UI.showToast('🌐 esto hubiera tenido un contador y un guestbook.midi en 1999'); spawnRain(['🌐','✦'], 14); },
+    admin: () => UI.showToast('🕵️ lindo intento'),
+    konami: () => UI.showToast('↑ ↑ ↓ ↓ ← → ← → b a — ahora probalo de verdad'),
+    mute: () => { const m = Audio.toggleMute(); UI.showToast(m ? '🔇 sonidos apagados' : '🔊 sonidos prendidos'); },
+    silencio: () => { const m = Audio.toggleMute(); UI.showToast(m ? '🔇 sonidos apagados' : '🔊 sonidos prendidos'); },
+    cafecito: () => { UI.showToast('☕ mirá esto'); UI.openModal('don-modal'); },
+    coffee: () => { UI.showToast('☕ mirá esto'); UI.openModal('don-modal'); },
   };
   const MAX_PHRASE_LEN = Math.max(...Object.keys(PHRASES).map(w => w.length));
   let phraseBuffer = '';
@@ -5431,6 +5452,62 @@ const Easter = (() => {
     for (const [word, action] of Object.entries(PHRASES)) {
       if (phraseBuffer.endsWith(word)) { phraseBuffer = ''; action(); break; }
     }
+  });
+
+  /* doble click en el buscador vacío: tira una sugerencia al azar */
+  const SEARCH_SUGGESTIONS = ['qr', 'pdf', 'contraseña', 'json', 'favicon', 'regex', 'paleta'];
+  const search = document.getElementById('search');
+  if (search) search.addEventListener('dblclick', () => {
+    if (search.value.trim()) return;
+    search.value = SEARCH_SUGGESTIONS[Math.floor(Math.random() * SEARCH_SUGGESTIONS.length)];
+    search.dispatchEvent(new Event('input'));
+    Audio.blip();
+  });
+
+  /* llegar al final de la página, una sola vez por carga ── */
+  let reachedBottom = false;
+  window.addEventListener('scroll', () => {
+    if (reachedBottom) return;
+    if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 4) {
+      reachedBottom = true;
+      UI.showToast('👋 llegaste al final');
+    }
+  }, { passive: true });
+
+  /* click acumulado en cualquier badge de categoría de las cards ── */
+  let catBadgeClicks = 0;
+  function onCatBadgeClick() {
+    catBadgeClicks++;
+    if (catBadgeClicks === 5) {
+      const cats = new Set(Tools.allTools().map(t => t.cat));
+      UI.showToast(`🗂️ ${cats.size} categorías, ${Tools.allTools().length} herramientas`);
+      Audio.blip();
+    }
+  }
+
+  /* triple click en la preview grande del favicon: pulso arcoiris breve ── */
+  let fvClicks = 0, fvTimer = null;
+  function onFvPreviewClick(el) {
+    fvClicks++;
+    clearTimeout(fvTimer);
+    fvTimer = setTimeout(() => { fvClicks = 0; }, 600);
+    if (fvClicks >= 3) {
+      fvClicks = 0;
+      el.style.filter = 'hue-rotate(0deg)';
+      const start = performance.now();
+      (function spin(now) {
+        const t = now - start;
+        if (t > 1000) { el.style.filter = ''; return; }
+        el.style.filter = `hue-rotate(${(t / 1000 * 360).toFixed(0)}deg)`;
+        requestAnimationFrame(spin);
+      })(start);
+      Audio.sparkle();
+    }
+  }
+
+  document.addEventListener('click', e => {
+    if (e.target.closest('.card__cat')) return onCatBadgeClick();
+    if (e.target.closest('#fv-p192')) return onFvPreviewClick(e.target);
   });
 })();
 
