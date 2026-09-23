@@ -8,6 +8,7 @@
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="favicon-192.png">
+<link rel="manifest" href="manifest.json">
 <meta property="og:title" content="Taro's Tools">
 <meta property="og:description" content="Herramientas útiles online, sin virus, sin drama.">
 <meta property="og:type" content="website">
@@ -61,6 +62,13 @@
       <div class="panel__body">
         <div class="counter" id="visit-counter" aria-live="off"></div>
         <p class="counter-label">desde 2024</p>
+      </div>
+    </section>
+
+    <section class="panel" id="recent-panel" style="display:none">
+      <div class="panel__bar">recientes</div>
+      <div class="panel__body">
+        <ul class="recent-list" id="recent-list"></ul>
       </div>
     </section>
 

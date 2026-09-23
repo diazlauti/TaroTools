@@ -24,6 +24,19 @@ body.light {
   --on-accent:#faf9fe;
 }
 
+/* Respeta la preferencia del sistema operativo de reducir animaciones
+   (mareos, vestibular, etc.) — el marquee, las estrellas, el scanline,
+   el glitch y todo lo demás se acorta a casi nada en vez de forzar la
+   animación completa a quien pidió explícitamente que no la quiere. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ─────────────────────────────────────────
    1. RESET & BASE
 ───────────────────────────────────────── */
@@ -410,6 +423,16 @@ header {
 }
 .gb__sign:hover { border-color:var(--accent); color:var(--accent); }
 .gb__sign::after { content:'_'; animation:blink 1.1s steps(1) infinite; }
+
+/* ── recientes ── */
+.recent-list { list-style:none; display:flex; flex-direction:column; gap:.2rem; }
+.recent-item {
+  display:flex; align-items:center; gap:.4rem; width:100%; text-align:left;
+  background:none; border:none; padding:.2rem 0; cursor:var(--cursor);
+  font-size:.68rem; font-family:var(--mono); color:var(--fg2);
+  overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+}
+.recent-item:hover { color:var(--accent2); }
 
 /* ─────────────────────────────────────────
    9. MODALS

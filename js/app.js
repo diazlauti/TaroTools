@@ -503,12 +503,24 @@ const Tools = (() => {
     container.appendChild(fragment);
   }
 
-  function openTool(tool) {
+  function trackRecent(tool) {
+    try {
+      const KEY = 'tt_recent';
+      let ids = JSON.parse(localStorage.getItem(KEY) || '[]');
+      ids = [tool.id, ...ids.filter(id => id !== tool.id)].slice(0, 8);
+      localStorage.setItem(KEY, JSON.stringify(ids));
+    } catch (e) {}
+    if (typeof Recent !== 'undefined') Recent.render();
+  }
+
+  function openTool(tool, params) {
+    params = params || new URLSearchParams();
     Audio.click();
     document.getElementById('modal-title').textContent = tool.icon + ' ' + tool.name;
     document.getElementById('modal-body').innerHTML = ToolUI.build(tool);
     UI.openModal('tool-modal');
     history.replaceState(null, '', '#' + tool.id);
+    if (!tool.soon) trackRecent(tool);
     if (tool.type === 'word-count') {
       const ta = document.getElementById('wc-input');
       if (ta) ta.addEventListener('input', ToolFn.updateWC);
@@ -519,13 +531,23 @@ const Tools = (() => {
     }
     if (tool.type === 'qr-gen') {
       const inp = document.getElementById('qr-input');
-      if (inp) inp.addEventListener('input', ToolFn.liveQR);
+      if (inp) {
+        const preset = params.get('text');
+        if (preset) inp.value = preset;
+        inp.addEventListener('input', ToolFn.liveQR);
+        if (preset) ToolFn.liveQR();
+      }
     }
     if (tool.type === 'pwd-gen') ToolFn.pwdGenerate();
     if (tool.type === 'unit-conv') ToolFn.unitCatChange();
   }
 
-  return { filter, filterCat, renderTabs, renderGrid, allTools, openTool };
+  function openToolById(id) {
+    const tool = allTools().find(t => t.id === id);
+    if (tool && !tool.soon) openTool(tool);
+  }
+
+  return { filter, filterCat, renderTabs, renderGrid, allTools, openTool, openToolById };
 })();
 
 /* ═══════════════════════════════════════════════
@@ -809,6 +831,7 @@ const ToolUI = (() => {
           <button class="btn" onclick="ToolFn.fvDownloadIco()">⬇️ Descargar .ico</button>
           <button class="btn btn--sec" onclick="ToolFn.fvDownloadPng(192)">PNG 192px</button>
           <button class="btn btn--sec" onclick="ToolFn.fvDownloadPng(32)">PNG 32px</button>
+          ${'share' in navigator ? `<button class="btn btn--sec" onclick="ToolFn.fvShare(192)">📤 Compartir</button>` : ''}
         </div>
         <div id="fv-tip" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin-top:.6rem;line-height:1.5">
           💡 Poné el .ico en la raíz de tu proyecto y agregá en el &lt;head&gt;:<br>
@@ -1363,6 +1386,7 @@ const ToolUI = (() => {
       </div>` +
       `<div class="btn-row">
         <button class="btn" onclick="ToolFn.downloadQR()">⬇️ Descargar QR</button>
+        ${'share' in navigator ? `<button class="btn btn--sec" onclick="ToolFn.shareQR()">📤 Compartir</button>` : ''}
         <button class="btn btn--sec" onclick="UI.copyText(document.getElementById('qr-input').value,this)">Copiar URL</button>
       </div>`,
 
@@ -1715,6 +1739,22 @@ const ToolFn = (() => {
 
   function _escHtml(s) {
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  /* Comparte un archivo con el share sheet nativo del sistema (mobile,
+     principalmente) cuando el navegador lo soporta; si no, avisa que
+     conviene descargarlo y compartirlo a mano en vez de fallar en silencio. */
+  async function _shareBlob(blob, filename, title) {
+    try {
+      const file = new File([blob], filename, { type: blob.type });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title });
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return; // el usuario canceló, no es un error
+    }
+    UI.showToast('tu navegador no soporta compartir archivos — descargalo y compartilo a mano');
   }
 
   function bufferToWav(buffer) {
@@ -2330,6 +2370,12 @@ const ToolFn = (() => {
     }, 'image/png');
   }
 
+  function shareQR() {
+    const canvas = document.getElementById('qr-live');
+    if (!canvas.width) return;
+    canvas.toBlob(blob => _shareBlob(blob, 'taro-qr.png', 'Código QR'), 'image/png');
+  }
+
   // ── color conv ──
   function liveColor() {
     const raw = document.getElementById('col-input').value.trim();
@@ -2921,6 +2967,14 @@ const ToolFn = (() => {
       a.click();
       Audio.success();
     }, 'image/png');
+  }
+
+  function fvShare(sz) {
+    if (!_fvImg) return;
+    const c = document.createElement('canvas');
+    c.width = sz; c.height = sz;
+    _drawCover(c.getContext('2d'), _fvImg, sz);
+    c.toBlob(blob => _shareBlob(blob, `favicon-${sz}.png`, 'Favicon'), 'image/png');
   }
 
   function fvDownloadIco() {
@@ -4575,7 +4629,7 @@ const ToolFn = (() => {
     previewVideo, compressVid,
     previewAudio, compressAudio,
     pdfToText, cobaltDl,
-    liveQR, downloadQR,
+    liveQR, downloadQR, shareQR,
     liveColor, convertColor, pickScreenColor,
     convertCase, updateWC,
     aiSummarize, aiCorrect, aiTranslate, aiExpand,
@@ -4593,7 +4647,7 @@ const ToolFn = (() => {
     _dropName,
     irLoad, irSetMode, irToggleCompress, irSyncAR, irPreset, irPreviewLive, irDownload,
     mrLoad, mrProcess,
-    fvLoad, fvDownloadPng, fvDownloadIco,
+    fvLoad, fvDownloadPng, fvDownloadIco, fvShare,
     bgLoad, bgAutoDetect, bgApply, bgDownload,
     pwdGenerate,
     jsonFormat,
@@ -4837,6 +4891,12 @@ const Admin = (() => {
    INIT
 ═══════════════════════════════════════════════ */
 I18n.set('es');
+
+/* ── PWA: cachea lo estático para que ande offline después de la primera visita ── */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
+
 /* ── drag over highlight ── */
 document.addEventListener('dragover', e => {
   e.preventDefault();
@@ -4856,8 +4916,9 @@ document.addEventListener('drop', e => {
   function openFromHash() {
     const hash = location.hash.replace('#', '').trim();
     if (!hash) return;
-    const tool = Tools.allTools().find(t => t.id === hash);
-    if (tool && !tool.soon) Tools.openTool(tool);
+    const [id, query] = hash.split('?');
+    const tool = Tools.allTools().find(t => t.id === id);
+    if (tool && !tool.soon) Tools.openTool(tool, new URLSearchParams(query || ''));
   }
   window.addEventListener('DOMContentLoaded', () => setTimeout(openFromHash, 100));
   window.addEventListener('hashchange', openFromHash);
@@ -5400,4 +5461,79 @@ const SnakeGame = (() => {
   }
 
   return { open, stop };
+})();
+
+/* ═══════════════════════════════════════════════
+   RECIENTES — últimas herramientas usadas, para volver rápido
+═══════════════════════════════════════════════ */
+const Recent = (() => {
+  const KEY = 'tt_recent';
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
+    catch (e) { return []; }
+  }
+
+  function render() {
+    const panel = document.getElementById('recent-panel');
+    const list = document.getElementById('recent-list');
+    if (!panel || !list) return;
+    const tools = load().map(id => Tools.allTools().find(t => t.id === id)).filter(Boolean);
+    if (!tools.length) { panel.style.display = 'none'; return; }
+    panel.style.display = '';
+    list.innerHTML = '';
+    tools.forEach(t => {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'recent-item';
+      btn.onclick = () => Tools.openToolById(t.id);
+      const icon = document.createElement('span');
+      icon.textContent = t.icon;
+      const name = document.createElement('span');
+      name.textContent = t.name;
+      btn.appendChild(icon);
+      btn.appendChild(name);
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+  }
+
+  render();
+  return { render };
+})();
+
+/* ═══════════════════════════════════════════════
+   ATAJOS DE TECLADO
+═══════════════════════════════════════════════ */
+const Shortcuts = (() => {
+  function isEditableFocused() {
+    const el = document.activeElement;
+    if (!el) return false;
+    const tag = el.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+  }
+  function anyModalOpen() { return !!document.querySelector('.modal-bg.open'); }
+
+  document.addEventListener('keydown', e => {
+    if (isEditableFocused() || anyModalOpen()) return;
+
+    if (e.key === '/') {
+      e.preventDefault();
+      const s = document.getElementById('search');
+      if (s) s.focus();
+      return;
+    }
+    if (e.key === '?') {
+      UI.showToast('/ buscar · 1-9 categorías · Esc cerrar');
+      return;
+    }
+    if (/^[1-9]$/.test(e.key)) {
+      const tabs = document.querySelectorAll('#tabs-container .tab');
+      const tab = tabs[parseInt(e.key, 10) - 1];
+      if (tab) tab.click();
+    }
+  });
+
+  return {};
 })();
