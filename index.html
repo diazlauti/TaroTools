@@ -67,16 +67,17 @@
     <section class="panel">
       <div class="panel__bar">now playing</div>
       <div class="panel__body">
-        <div class="np">
+        <div class="np" id="np">
+          <audio id="np-audio" preload="none"></audio>
           <div class="np__row">
-            <div class="np__disc" aria-hidden="true">◉</div>
+            <button type="button" class="np__disc" id="np-disc" onclick="NowPlaying.toggle()" aria-label="Reproducir">◉</button>
             <div style="min-width:0">
-              <div class="np__title">unknown mp3 — 03</div>
-              <div class="np__sub">ripeado en 2004</div>
+              <div class="np__title" id="np-title">sin pista cargada</div>
+              <div class="np__sub" id="np-sub">—</div>
             </div>
           </div>
-          <div class="np__bar" aria-hidden="true"><i></i></div>
-          <div class="np__time">01:47 / 04:32</div>
+          <div class="np__bar" aria-hidden="true"><i id="np-bar-fill"></i></div>
+          <div class="np__time" id="np-time">00:00 / 00:00</div>
         </div>
       </div>
     </section>

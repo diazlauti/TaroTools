@@ -347,14 +347,17 @@ header {
 .np__row { display:flex; gap:.5rem; align-items:center; }
 .np__disc {
   width:32px; height:32px; flex:0 0 auto;
-  background:var(--bg3); border:1px solid var(--border);
-  display:flex; align-items:center; justify-content:center;
-  color:var(--accent); font-size:.85rem; animation:spin 6s linear infinite;
+  background:var(--bg3); border:1px solid var(--border); border-radius:0;
+  display:flex; align-items:center; justify-content:center; padding:0;
+  color:var(--accent); font-size:.85rem; font-family:inherit;
+  cursor:var(--cursor); transition:border-color var(--transition), color var(--transition);
 }
+.np__disc:hover { border-color:var(--accent2); color:var(--accent2); }
+.np--playing .np__disc { animation:spin 6s linear infinite; color:var(--accent2); }
 .np__title { font-size:.7rem; color:var(--fg); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .np__sub { font-size:.6rem; color:var(--fg3); }
 .np__bar { height:5px; background:var(--bg); border:1px solid var(--border); }
-.np__bar i { display:block; height:100%; width:38%; background:var(--accent2); }
+.np__bar i { display:block; height:100%; width:0%; background:var(--accent2); transition:width .15s linear; }
 .np__time { font-family:var(--lcd); font-size:.95rem; color:var(--accent); }
 
 /* ── misiones ── */

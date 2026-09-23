@@ -1,0 +1,8 @@
+{
+  "name": "tarotools",
+  "private": true,
+  "description": "Sitio estático de Taro's Tools. Este package.json existe solo para que Netlify instale las dependencias de netlify/functions al buildear.",
+  "dependencies": {
+    "@netlify/blobs": "^11.1.0"
+  }
+}

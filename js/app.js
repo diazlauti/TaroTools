@@ -6,6 +6,8 @@
 const CONFIG = {
   GEMINI_PROXY: '/.netlify/functions/gemini',
   COBALT_API: '/.netlify/functions/cobalt',
+  VISITS_API: '/.netlify/functions/visits',
+  GUESTBOOK_API: '/.netlify/functions/guestbook',
   IP_API: 'https://api.ipify.org?format=json',
   ADMIN_PASS_HASH: 'a0f50e4075fa8fc1c8acce4c6ab92f7713913eb7906850bb25cc3a72f88e4550',
 };
@@ -4855,21 +4857,31 @@ document.addEventListener('drop', e => {
 })();
 
 /* ═══════════════════════════════════════════════
-   VISITAS (contador local, sin backend)
+   VISITAS — contador real y compartido (netlify/functions/visits.js),
+   con la última cifra conocida cacheada en localStorage para no mostrar
+   la pantalla vacía mientras responde el servidor (o si no hay servidor,
+   como al abrir el sitio como archivo local).
 ═══════════════════════════════════════════════ */
 (() => {
-  const KEY = 'tt_visits';
-  let n = parseInt(localStorage.getItem(KEY) || '0', 10);
-  const seenKey = 'tt_visit_seen_' + new Date().toDateString();
-  if (!localStorage.getItem(seenKey)) {
-    n += 1;
-    localStorage.setItem(KEY, String(n));
-    localStorage.setItem(seenKey, '1');
-  }
-  const total = 41973 + n;
   const el = document.getElementById('visit-counter');
-  if (el) el.innerHTML = String(total).padStart(6, '0')
-    .split('').map(d => `<span>${d}</span>`).join('');
+  if (!el) return;
+  const CACHE_KEY = 'tt_visits_cache';
+
+  function render(total) {
+    el.innerHTML = String(total).padStart(6, '0').split('').map(d => `<span>${d}</span>`).join('');
+  }
+
+  const cached = parseInt(localStorage.getItem(CACHE_KEY) || '', 10);
+  if (!isNaN(cached)) render(cached);
+
+  fetch(CONFIG.VISITS_API, { method: 'POST' })
+    .then(r => r.ok ? r.json() : Promise.reject(r))
+    .then(data => {
+      if (typeof data.total !== 'number') return;
+      render(data.total);
+      try { localStorage.setItem(CACHE_KEY, String(data.total)); } catch (e) {}
+    })
+    .catch(() => { if (isNaN(cached)) el.textContent = '------'; });
 })();
 
 /* ═══════════════════════════════════════════════
@@ -4902,63 +4914,136 @@ const Suggest = (() => {
 })();
 
 /* ═══════════════════════════════════════════════
-   LIBRO DE VISITAS (persiste en este navegador)
+   LIBRO DE VISITAS — real y compartido (netlify/functions/guestbook.js).
+   Las firmas las ve cualquiera que entre al sitio, no solo quien firmó.
 ═══════════════════════════════════════════════ */
 const Guestbook = (() => {
-  const KEY = 'tt_guestbook';
-  const MAX_SHOWN = 20;
+  function wrapEl() { return document.getElementById('gb-list'); }
+
+  function clear() {
+    const w = wrapEl();
+    if (w) w.querySelectorAll('.gb__entry, .gb__empty').forEach(el => el.remove());
+    return w;
+  }
+
+  function renderMessage(msg) {
+    const w = clear();
+    if (!w) return;
+    const p = document.createElement('p');
+    p.className = 'gb__empty';
+    p.textContent = msg;
+    w.insertBefore(p, w.firstChild);
+  }
+
+  function renderEntries(entries) {
+    const w = clear();
+    if (!w) return;
+    if (!entries.length) { renderMessage('nadie firmó todavía — sé el primero'); return; }
+    const frag = document.createDocumentFragment();
+    entries.forEach(entry => {
+      const p = document.createElement('p');
+      p.className = 'gb__entry';
+      const meta = document.createElement('span');
+      meta.className = 'gb__meta';
+      meta.textContent = entry.date;
+      const who = document.createElement('span');
+      who.className = 'gb__who';
+      who.textContent = entry.who;
+      p.appendChild(meta);
+      p.appendChild(document.createTextNode(' '));
+      p.appendChild(who);
+      p.appendChild(document.createElement('br'));
+      p.appendChild(document.createTextNode('> ' + entry.msg));
+      frag.appendChild(p);
+    });
+    w.insertBefore(frag, w.firstChild);
+  }
 
   function load() {
-    try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
-    catch (e) { return []; }
-  }
-  function save(entries) { try { localStorage.setItem(KEY, JSON.stringify(entries)); } catch (e) {} }
-
-  function render() {
-    const wrap = document.getElementById('gb-list');
-    if (!wrap) return;
-    const entries = load();
-    wrap.querySelectorAll('.gb__entry, .gb__empty').forEach(el => el.remove());
-
-    const frag = document.createDocumentFragment();
-    if (!entries.length) {
-      const p = document.createElement('p');
-      p.className = 'gb__empty';
-      p.textContent = 'nadie firmó todavía — sé el primero';
-      frag.appendChild(p);
-    } else {
-      entries.slice(0, MAX_SHOWN).forEach(entry => {
-        const p = document.createElement('p');
-        p.className = 'gb__entry';
-        const meta = document.createElement('span');
-        meta.className = 'gb__meta';
-        meta.textContent = entry.date;
-        const who = document.createElement('span');
-        who.className = 'gb__who';
-        who.textContent = entry.who;
-        p.appendChild(meta);
-        p.appendChild(document.createTextNode(' '));
-        p.appendChild(who);
-        p.appendChild(document.createElement('br'));
-        p.appendChild(document.createTextNode('> ' + entry.msg));
-        frag.appendChild(p);
-      });
-    }
-    wrap.insertBefore(frag, wrap.firstChild);
+    renderMessage('cargando…');
+    fetch(CONFIG.GUESTBOOK_API)
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then(data => renderEntries(data.entries || []))
+      .catch(() => renderMessage('no se pudo cargar el libro de visitas'));
   }
 
   function sign() {
     const msg = (prompt('Firmá el libro de visitas:') || '').trim();
     if (!msg) return;
     const who = (prompt('¿Tu nombre?') || 'anon').trim().slice(0, 30) || 'anon';
-    const entries = load();
-    entries.unshift({ date: new Date().toISOString().slice(0, 10), who, msg: msg.slice(0, 200) });
-    save(entries.slice(0, 100));
-    render();
-    Audio.success();
-    if (window.Missions) Missions.complete('gb');
+
+    fetch(CONFIG.GUESTBOOK_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ who, msg }),
+    })
+      .then(async r => ({ ok: r.ok, data: await r.json().catch(() => ({})) }))
+      .then(({ ok, data }) => {
+        if (!ok) { UI.showToast(data.error || 'no se pudo firmar'); Audio.error(); return; }
+        renderEntries(data.entries || []);
+        Audio.success();
+        if (window.Missions) Missions.complete('gb');
+      })
+      .catch(() => { UI.showToast('no se pudo firmar — revisá tu conexión'); Audio.error(); });
   }
 
-  render();
-  return { sign, render };
+  load();
+  return { sign };
+})();
+
+/* ═══════════════════════════════════════════════
+   NOW PLAYING — reproductor real (no decorativo). Todavía sin pista:
+   completá NOW_PLAYING_TRACK con un mp3 propio o con licencia libre para
+   que deje de mostrar el estado "sin pista cargada".
+═══════════════════════════════════════════════ */
+const NowPlaying = (() => {
+  const NOW_PLAYING_TRACK = { title: '', artist: '', src: '' };
+
+  const wrap = document.getElementById('np');
+  const audio = document.getElementById('np-audio');
+  const disc = document.getElementById('np-disc');
+  const titleEl = document.getElementById('np-title');
+  const subEl = document.getElementById('np-sub');
+  const barFill = document.getElementById('np-bar-fill');
+  const timeEl = document.getElementById('np-time');
+
+  function fmt(sec) {
+    if (!isFinite(sec) || sec < 0) sec = 0;
+    const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  function updateTime() {
+    const dur = audio.duration || 0;
+    barFill.style.width = (dur ? audio.currentTime / dur * 100 : 0) + '%';
+    timeEl.textContent = fmt(audio.currentTime) + ' / ' + fmt(dur);
+  }
+
+  function toggle() {
+    if (!NOW_PLAYING_TRACK.src) { UI.showToast('todavía no hay una pista configurada'); return; }
+    if (audio.paused) audio.play().catch(() => UI.showToast('no se pudo reproducir el audio'));
+    else audio.pause();
+  }
+
+  function init() {
+    if (!wrap || !audio) return;
+    if (NOW_PLAYING_TRACK.src) {
+      titleEl.textContent = NOW_PLAYING_TRACK.title || 'sin título';
+      subEl.textContent = NOW_PLAYING_TRACK.artist || '';
+      audio.src = NOW_PLAYING_TRACK.src;
+      disc.setAttribute('aria-label', 'Reproducir / pausar');
+    } else {
+      titleEl.textContent = 'sin pista cargada';
+      subEl.textContent = 'configurala en NOW_PLAYING_TRACK (app.js)';
+      disc.setAttribute('aria-label', 'Sin pista configurada');
+    }
+    audio.addEventListener('play', () => wrap.classList.add('np--playing'));
+    audio.addEventListener('pause', () => wrap.classList.remove('np--playing'));
+    audio.addEventListener('ended', () => wrap.classList.remove('np--playing'));
+    audio.addEventListener('timeupdate', updateTime);
+    audio.addEventListener('loadedmetadata', updateTime);
+  }
+
+  init();
+  return { toggle };
 })();
