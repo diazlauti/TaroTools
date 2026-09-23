@@ -59,6 +59,12 @@ const Audio = (() => {
     unlock()  { [500,700,900,1200].forEach((f,i)=>setTimeout(()=>beep(f,.1,'sine',.12),i*70)); },
     delete()  { beep(300,.1,'sawtooth',.1); setTimeout(()=>beep(180,.12,'sawtooth',.08),90); },
     alarm()   { [660,880,660,880,660,880].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.14),i*190)); },
+    /* ── easter eggs ── */
+    blip()    { beep(700 + Math.random()*300, .04, 'square', .06); },
+    sparkle() { [1400,1800,2400].forEach((f,i)=>setTimeout(()=>beep(f,.05,'sine',.05),i*45)); },
+    glitch()  { [220,180,260,140,320].forEach((f,i)=>setTimeout(()=>beep(f,.05,'sawtooth',.09),i*35)); },
+    slot()    { [300,340,380,420,460,520,600,720].forEach((f,i)=>setTimeout(()=>beep(f,.045,'square',.07),i*55)); },
+    tada()    { [520,660,780,1040].forEach((f,i)=>setTimeout(()=>beep(f,.12,'sine',.1),i*80)); },
   };
 })();
 
@@ -5046,4 +5052,135 @@ const NowPlaying = (() => {
 
   init();
   return { toggle };
+})();
+
+/* ═══════════════════════════════════════════════
+   EASTER EGGS — clickeá cosas random por el sitio.
+   Nada de esto es necesario para usar ninguna herramienta, es solo
+   para quien anda explorando. Todo con sonidos sintetizados (Audio
+   module) y partículas de texto, sin assets externos.
+═══════════════════════════════════════════════ */
+const Easter = (() => {
+  const FACES = ['T_T', 'ಠ_ಠ', '✧_✧', '¬_¬', '⊙_⊙', '≧◡≦'];
+  const SPARK_EMOJI = ['✦', '★', '✶', '✧', '·'];
+  const CONFETTI_EMOJI = ['✦', '★', '✧', '♥', '♪'];
+  const ACCENTS = ['var(--accent)', 'var(--accent2)', 'var(--accent3)'];
+
+  function spawnParticles(x, y, emojis, count, spread) {
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('span');
+      el.className = 'egg-particle';
+      el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      const angle = Math.random() * Math.PI * 2;
+      const dist = spread * (.5 + Math.random());
+      el.style.setProperty('--dx', (Math.cos(angle) * dist).toFixed(1) + 'px');
+      el.style.setProperty('--dy', (Math.sin(angle) * dist).toFixed(1) + 'px');
+      el.style.setProperty('--rot', (Math.random() * 360 - 180).toFixed(0) + 'deg');
+      el.style.setProperty('--dur', (.6 + Math.random() * .5).toFixed(2) + 's');
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      el.style.color = ACCENTS[i % ACCENTS.length];
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1300);
+    }
+  }
+
+  function bounce(el) {
+    el.classList.remove('egg-bounce');
+    void el.offsetWidth; // reinicia la animación si se clickea rápido varias veces
+    el.classList.add('egg-bounce');
+  }
+
+  /* ── estrellitas decorativas: sparkle al click, bonus por juntar las 4 ── */
+  const starsHit = new Set();
+  function onStarClick(e, star) {
+    spawnParticles(e.clientX, e.clientY, SPARK_EMOJI, 8, 50);
+    Audio.sparkle();
+    starsHit.add(star);
+    const total = document.querySelectorAll('.star').length;
+    if (starsHit.size === total) {
+      setTimeout(() => {
+        UI.showToast('✦ encontraste todas las estrellitas');
+        Audio.tada();
+        spawnParticles(window.innerWidth / 2, window.innerHeight / 3, CONFETTI_EMOJI, 24, 140);
+      }, 250);
+    }
+  }
+
+  /* ── T_T del header: le cambia la cara ── */
+  let faceIdx = 0, faceClicks = 0;
+  function onFaceClick(faceEl) {
+    faceIdx = (faceIdx + 1) % FACES.length;
+    faceEl.textContent = FACES[faceIdx];
+    bounce(faceEl);
+    Audio.blip();
+    faceClicks++;
+    if (faceClicks === 8) UI.showToast('¿por qué me seguís clickeando?');
+  }
+
+  /* ── logo: 5 clicks rápidos activan modo glitch ── */
+  let logoClicks = 0, logoTimer = null, glitching = false;
+  function onLogoClick() {
+    logoClicks++;
+    clearTimeout(logoTimer);
+    logoTimer = setTimeout(() => { logoClicks = 0; }, 700);
+    if (logoClicks >= 5 && !glitching) {
+      logoClicks = 0;
+      glitching = true;
+      document.body.classList.add('egg-glitching');
+      Audio.glitch();
+      UI.showToast('✦ modo glitch');
+      setTimeout(() => { document.body.classList.remove('egg-glitching'); glitching = false; }, 900);
+    }
+  }
+
+  /* ── contador de visitas: tragamonedas — puramente visual, no vuelve
+     a pegarle a la función de visitas ni cambia el total real ── */
+  let spinning = false;
+  function onCounterClick(counterEl) {
+    if (spinning) return;
+    const spans = [...counterEl.querySelectorAll('span')];
+    if (!spans.length) return;
+    spinning = true;
+    counterEl.classList.add('egg-spin');
+    Audio.slot();
+    const original = spans.map(s => s.textContent);
+    let ticks = 0;
+    const iv = setInterval(() => {
+      spans.forEach(s => { s.textContent = String(Math.floor(Math.random() * 10)); });
+      ticks++;
+      if (ticks >= 12) {
+        clearInterval(iv);
+        spans.forEach((s, i) => { s.textContent = original[i]; });
+        counterEl.classList.remove('egg-spin');
+        bounce(counterEl);
+        spinning = false;
+      }
+    }, 70);
+  }
+
+  /* ── footer: confeti ── */
+  function onFooterClick(e) {
+    spawnParticles(e.clientX, e.clientY, CONFETTI_EMOJI, 16, 110);
+    Audio.tada();
+  }
+
+  document.addEventListener('click', e => {
+    const star = e.target.closest('.star');
+    if (star) return onStarClick(e, star);
+    const face = e.target.closest('.header-deco');
+    if (face) return onFaceClick(face);
+    if (e.target.closest('.logo')) return onLogoClick();
+    const counter = e.target.closest('#visit-counter');
+    if (counter) return onCounterClick(counter);
+    if (e.target.closest('footer')) return onFooterClick(e);
+  });
+
+  /* código Konami (detectado en missions.js) — acá le sumamos el efecto visual */
+  document.addEventListener('taro:konami', () => {
+    document.body.classList.add('egg-glitching');
+    Audio.tada();
+    spawnParticles(window.innerWidth / 2, 40, CONFETTI_EMOJI, 40, 220);
+    setTimeout(() => document.body.classList.remove('egg-glitching'), 900);
+  });
 })();

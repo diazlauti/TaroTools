@@ -284,7 +284,7 @@ const Missions = (() => {
       const k = e.key;
       if (k === seq[pos] || (k && k.toLowerCase && k.toLowerCase() === seq[pos])) {
         pos++;
-        if (pos === seq.length) { pos = 0; complete('konami'); }
+        if (pos === seq.length) { pos = 0; complete('konami'); document.dispatchEvent(new CustomEvent('taro:konami')); }
       } else {
         pos = (k === seq[0]) ? 1 : 0;
       }
