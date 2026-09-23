@@ -5270,6 +5270,53 @@ const Easter = (() => {
     if (logo) bounce(logo);
   }
 
+  /* lluvia de emojis cayendo desde arriba (distinto del estallido radial de spawnParticles) */
+  function spawnRain(emojis, count) {
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => {
+        const el = document.createElement('span');
+        el.className = 'egg-particle';
+        el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        el.style.left = (Math.random() * window.innerWidth) + 'px';
+        el.style.top = '-24px';
+        el.style.setProperty('--dx', '0px');
+        el.style.setProperty('--dy', (window.innerHeight + 60) + 'px');
+        el.style.setProperty('--rot', (Math.random() * 180 - 90).toFixed(0) + 'deg');
+        el.style.setProperty('--dur', (1.1 + Math.random() * .7).toFixed(2) + 's');
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 2200);
+      }, i * 55);
+    }
+  }
+
+  /* lluvia digital estilo Matrix por unos segundos */
+  function matrixRain() {
+    const canvas = document.createElement('canvas');
+    canvas.style.cssText = 'position:fixed;inset:0;z-index:600;pointer-events:none;';
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    const cols = Math.floor(canvas.width / 14);
+    const drops = new Array(cols).fill(0);
+    const chars = 'アイウエオカキクケコ0123456789TAROTOOLS';
+    const start = performance.now(), DURATION = 3000;
+    function draw() {
+      ctx.fillStyle = 'rgba(12,13,20,.08)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#7fbf8f';
+      ctx.font = '14px monospace';
+      drops.forEach((y, i) => {
+        ctx.fillText(chars[Math.floor(Math.random() * chars.length)], i * 14, y * 14);
+        if (y * 14 > canvas.height && Math.random() > .975) drops[i] = 0;
+        drops[i]++;
+      });
+      if (performance.now() - start < DURATION) requestAnimationFrame(draw);
+      else canvas.remove();
+    }
+    requestAnimationFrame(draw);
+  }
+
   document.addEventListener('click', e => {
     const star = e.target.closest('.star');
     if (star) return onStarClick(e, star);
@@ -5280,6 +5327,67 @@ const Easter = (() => {
     if (counter) return onCounterClick(counter);
     if (e.target.closest('.marquee-bar')) return onMarqueeClick();
     if (e.target.closest('footer')) return onFooterClick(e);
+    const tab = e.target.closest('.tab');
+    if (tab) return onTabClick(tab);
+    if (e.target.closest('.dl-link')) return onDlLinkClick();
+    if (e.target.closest('.mi-bar')) return onMissionsBarClick();
+  });
+
+  /* click derecho en una estrellita: reemplaza el menú contextual por un chiste */
+  document.addEventListener('contextmenu', e => {
+    if (!e.target.closest('.star')) return;
+    e.preventDefault();
+    UI.showToast('✦ ¯\\_(ツ)_/¯');
+  });
+
+  /* click del medio (rueda) en cualquier lado: mini confeti, rarísimo de encontrar */
+  document.addEventListener('auxclick', e => {
+    if (e.button !== 1) return;
+    spawnParticles(e.clientX, e.clientY, CONFETTI_EMOJI, 10, 80);
+    Audio.sparkle();
+  });
+
+  /* triple click sobre la misma pestaña de categoría: cuenta cuántas hay */
+  let tabClickCat = null, tabClicks = 0, tabClickTimer = null;
+  function onTabClick(tab) {
+    const cat = tab.textContent;
+    if (cat === tabClickCat) tabClicks++; else { tabClickCat = cat; tabClicks = 1; }
+    clearTimeout(tabClickTimer);
+    tabClickTimer = setTimeout(() => { tabClicks = 0; tabClickCat = null; }, 700);
+    if (tabClicks >= 3) {
+      tabClicks = 0;
+      bounce(tab);
+      const count = document.querySelectorAll('#tools-container .card').length;
+      UI.showToast(`📁 ${count} herramientas acá`);
+      Audio.blip();
+    }
+  }
+
+  /* descargas acumuladas en toda la sesión del navegador: bonus a las 10 */
+  function onDlLinkClick() {
+    let n = parseInt(localStorage.getItem('tt_egg_dl') || '0', 10) + 1;
+    try { localStorage.setItem('tt_egg_dl', String(n)); } catch (e) {}
+    if (n === 10) {
+      UI.showToast('📦 coleccionista: 10 descargas');
+      Audio.unlock();
+      spawnParticles(window.innerWidth / 2, window.innerHeight / 2, CONFETTI_EMOJI, 20, 130);
+    }
+  }
+
+  /* click en la barra de progreso de misiones: dice el % exacto */
+  function onMissionsBarClick() {
+    const txt = document.getElementById('mi-count');
+    if (txt) UI.showToast('📊 misiones: ' + txt.textContent);
+  }
+
+  /* Escape mashing sin ningún modal abierto: solo un chiste, no hace nada más */
+  let escMashes = 0, escMashTimer = null;
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || document.querySelector('.modal-bg.open')) return;
+    escMashes++;
+    clearTimeout(escMashTimer);
+    escMashTimer = setTimeout(() => { escMashes = 0; }, 800);
+    if (escMashes >= 5) { escMashes = 0; UI.showToast('😤 tranquilo'); Audio.blip(); }
   });
 
   /* código Konami (detectado en missions.js) — acá le sumamos el efecto visual */
@@ -5294,6 +5402,23 @@ const Easter = (() => {
   const PHRASES = {
     snake: () => typeof SnakeGame !== 'undefined' && SnakeGame.open(),
     taro: onTaroSignature,
+    matrix: () => { UI.showToast('🐇 seguí al conejo blanco'); Audio.glitch(); matrixRain(); },
+    party: () => {
+      UI.showToast('🎉 party mode');
+      Audio.tada();
+      for (let i = 0; i < 5; i++) {
+        setTimeout(() => spawnParticles(
+          Math.random() * window.innerWidth, Math.random() * window.innerHeight * 0.4,
+          CONFETTI_EMOJI, 20, 150
+        ), i * 150);
+      }
+    },
+    pizza: () => { UI.showToast('🍕 pizza time'); spawnRain(['🍕'], 20); },
+    amor: () => { UI.showToast('♥ para vos también'); spawnRain(['♥','💜','💗'], 18); Audio.tada(); },
+    love: () => { UI.showToast('♥ para vos también'); spawnRain(['♥','💜','💗'], 18); Audio.tada(); },
+    help: () => UI.showToast('psst — probá "taro", "snake", "party", o el código Konami'),
+    wasd: () => UI.showToast('¿buscás el juego? escribí "snake" 🐍'),
+    gg: () => { UI.showToast('gg ✦'); Audio.blip(); },
   };
   const MAX_PHRASE_LEN = Math.max(...Object.keys(PHRASES).map(w => w.length));
   let phraseBuffer = '';
