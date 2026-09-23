@@ -5169,6 +5169,11 @@ const Easter = (() => {
   /* ── estrellitas decorativas: sparkle al click, bonus por juntar las 4 ── */
   const starsHit = new Set();
   function onStarClick(e, star) {
+    if (e.shiftKey) {
+      spawnParticles(e.clientX, e.clientY, ['♦','♥','♣','♠'], 10, 65);
+      Audio.tada();
+      return;
+    }
     spawnParticles(e.clientX, e.clientY, SPARK_EMOJI, 8, 50);
     Audio.sparkle();
     starsHit.add(star);
@@ -5191,6 +5196,11 @@ const Easter = (() => {
     Audio.blip();
     faceClicks++;
     if (faceClicks === 8) UI.showToast('¿por qué me seguís clickeando?');
+    if (faceClicks === 20) {
+      UI.showToast('✦ ok, encontraste la verdadera forma de T_T');
+      Audio.tada();
+      spawnParticles(window.innerWidth / 2, window.innerHeight / 2, CONFETTI_EMOJI, 20, 130);
+    }
   }
 
   /* ── logo: 5 clicks rápidos activan modo glitch ── */
@@ -5239,6 +5249,20 @@ const Easter = (() => {
     spawnParticles(e.clientX, e.clientY, CONFETTI_EMOJI, 16, 110);
     Audio.tada();
   }
+
+  document.addEventListener('dblclick', e => {
+    if (e.target.closest('footer')) { UI.showToast('no somos tan misteriosos'); Audio.blip(); }
+  });
+
+  /* mucho Tab seguido: nod a la navegación por teclado ── */
+  let tabPresses = 0, tabTimer = null;
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Tab') return;
+    tabPresses++;
+    clearTimeout(tabTimer);
+    tabTimer = setTimeout(() => { tabPresses = 0; }, 1500);
+    if (tabPresses === 10) { tabPresses = 0; UI.showToast('🧭 navegando con teclado, como debe ser'); }
+  });
 
   /* ── marquee: triple click = modo arcoiris unos segundos ── */
   let rainbowActive = false;
@@ -5360,6 +5384,15 @@ const Easter = (() => {
     Audio.sparkle();
   });
 
+  /* alt+click en cualquier lado: efecto "encendido de CRT" un momento */
+  document.addEventListener('click', e => {
+    if (!e.altKey) return;
+    document.body.classList.remove('egg-crt');
+    void document.body.offsetWidth;
+    document.body.classList.add('egg-crt');
+    Audio.glitch();
+  });
+
   /* triple click sobre la misma pestaña de categoría: cuenta cuántas hay */
   let tabClickCat = null, tabClicks = 0, tabClickTimer = null;
   function onTabClick(tab) {
@@ -5440,8 +5473,28 @@ const Easter = (() => {
     silencio: () => { const m = Audio.toggleMute(); UI.showToast(m ? '🔇 sonidos apagados' : '🔊 sonidos prendidos'); },
     cafecito: () => { UI.showToast('☕ mirá esto'); UI.openModal('don-modal'); },
     coffee: () => { UI.showToast('☕ mirá esto'); UI.openModal('don-modal'); },
+    please: () => UI.showToast('con gusto ✦'),
+    porfavor: () => UI.showToast('con gusto ✦'),
+    gracias: () => { UI.showToast('de nada ✦'); spawnParticles(window.innerWidth/2, window.innerHeight/2, ['✦'], 6, 60); },
+    thanks: () => { UI.showToast('de nada ✦'); spawnParticles(window.innerWidth/2, window.innerHeight/2, ['✦'], 6, 60); },
+    hola: () => { UI.showToast('¡hola! 👋'); spawnParticles(window.innerWidth/2, window.innerHeight/2, ['👋'], 4, 50); },
+    hello: () => { UI.showToast('¡hola! 👋'); spawnParticles(window.innerWidth/2, window.innerHeight/2, ['👋'], 4, 50); },
+    sudo: () => UI.showToast('🔒 permission denied (nice try)'),
+    root: () => UI.showToast('🔒 permission denied (nice try)'),
+    bug: () => UI.showToast('🐛 no es un bug, es una feature'),
+    vim: () => UI.showToast(':wq — ah, resolviste salir. bien ahí'),
+    exit: () => UI.showToast('esto no es vim, pero probá igual: Esc'),
+    quit: () => UI.showToast('esto no es vim, pero probá igual: Esc'),
+    test: () => UI.showToast('funciona ✓'),
+    testing: () => UI.showToast('funciona ✓'),
+    why: () => UI.showToast('¿por qué no? 🤷'),
+    egg: () => UI.showToast('🥚 ya estás adentro de uno'),
+    easter: () => UI.showToast('🥚 ya estás adentro de uno'),
   };
   const MAX_PHRASE_LEN = Math.max(...Object.keys(PHRASES).map(w => w.length));
+  // ordenadas de más larga a más corta para que una frase corta (ej. "gg")
+  // nunca tape a otra más larga y específica que también termina igual (ej. "egg")
+  const PHRASE_ENTRIES = Object.entries(PHRASES).sort((a, b) => b[0].length - a[0].length);
   let phraseBuffer = '';
   document.addEventListener('keydown', e => {
     const tag = document.activeElement && document.activeElement.tagName;
@@ -5449,7 +5502,7 @@ const Easter = (() => {
         (document.activeElement && document.activeElement.isContentEditable)) return;
     if (e.key.length !== 1) return; // ignora flechas, Escape, etc.
     phraseBuffer = (phraseBuffer + e.key.toLowerCase()).slice(-MAX_PHRASE_LEN);
-    for (const [word, action] of Object.entries(PHRASES)) {
+    for (const [word, action] of PHRASE_ENTRIES) {
       if (phraseBuffer.endsWith(word)) { phraseBuffer = ''; action(); break; }
     }
   });

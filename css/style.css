@@ -724,6 +724,13 @@ body.egg-glitching::after {
   background:repeating-linear-gradient(180deg, rgba(255,110,247,.06) 0 1px, rgba(127,191,143,.06) 1px 2px, transparent 2px 3px);
 }
 
+@keyframes crtPulse {
+  0% { filter:brightness(1.5) contrast(1.35); }
+  12% { filter:brightness(1) contrast(1.1); }
+  100% { filter:brightness(1) contrast(1); }
+}
+body.egg-crt { animation:crtPulse 1.4s ease; }
+
 @keyframes eggBounce {
   0%, 100% { transform:scale(1); }
   40% { transform:scale(1.35) rotate(-6deg); }
