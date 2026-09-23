@@ -399,6 +399,7 @@ const UI = (() => {
   function closeModal(id) {
     document.getElementById(id).classList.remove('open');
     if (id === 'tool-modal' && location.hash) history.replaceState(null, '', ' ');
+    if (id === 'snake-modal' && typeof SnakeGame !== 'undefined') SnakeGame.stop();
   }
 
   document.querySelectorAll('.modal-bg').forEach(bg => {
@@ -4988,7 +4989,7 @@ const Guestbook = (() => {
         if (!ok) { UI.showToast(data.error || 'no se pudo firmar'); Audio.error(); return; }
         renderEntries(data.entries || []);
         Audio.success();
-        if (window.Missions) Missions.complete('gb');
+        if (typeof Missions !== 'undefined') Missions.complete('gb');
       })
       .catch(() => { UI.showToast('no se pudo firmar — revisá tu conexión'); Audio.error(); });
   }
@@ -5165,6 +5166,49 @@ const Easter = (() => {
     Audio.tada();
   }
 
+  /* ── marquee: triple click = modo arcoiris unos segundos ── */
+  let rainbowActive = false;
+  function rainbowMode() {
+    if (rainbowActive) return;
+    rainbowActive = true;
+    const root = document.documentElement;
+    const origAccent = getComputedStyle(root).getPropertyValue('--accent').trim();
+    const origAccent2 = getComputedStyle(root).getPropertyValue('--accent2').trim();
+    UI.showToast('🌈 modo arcoiris');
+    Audio.tada();
+    const start = performance.now(), DURATION = 4000;
+    function frame(now) {
+      const t = now - start;
+      if (t >= DURATION) {
+        root.style.setProperty('--accent', origAccent);
+        root.style.setProperty('--accent2', origAccent2);
+        rainbowActive = false;
+        return;
+      }
+      const hue = (t / 12) % 360;
+      root.style.setProperty('--accent', `hsl(${hue.toFixed(0)},85%,65%)`);
+      root.style.setProperty('--accent2', `hsl(${((hue + 120) % 360).toFixed(0)},85%,65%)`);
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+  let marqueeClicks = 0, marqueeTimer = null;
+  function onMarqueeClick() {
+    marqueeClicks++;
+    clearTimeout(marqueeTimer);
+    marqueeTimer = setTimeout(() => { marqueeClicks = 0; }, 600);
+    if (marqueeClicks >= 3) { marqueeClicks = 0; rainbowMode(); }
+  }
+
+  /* ── firma secreta: escribir "taro" en cualquier lado ── */
+  function onTaroSignature() {
+    UI.showToast('✦ ese soy yo — gracias por explorar');
+    Audio.tada();
+    spawnParticles(window.innerWidth / 2, window.innerHeight / 2, CONFETTI_EMOJI, 30, 160);
+    const logo = document.querySelector('.logo');
+    if (logo) bounce(logo);
+  }
+
   document.addEventListener('click', e => {
     const star = e.target.closest('.star');
     if (star) return onStarClick(e, star);
@@ -5173,6 +5217,7 @@ const Easter = (() => {
     if (e.target.closest('.logo')) return onLogoClick();
     const counter = e.target.closest('#visit-counter');
     if (counter) return onCounterClick(counter);
+    if (e.target.closest('.marquee-bar')) return onMarqueeClick();
     if (e.target.closest('footer')) return onFooterClick(e);
   });
 
@@ -5183,4 +5228,176 @@ const Easter = (() => {
     spawnParticles(window.innerWidth / 2, 40, CONFETTI_EMOJI, 40, 220);
     setTimeout(() => document.body.classList.remove('egg-glitching'), 900);
   });
+
+  /* ── frases secretas escritas con el teclado (fuera de inputs) ── */
+  const PHRASES = {
+    snake: () => typeof SnakeGame !== 'undefined' && SnakeGame.open(),
+    taro: onTaroSignature,
+  };
+  const MAX_PHRASE_LEN = Math.max(...Object.keys(PHRASES).map(w => w.length));
+  let phraseBuffer = '';
+  document.addEventListener('keydown', e => {
+    const tag = document.activeElement && document.activeElement.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' ||
+        (document.activeElement && document.activeElement.isContentEditable)) return;
+    if (e.key.length !== 1) return; // ignora flechas, Escape, etc.
+    phraseBuffer = (phraseBuffer + e.key.toLowerCase()).slice(-MAX_PHRASE_LEN);
+    for (const [word, action] of Object.entries(PHRASES)) {
+      if (phraseBuffer.endsWith(word)) { phraseBuffer = ''; action(); break; }
+    }
+  });
+})();
+
+/* ═══════════════════════════════════════════════
+   SNAKE — mini juego escondido (escribí "snake" en cualquier lado
+   para abrirlo). Nokia-style: sin wrap en los bordes.
+═══════════════════════════════════════════════ */
+const SnakeGame = (() => {
+  const COLS = 18, ROWS = 18, CELL = 16;
+  const HI_KEY = 'tt_snake_high';
+  let canvas, ctx;
+  let snake, dir, nextDir, food, score, speed, loopId, running = false, gameOver = false;
+
+  function randCell() {
+    return { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) };
+  }
+  function placeFood() {
+    let c;
+    do { c = randCell(); } while (snake.some(s => s.x === c.x && s.y === c.y));
+    food = c;
+  }
+
+  function reset() {
+    snake = [{ x: 8, y: 9 }, { x: 7, y: 9 }, { x: 6, y: 9 }];
+    dir = { x: 1, y: 0 };
+    nextDir = dir;
+    score = 0;
+    speed = 140;
+    gameOver = false;
+    placeFood();
+    updateScore();
+  }
+
+  function updateScore() {
+    const scoreEl = document.getElementById('snake-score');
+    const hiEl = document.getElementById('snake-hi');
+    if (scoreEl) scoreEl.textContent = score;
+    if (hiEl) hiEl.textContent = localStorage.getItem(HI_KEY) || '0';
+  }
+
+  function draw() {
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg') || '#0c0d14';
+    ctx.fillRect(0, 0, COLS * CELL, ROWS * CELL);
+
+    const accent2 = getComputedStyle(document.documentElement).getPropertyValue('--accent2') || '#ff6ef7';
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#9184d9';
+    const accent3 = getComputedStyle(document.documentElement).getPropertyValue('--accent3') || '#7fbf8f';
+
+    ctx.fillStyle = accent3;
+    ctx.fillRect(food.x * CELL + 2, food.y * CELL + 2, CELL - 4, CELL - 4);
+
+    snake.forEach((s, i) => {
+      ctx.fillStyle = i === 0 ? accent2 : accent;
+      ctx.fillRect(s.x * CELL + 1, s.y * CELL + 1, CELL - 2, CELL - 2);
+    });
+
+    if (gameOver) {
+      ctx.fillStyle = 'rgba(0,0,0,.6)';
+      ctx.fillRect(0, 0, COLS * CELL, ROWS * CELL);
+      ctx.fillStyle = accent2;
+      ctx.font = '700 18px "Silkscreen", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('GAME OVER', COLS * CELL / 2, ROWS * CELL / 2 - 6);
+      ctx.font = '12px "Space Mono", monospace';
+      ctx.fillStyle = '#fff';
+      ctx.fillText('click o espacio para reintentar', COLS * CELL / 2, ROWS * CELL / 2 + 16);
+    }
+  }
+
+  function tick() {
+    dir = nextDir;
+    const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+    const hitWall = head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS;
+    const hitSelf = snake.some(s => s.x === head.x && s.y === head.y);
+    if (hitWall || hitSelf) return endGame();
+
+    snake.unshift(head);
+    if (head.x === food.x && head.y === food.y) {
+      score++;
+      updateScore();
+      Audio.blip();
+      placeFood();
+      speed = Math.max(70, 140 - score * 4);
+      restartLoop();
+    } else {
+      snake.pop();
+    }
+    draw();
+  }
+
+  function restartLoop() {
+    clearInterval(loopId);
+    loopId = setInterval(tick, speed);
+  }
+
+  function endGame() {
+    gameOver = true;
+    clearInterval(loopId);
+    const hi = parseInt(localStorage.getItem(HI_KEY) || '0', 10);
+    if (score > hi) {
+      localStorage.setItem(HI_KEY, String(score));
+      Audio.unlock();
+      UI.showToast('✦ nuevo récord en snake: ' + score);
+    } else {
+      Audio.error();
+    }
+    updateScore();
+    draw();
+  }
+
+  function onKeydown(e) {
+    if (!running) return;
+    const map = {
+      ArrowUp: { x: 0, y: -1 }, w: { x: 0, y: -1 }, W: { x: 0, y: -1 },
+      ArrowDown: { x: 0, y: 1 }, s: { x: 0, y: 1 }, S: { x: 0, y: 1 },
+      ArrowLeft: { x: -1, y: 0 }, a: { x: -1, y: 0 }, A: { x: -1, y: 0 },
+      ArrowRight: { x: 1, y: 0 }, d: { x: 1, y: 0 }, D: { x: 1, y: 0 },
+    };
+    const next = map[e.key];
+    if (next) {
+      e.preventDefault();
+      // no permite invertir 180° sobre sí misma
+      if (snake.length > 1 && next.x === -dir.x && next.y === -dir.y) return;
+      nextDir = next;
+      return;
+    }
+    if (gameOver && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); reset(); restartLoop(); draw(); }
+  }
+
+  function onCanvasClick() {
+    if (gameOver) { reset(); restartLoop(); draw(); }
+  }
+
+  function open() {
+    canvas = document.getElementById('snake-canvas');
+    if (!canvas) return;
+    ctx = canvas.getContext('2d');
+    UI.openModal('snake-modal');
+    reset();
+    running = true;
+    document.addEventListener('keydown', onKeydown);
+    canvas.addEventListener('click', onCanvasClick);
+    restartLoop();
+    draw();
+  }
+
+  function stop() {
+    running = false;
+    clearInterval(loopId);
+    document.removeEventListener('keydown', onKeydown);
+    if (canvas) canvas.removeEventListener('click', onCanvasClick);
+  }
+
+  return { open, stop };
 })();

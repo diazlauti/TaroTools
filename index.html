@@ -160,6 +160,20 @@
   </div>
 </div>
 
+<!-- ── EASTER EGG: snake (se abre escribiendo "snake" en cualquier lado) ── -->
+<div class="modal-bg" id="snake-modal" role="dialog" aria-modal="true" aria-labelledby="snake-title" style="z-index:120">
+  <div class="modal" style="max-width:360px">
+    <button class="modal__close" onclick="UI.closeModal('snake-modal')" aria-label="Cerrar">✕</button>
+    <h2 class="modal__title" id="snake-title">🐍 snake.exe</h2>
+    <div style="display:flex;justify-content:space-between;font-family:var(--lcd);font-size:1.2rem;color:var(--accent2);margin-bottom:.4rem">
+      <span>SCORE <b id="snake-score">0</b></span>
+      <span>HI-SCORE <b id="snake-hi">0</b></span>
+    </div>
+    <canvas id="snake-canvas" width="288" height="288" style="width:100%;aspect-ratio:1;background:var(--bg);border:1.5px solid var(--border);display:block;cursor:var(--cursor)"></canvas>
+    <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-align:center;margin-top:.5rem">flechas o WASD para moverte</p>
+  </div>
+</div>
+
 <footer role="contentinfo">made with ✦ by <span>taro</span> · taro's tools © 2025</footer>
 
 <script src="js/app.js"></script>
