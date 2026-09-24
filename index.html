@@ -4,15 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Taro's Tools — herramientas útiles online: compresor de imágenes, traductor IA, descargador de videos, generador QR y más. Sin virus, sin drama.">
-<meta name="theme-color" content="#c8ff00">
+<meta name="theme-color" content="#9184d9">
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="favicon-192.png">
+<link rel="manifest" href="manifest.json">
 <meta property="og:title" content="Taro's Tools">
 <meta property="og:description" content="Herramientas útiles online, sin virus, sin drama.">
 <meta property="og:type" content="website">
 <title>Taro's Tools</title>
 <link rel="stylesheet" href="css/style.css">
+<script>
+/* paleta elegida por el usuario (desbloqueada en el panel de misiones), antes del primer paint */
+(function(){try{if(localStorage.getItem('tt_palette_ok')!=='1')return;var p=JSON.parse(localStorage.getItem('tt_palette')||'null');if(p){document.documentElement.style.setProperty('--accent',p.accent);document.documentElement.style.setProperty('--accent2',p.accent2);}}catch(e){}})();
+</script>
 </head>
 <body>
 
@@ -33,6 +38,9 @@
     <button class="ctrl-btn ctrl-btn--donate" onclick="UI.openModal('don-modal')" aria-label="Donar">
       💜 <span id="don-lbl"></span>
     </button>
+    <button class="ctrl-btn" onclick="Suggest.open()" aria-label="Sugerencias">✉ IDEAS</button>
+    <button class="ctrl-btn" onclick="Palette.open()" aria-label="Ir a una herramienta (Ctrl+K)" title="Ctrl+K">⌘K</button>
+    <button class="ctrl-btn" id="focus-btn" onclick="FocusMode.toggle()" aria-label="Modo foco (Ctrl+Shift+F)" title="Ctrl+Shift+F">◱</button>
     <button class="ctrl-btn" id="theme-btn" onclick="UI.toggleTheme()" aria-label="Cambiar tema">☀</button>
 
   </div>
@@ -44,12 +52,75 @@
 </div>
 
 <!-- ── MAIN ── -->
-<main class="content" id="main-content">
-  <nav class="tabs" id="tabs-container" aria-label="Categorías"></nav>
-  <div id="tools-container" role="list"></div>
-</main>
+<div class="layout">
+  <main class="content" id="main-content">
+    <nav class="tabs" id="tabs-container" aria-label="Categorías"></nav>
+    <div id="tools-container" role="list"></div>
+  </main>
+
+  <aside class="side" aria-label="Extras">
+    <section class="panel">
+      <div class="panel__bar panel__bar--accent">visitas</div>
+      <div class="panel__body">
+        <div class="counter" id="visit-counter" aria-live="off"></div>
+        <p class="counter-label">desde 2024</p>
+      </div>
+    </section>
+
+    <section class="panel" id="recent-panel" style="display:none">
+      <div class="panel__bar">recientes</div>
+      <div class="panel__body">
+        <ul class="recent-list" id="recent-list"></ul>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__bar">now playing</div>
+      <div class="panel__body">
+        <div class="np" id="np">
+          <audio id="np-audio" preload="none"></audio>
+          <div class="np__row">
+            <button type="button" class="np__disc" id="np-disc" onclick="NowPlaying.toggle()" aria-label="Reproducir">◉</button>
+            <div style="min-width:0">
+              <div class="np__title" id="np-title">sin pista cargada</div>
+              <div class="np__sub" id="np-sub">—</div>
+            </div>
+          </div>
+          <div class="np__bar" aria-hidden="true"><i id="np-bar-fill"></i></div>
+          <div class="np__time" id="np-time">00:00 / 00:00</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="missions-panel">
+      <div class="panel__bar panel__bar--accent">misiones <span id="mi-count">0/15</span></div>
+      <div class="panel__body">
+        <div class="mi-bar" aria-hidden="true"><i id="mi-fill"></i></div>
+        <ul class="mi-list" id="mi-list"></ul>
+        <div class="mi-reward" id="mi-reward"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__bar">libro de visitas</div>
+      <div class="panel__body">
+        <div class="gb" id="gb-list">
+          <button class="gb__sign" type="button" onclick="Guestbook.sign()">firmar</button>
+        </div>
+      </div>
+    </section>
+  </aside>
+</div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- ── COMMAND PALETTE (Ctrl+K) ── -->
+<div class="modal-bg" id="palette-modal" style="z-index:150;align-items:flex-start;padding-top:10vh">
+  <div class="palette-box" role="dialog" aria-modal="true" aria-label="Ir a una herramienta">
+    <input type="text" id="palette-input" placeholder="Escribí el nombre de una herramienta..." autocomplete="off" aria-label="Buscar herramienta">
+    <div id="palette-results"></div>
+  </div>
+</div>
 
 <!-- ── MODALS ── -->
 <div class="modal-bg" id="tool-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -90,8 +161,40 @@
   </div>
 </div>
 
+<!-- ── SUGERENCIAS ── -->
+<div class="modal-bg" id="sug-modal" role="dialog" aria-modal="true" aria-labelledby="sug-title" style="z-index:110">
+  <div class="modal" style="max-width:440px">
+    <button class="modal__close" onclick="UI.closeModal('sug-modal')" aria-label="Cerrar">✕</button>
+    <h2 class="modal__title" id="sug-title">✉ sugerencias</h2>
+    <div class="info-box">¿Falta una herramienta? ¿Algo anda raro o se te ocurre un cambio? Escribilo acá.</div>
+    <label for="sug-text">Tu idea</label>
+    <textarea id="sug-text" placeholder="ej: un convertidor de HEIC a JPG"></textarea>
+    <label for="sug-contact">Contacto (opcional)</label>
+    <input type="text" id="sug-contact" placeholder="mail, @usuario, o nada">
+    <div class="btn-row">
+      <button class="btn" onclick="Suggest.mail()">enviar por mail</button>
+      <button class="btn btn--sec" onclick="Suggest.copy()">copiar texto</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── EASTER EGG: snake (se abre escribiendo "snake" en cualquier lado) ── -->
+<div class="modal-bg" id="snake-modal" role="dialog" aria-modal="true" aria-labelledby="snake-title" style="z-index:120">
+  <div class="modal" style="max-width:360px">
+    <button class="modal__close" onclick="UI.closeModal('snake-modal')" aria-label="Cerrar">✕</button>
+    <h2 class="modal__title" id="snake-title">🐍 snake.exe</h2>
+    <div style="display:flex;justify-content:space-between;font-family:var(--lcd);font-size:1.2rem;color:var(--accent2);margin-bottom:.4rem">
+      <span>SCORE <b id="snake-score">0</b></span>
+      <span>HI-SCORE <b id="snake-hi">0</b></span>
+    </div>
+    <canvas id="snake-canvas" width="288" height="288" style="width:100%;aspect-ratio:1;background:var(--bg);border:1.5px solid var(--border);display:block;cursor:var(--cursor)"></canvas>
+    <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-align:center;margin-top:.5rem">flechas o WASD para moverte</p>
+  </div>
+</div>
+
 <footer role="contentinfo">made with ✦ by <span>taro</span> · taro's tools © 2025</footer>
 
 <script src="js/app.js"></script>
+<script src="js/missions.js"></script>
 </body>
 </html>
