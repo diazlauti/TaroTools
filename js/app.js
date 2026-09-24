@@ -411,7 +411,10 @@ const UI = (() => {
 
   function closeModal(id) {
     document.getElementById(id).classList.remove('open');
-    if (id === 'tool-modal' && location.hash) history.replaceState(null, '', ' ');
+    if (id === 'tool-modal') {
+      if (location.hash) history.replaceState(null, '', ' ');
+      if (typeof Tools !== 'undefined') Tools._onToolModalClosed();
+    }
     if (id === 'snake-modal' && typeof SnakeGame !== 'undefined') SnakeGame.stop();
   }
 
@@ -434,6 +437,52 @@ const UI = (() => {
 const Tools = (() => {
   let currentCat = 'all';
   let currentSearch = '';
+
+  /* "Recordar último resultado": guardamos el HTML del modal + los valores
+     de los inputs (que no viajan con innerHTML) por herramienta, en memoria
+     (se pierde al recargar la página — los blob: URLs de las previews
+     también se invalidarían, así que no tiene sentido usar localStorage acá).
+     Solo para herramientas cuyo resultado no depende de un <canvas> (el
+     contenido pintado no se serializa en innerHTML) ni de un timer corriendo. */
+  const REMEMBER_TYPES = new Set([
+    'ai-correct','ai-expand','ai-summarize','ai-translate','aud-compress',
+    'base64','case-conv','cobalt-dl','color-conv','hash-gen','img-compress',
+    'img-convert','img-palette','img-pdf','json-fmt','lorem-gen','meta-remove',
+    'my-ip','palette-gen','pdf-text','pwd-gen','regex-test','slugify',
+    'text-diff','unit-conv','uuid-gen','vid-compress','word-count',
+  ]);
+  const _memory = new Map(); // toolId -> { html, values }
+  let _currentTool = null;
+
+  function _captureValues(root) {
+    const values = {};
+    root.querySelectorAll('input[id], textarea[id], select[id]').forEach(el => {
+      if (el.type === 'file') return; // no se puede restaurar por seguridad del navegador
+      values[el.id] = (el.type === 'checkbox' || el.type === 'radio') ? el.checked : el.value;
+    });
+    return values;
+  }
+
+  function _applyValues(values) {
+    Object.keys(values).forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox' || el.type === 'radio') el.checked = values[id];
+      else el.value = values[id];
+    });
+  }
+
+  function _saveCurrentState() {
+    if (!_currentTool || !REMEMBER_TYPES.has(_currentTool.type)) return;
+    const body = document.getElementById('modal-body');
+    if (!body) return;
+    _memory.set(_currentTool.id, { html: body.innerHTML, values: _captureValues(body) });
+  }
+
+  function _onToolModalClosed() {
+    _saveCurrentState();
+    _currentTool = null;
+  }
 
   function filter() {
     currentSearch = document.getElementById('search').value;
@@ -528,9 +577,17 @@ const Tools = (() => {
 
   function openTool(tool, params) {
     params = params || new URLSearchParams();
+    _saveCurrentState(); // guarda el estado de la herramienta que se está reemplazando, si aplica
     Audio.click();
     document.getElementById('modal-title').textContent = tool.icon + ' ' + tool.name;
-    document.getElementById('modal-body').innerHTML = ToolUI.build(tool);
+    const remembered = REMEMBER_TYPES.has(tool.type) ? _memory.get(tool.id) : null;
+    if (remembered) {
+      document.getElementById('modal-body').innerHTML = remembered.html;
+      _applyValues(remembered.values);
+    } else {
+      document.getElementById('modal-body').innerHTML = ToolUI.build(tool);
+    }
+    _currentTool = tool;
     UI.openModal('tool-modal');
     history.replaceState(null, '', '#' + tool.id);
     if (!tool.soon) trackRecent(tool);
@@ -551,8 +608,8 @@ const Tools = (() => {
         if (preset) ToolFn.liveQR();
       }
     }
-    if (tool.type === 'pwd-gen') ToolFn.pwdGenerate();
-    if (tool.type === 'unit-conv') ToolFn.unitCatChange();
+    if (tool.type === 'pwd-gen' && !remembered) ToolFn.pwdGenerate();
+    if (tool.type === 'unit-conv' && !remembered) ToolFn.unitCatChange();
   }
 
   function openToolById(id) {
@@ -560,7 +617,7 @@ const Tools = (() => {
     if (tool && !tool.soon) openTool(tool);
   }
 
-  return { filter, filterCat, renderTabs, renderGrid, allTools, openTool, openToolById };
+  return { filter, filterCat, renderTabs, renderGrid, allTools, openTool, openToolById, _onToolModalClosed };
 })();
 
 /* ═══════════════════════════════════════════════
