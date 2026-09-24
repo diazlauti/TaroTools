@@ -773,7 +773,7 @@ const ToolUI = (() => {
 
     /* ── META REMOVE ── */
     'meta-remove': () =>
-      infoBox('Eliminá todos los metadatos EXIF de tu imagen (ubicación GPS, cámara, fecha, etc.). Procesamiento 100% local.') +
+      infoBox('Cada foto que sacás con el celular guarda datos ocultos además de la imagen: en qué <b>ubicación GPS</b> exacta la sacaste, la <b>marca y modelo</b> de tu cámara o teléfono, y la <b>fecha y hora</b> exacta. Si subís esa foto tal cual a redes sociales, Marketplace o un anuncio, cualquiera puede extraer esos datos y saber dónde vivís o dónde estabas. Esta herramienta te la limpia antes de compartirla — 100% local, la imagen nunca sale de tu navegador.') +
       `<input type="file" id="mr-file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="ToolFn.mrLoad()">` +
       `<div class="file-drop" id="mr-drop" onclick="document.getElementById('mr-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('mr-file').files=event.dataTransfer.files;ToolFn.mrLoad()">
         <div class="file-drop__icon">🚫</div>
@@ -1402,7 +1402,7 @@ const ToolUI = (() => {
 
     /* ── COLOR CONV ── */
     'color-conv': () =>
-      infoBox('Ingresá HEX, RGB o HSL. El selector sincroniza automáticamente.') +
+      infoBox('Convertí un color entre los formatos que usás para diseño web: <b>HEX</b> (el más común en CSS, ej. #ff6ef7), <b>RGB</b> (para trabajar con transparencia vía rgba) y <b>HSL</b> (más intuitivo para ajustar tono/saturación/brillo a mano). Ingresá en cualquier formato y el selector sincroniza el resto automáticamente.') +
       label('Color') +
       `<div style="display:flex;gap:.5rem;align-items:center">
         <input type="text" id="col-input" placeholder="#ff6ef7  /  rgb(255,110,247)  /  hsl(303,100%,71%)" style="flex:1">
@@ -1415,7 +1415,7 @@ const ToolUI = (() => {
 
     /* ── CASE CONV ── */
     'case-conv': () =>
-      infoBox('Cambiá el case de cualquier texto con un click.') +
+      infoBox('Cambiá el case de cualquier texto con un click: <b>MAYÚSCULAS</b>/<b>minúsculas</b> para normalizar texto pegado de otro lado, <b>Título</b> para nombres y titulares, y <b>aLtErNaDo</b>/<b>Invertido</b> para memes o mensajes con estilo.') +
       label('Texto') + ta('cc-input','Pegá el texto...') +
       `<div class="btn-row">
         <button class="btn btn--sec" onclick="ToolFn.convertCase(0)">MAYÚSCULAS</button>
@@ -1428,7 +1428,7 @@ const ToolUI = (() => {
 
     /* ── WORD COUNT ── */
     'word-count': () =>
-      infoBox('Estadísticas en tiempo real.') +
+      infoBox('Estadísticas en tiempo real mientras escribís o pegás texto: cantidad de palabras y caracteres (útil para respetar límites de un formulario, tweet o resumen), párrafos, y un estimado de <b>tiempo de lectura</b> para calcular cuánto tarda alguien en leer tu texto.') +
       label('Texto') +
       `<textarea id="wc-input" placeholder="Pegá o escribí el texto..." style="min-height:120px"></textarea>` +
       `<div class="stats-row">
@@ -1442,7 +1442,7 @@ const ToolUI = (() => {
 
     /* ── BASE64 ── */
     'base64': () =>
-      infoBox('Codificá texto a Base64 o decodificá Base64 a texto. También podés codificar un archivo entero. Útil para desarrollo.') +
+      infoBox('Base64 convierte texto o un archivo en una cadena de caracteres segura para transportar en lugares que no aceptan binarios: incrustar una imagen directo en HTML/CSS (<code>data:image/png;base64,...</code>), pegar un archivo en un JSON, o mandarlo por sistemas que solo aceptan texto plano. Codificá o decodificá texto, o subí un archivo entero.') +
       `<div class="pr-scope-group">
         <button class="pr-scope-btn active" id="b64-mode-text" onclick="ToolFn.b64SetMode('text')">Texto</button>
         <button class="pr-scope-btn" id="b64-mode-file" onclick="ToolFn.b64SetMode('file')">Archivo</button>
@@ -1467,7 +1467,7 @@ const ToolUI = (() => {
 
     /* ── HASH GEN ── */
     'hash-gen': () =>
-      infoBox('Generá un hash criptográfico de un texto o de un archivo. Útil para verificar integridad.') +
+      infoBox('Un hash es una "huella digital" única de un texto o archivo. Sirve para verificar integridad: comparás el hash que te da el sitio de donde bajaste algo (un programa, una ISO) contra el hash de tu archivo descargado — si no coinciden, el archivo se corrompió o fue alterado.') +
       `<div class="pr-scope-group">
         <button class="pr-scope-btn active" id="hash-mode-text" onclick="ToolFn.hashSetMode('text')">Texto</button>
         <button class="pr-scope-btn" id="hash-mode-file" onclick="ToolFn.hashSetMode('file')">Archivo</button>
