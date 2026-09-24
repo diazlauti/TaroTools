@@ -623,22 +623,19 @@ const ToolUI = (() => {
       `<div class="btn-row"><button class="btn" onclick="ToolFn.compressImg()">⬇️ Comprimir y descargar</button></div>` +
       result('ic-result') +
       `<div id="ic-previews" style="display:none;margin:.8rem 0">
-        <div style="border-radius:10px;overflow:hidden;border:1.5px solid var(--border);background:var(--bg3)">
-          <div style="display:flex;justify-content:space-between;padding:.4rem .7rem;border-bottom:1px solid var(--border)">
-            <span style="font-size:.7rem;font-family:var(--mono);color:var(--fg3)">ANTES / DESPUÉS</span>
-            <span id="ic-reduction-badge" style="font-size:.7rem;font-family:var(--mono);color:var(--accent)"></span>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
-            <div style="padding:.5rem;border-right:1px solid var(--border)">
-              <img id="ic-before" style="width:100%;border-radius:6px;display:block" alt="original">
-              <p id="ic-before-size" style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-top:.3rem;text-align:center"></p>
-            </div>
-            <div style="padding:.5rem">
-              <img id="ic-after" style="width:100%;border-radius:6px;display:block;opacity:.4;transition:opacity .3s" alt="comprimida">
-              <p id="ic-after-size" style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-top:.3rem;text-align:center">ajustá la calidad</p>
-            </div>
-          </div>
+        <div style="display:flex;justify-content:space-between;padding:0 .1rem .35rem;font-family:var(--mono);font-size:.68rem;color:var(--fg3)">
+          <span id="ic-before-size"></span>
+          <span id="ic-reduction-badge" style="color:var(--accent)"></span>
+          <span id="ic-after-size"></span>
         </div>
+        <div class="compare" id="ic-compare">
+          <img id="ic-before" alt="original">
+          <div class="compare__after"><img id="ic-after" alt="comprimida"></div>
+          <div class="compare__handle"></div>
+          <span class="compare__label compare__label--before">antes</span>
+          <span class="compare__label compare__label--after">después</span>
+        </div>
+        <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-align:center;margin-top:.35rem">arrastrá para comparar</p>
       </div>`,
 
     /* ── IMG CONVERT ── */
@@ -1770,6 +1767,28 @@ const ToolFn = (() => {
     UI.showToast('tu navegador no soporta compartir archivos — descargalo y compartilo a mano');
   }
 
+  /* Slider "arrastrá para comparar" reusable — funciona con mouse y touch
+     porque usa Pointer Events (un solo código para los dos). El elemento
+     ya debe tener la estructura .compare > img + .compare__after > img. */
+  function _initCompareDrag(el) {
+    if (!el || el.dataset.compareInit) return;
+    el.dataset.compareInit = '1';
+    function setPos(clientX) {
+      const rect = el.getBoundingClientRect();
+      const pct = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+      el.style.setProperty('--pos', pct + '%');
+    }
+    let dragging = false;
+    el.addEventListener('pointerdown', e => {
+      dragging = true;
+      setPos(e.clientX);
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener('pointermove', e => { if (dragging) setPos(e.clientX); });
+    el.addEventListener('pointerup', () => { dragging = false; });
+    el.addEventListener('pointercancel', () => { dragging = false; });
+  }
+
   function bufferToWav(buffer) {
     const nCh = buffer.numberOfChannels, sr = buffer.sampleRate, len = buffer.length;
     const out = new Int16Array(len * nCh);
@@ -1798,9 +1817,11 @@ const ToolFn = (() => {
     const before = document.getElementById('ic-before');
     before.src = url;
     document.getElementById('ic-before-size').textContent = fmtSize(f.size);
-    document.getElementById('ic-after').style.opacity = '.4';
     document.getElementById('ic-after-size').textContent = '— ajustá la calidad';
     document.getElementById('ic-reduction').textContent = '';
+    const compare = document.getElementById('ic-compare');
+    compare.style.setProperty('--pos', '100%'); // arranca mostrando todo el "antes"
+    _initCompareDrag(compare);
     document.getElementById('ic-previews').style.display = 'block';
     // trigger live preview
     _doLiveCompress();
@@ -1833,7 +1854,8 @@ const ToolFn = (() => {
         const href = URL.createObjectURL(blob);
         const after = document.getElementById('ic-after');
         after.src = href;
-        after.style.opacity = '1';
+        const compare = document.getElementById('ic-compare');
+        if (compare.style.getPropertyValue('--pos') === '100%') compare.style.setProperty('--pos', '50%');
         const pct = Math.round((1 - blob.size / _origFile.size) * 100);
         document.getElementById('ic-after-size').textContent = fmtSize(blob.size);
         const red = document.getElementById('ic-reduction');
