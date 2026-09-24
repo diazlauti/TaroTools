@@ -697,7 +697,65 @@ footer::after {
 .pr-mode-btn.active { background:var(--accent2); color:var(--on-accent); border-color:var(--accent2); }
 
 /* ─────────────────────────────────────────
-   17. EASTER EGGS
+   17. COMMAND PALETTE (Ctrl+K)
+───────────────────────────────────────── */
+.palette-box {
+  width:100%; max-width:480px; background:var(--bg2); border:2px solid var(--accent);
+  max-height:65vh; display:flex; flex-direction:column; overflow:hidden;
+}
+.palette-box input {
+  border:none; border-bottom:1.5px solid var(--border); border-radius:0;
+  padding:.8rem .9rem; font-size:.85rem; background:var(--bg3); color:var(--fg);
+}
+.palette-list { list-style:none; overflow-y:auto; }
+.palette-item {
+  display:flex; align-items:center; gap:.6rem; padding:.55rem .9rem; cursor:var(--cursor);
+  font-family:var(--mono); font-size:.78rem; color:var(--fg2); border-bottom:1px solid var(--border2);
+}
+.palette-item:last-child { border-bottom:none; }
+.palette-item__cat { margin-left:auto; font-size:.6rem; color:var(--fg4); }
+.palette-item.active, .palette-item:hover { background:var(--bg3); color:var(--accent2); }
+.palette-empty { padding:1rem; font-size:.78rem; color:var(--fg3); text-align:center; font-family:var(--mono); }
+
+/* ─────────────────────────────────────────
+   17b. COMPARADOR ANTES/DESPUÉS (slider)
+───────────────────────────────────────── */
+.compare {
+  position:relative; overflow:hidden; user-select:none;
+  border:1.5px solid var(--border); background:var(--bg3); cursor:ew-resize;
+  touch-action:pan-y;
+}
+.compare img { display:block; width:100%; pointer-events:none; }
+.compare__after {
+  position:absolute; inset:0; overflow:hidden;
+  clip-path:inset(0 0 0 var(--pos, 50%));
+}
+.compare__after img { position:absolute; inset:0; width:var(--w, 100%); height:100%; object-fit:cover; }
+.compare__handle {
+  position:absolute; top:0; bottom:0; left:var(--pos, 50%); width:2px; background:var(--accent2);
+  transform:translateX(-1px); pointer-events:none;
+}
+.compare__handle::after {
+  content:'↔'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:26px; height:26px; background:var(--accent2); color:var(--on-accent);
+  display:flex; align-items:center; justify-content:center; font-size:.8rem;
+}
+.compare__label {
+  position:absolute; top:.4rem; font-size:.58rem; font-family:var(--pixel); text-transform:uppercase;
+  background:rgba(0,0,0,.55); color:#fff; padding:2px 6px; pointer-events:none;
+}
+.compare__label--before { left:.4rem; }
+.compare__label--after { right:.4rem; }
+
+/* ─────────────────────────────────────────
+   17c. MODO FOCO
+───────────────────────────────────────── */
+body.focus-mode .side { display:none; }
+body.focus-mode .layout { grid-template-columns:1fr; }
+#focus-btn.active { border-color:var(--accent2); color:var(--accent2); }
+
+/* ─────────────────────────────────────────
+   18. EASTER EGGS
 ───────────────────────────────────────── */
 /* las estrellitas decorativas ahora se pueden clickear */
 .star { pointer-events:auto; cursor:var(--cursor); transition:transform .15s; }

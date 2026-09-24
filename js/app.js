@@ -5885,3 +5885,107 @@ const Shortcuts = (() => {
 
   return {};
 })();
+
+/* ═══════════════════════════════════════════════
+   COMMAND PALETTE — Ctrl/Cmd+K, navegá el sitio entero tipeando
+═══════════════════════════════════════════════ */
+const Palette = (() => {
+  let items = [], activeIdx = 0;
+
+  function modalEl() { return document.getElementById('palette-modal'); }
+  function isOpen() { const m = modalEl(); return !!m && m.classList.contains('open'); }
+
+  function open() {
+    UI.openModal('palette-modal');
+    const input = document.getElementById('palette-input');
+    input.value = '';
+    render('');
+    setTimeout(() => input.focus(), 30);
+  }
+
+  function render(query) {
+    const q = query.trim().toLowerCase();
+    const all = Tools.allTools().filter(t => !t.soon);
+    items = !q ? all.slice(0, 40) : all.filter(t => (t.name + ' ' + t.desc + ' ' + t.cat).toLowerCase().includes(q));
+    activeIdx = 0;
+    const list = document.getElementById('palette-results');
+    if (!items.length) { list.innerHTML = '<p class="palette-empty">nada por acá</p>'; return; }
+    list.innerHTML = '<ul class="palette-list">' + items.map((t, i) =>
+      `<li class="palette-item${i === 0 ? ' active' : ''}" data-idx="${i}">
+        <span>${escHtml(t.icon)}</span><span>${escHtml(t.name)}</span><span class="palette-item__cat">${escHtml(t.cat)}</span>
+      </li>`
+    ).join('') + '</ul>';
+    list.querySelectorAll('.palette-item').forEach(el => {
+      el.addEventListener('click', () => choose(parseInt(el.dataset.idx, 10)));
+    });
+  }
+
+  function setActive(i) {
+    const els = document.querySelectorAll('#palette-results .palette-item');
+    if (!els.length) return;
+    activeIdx = (i + els.length) % els.length;
+    els.forEach((el, idx) => el.classList.toggle('active', idx === activeIdx));
+    els[activeIdx].scrollIntoView({ block: 'nearest' });
+  }
+
+  function choose(i) {
+    const tool = items[i];
+    if (!tool) return;
+    UI.closeModal('palette-modal');
+    Tools.openTool(tool);
+  }
+
+  const paletteInput = document.getElementById('palette-input');
+  if (paletteInput) paletteInput.addEventListener('input', e => render(e.target.value));
+
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      open();
+      return;
+    }
+    if (!isOpen()) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive(activeIdx + 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(activeIdx - 1); }
+    else if (e.key === 'Enter') { e.preventDefault(); choose(activeIdx); }
+  });
+
+  return { open };
+})();
+
+/* ═══════════════════════════════════════════════
+   MODO FOCO — esconde la sidebar decorativa para quien solo quiere
+   la grilla de herramientas. Se recuerda entre visitas.
+═══════════════════════════════════════════════ */
+const FocusMode = (() => {
+  const KEY = 'tt_focus_mode';
+
+  function apply(on) {
+    document.body.classList.toggle('focus-mode', on);
+    const btn = document.getElementById('focus-btn');
+    if (btn) btn.classList.toggle('active', on);
+  }
+
+  function toggle() {
+    const on = !document.body.classList.contains('focus-mode');
+    apply(on);
+    try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (e) {}
+    UI.showToast(on ? '◱ modo foco activado' : '◱ modo foco desactivado');
+    Audio.click();
+  }
+
+  let on = false;
+  try { on = localStorage.getItem(KEY) === '1'; } catch (e) {}
+  apply(on);
+
+  document.addEventListener('keydown', e => {
+    const tag = document.activeElement && document.activeElement.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      toggle();
+    }
+  });
+
+  return { toggle };
+})();

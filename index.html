@@ -39,6 +39,8 @@
       💜 <span id="don-lbl"></span>
     </button>
     <button class="ctrl-btn" onclick="Suggest.open()" aria-label="Sugerencias">✉ IDEAS</button>
+    <button class="ctrl-btn" onclick="Palette.open()" aria-label="Ir a una herramienta (Ctrl+K)" title="Ctrl+K">⌘K</button>
+    <button class="ctrl-btn" id="focus-btn" onclick="FocusMode.toggle()" aria-label="Modo foco (Ctrl+Shift+F)" title="Ctrl+Shift+F">◱</button>
     <button class="ctrl-btn" id="theme-btn" onclick="UI.toggleTheme()" aria-label="Cambiar tema">☀</button>
 
   </div>
@@ -111,6 +113,14 @@
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- ── COMMAND PALETTE (Ctrl+K) ── -->
+<div class="modal-bg" id="palette-modal" style="z-index:150;align-items:flex-start;padding-top:10vh">
+  <div class="palette-box" role="dialog" aria-modal="true" aria-label="Ir a una herramienta">
+    <input type="text" id="palette-input" placeholder="Escribí el nombre de una herramienta..." autocomplete="off" aria-label="Buscar herramienta">
+    <div id="palette-results"></div>
+  </div>
+</div>
 
 <!-- ── MODALS ── -->
 <div class="modal-bg" id="tool-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
