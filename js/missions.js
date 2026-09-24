@@ -20,7 +20,7 @@ const Missions = (() => {
     { id:'gb',      t:'firmar el libro de visitas',       h:'' },
     { id:'return3', t:'volver en 3 días distintos',       h:'' },
     { id:'stay10',  t:'10 minutos en la página',          h:'' },
-    { id:'konami',  t:'???',                              h:'↑ ↑ ↓ ↓ ← → ← → b a' },
+    { id:'konami',  t:'???',                              h:'↑ ↑ ↓ ↓ ← → ← → b a (o esos 8 swipes en celular)' },
   ];
 
   const TIER_PRESETS = 5;
@@ -289,6 +289,33 @@ const Missions = (() => {
         pos = (k === seq[0]) ? 1 : 0;
       }
     });
+
+    /* equivalente táctil del código Konami: no hay botones en un celular,
+       así que son solo los 8 swipes direccionales (sin el "b a" del final) */
+    const swipeSeq = ['up','up','down','down','left','right','left','right'];
+    let swipePos = 0, touchStartX = 0, touchStartY = 0;
+    document.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    document.addEventListener('touchend', (e) => {
+      if (!e.changedTouches.length) return;
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.hypot(dx, dy) < 40) return; // demasiado corto para ser un swipe
+      const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+      if (dir === swipeSeq[swipePos]) {
+        swipePos++;
+        if (swipePos === swipeSeq.length) {
+          swipePos = 0;
+          complete('konami');
+          document.dispatchEvent(new CustomEvent('taro:konami'));
+        }
+      } else {
+        swipePos = (dir === swipeSeq[0]) ? 1 : 0;
+      }
+    }, { passive: true });
 
     render();
   }

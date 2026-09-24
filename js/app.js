@@ -5370,11 +5370,12 @@ const Easter = (() => {
     if (e.target.closest('.mi-bar')) return onMissionsBarClick();
   });
 
-  /* click derecho en una estrellita: reemplaza el menú contextual por un chiste */
+  /* click derecho en una estrellita: reemplaza el menú contextual por un chiste
+     (el long-press de más abajo hace lo mismo en celular, vía starJoke()) */
   document.addEventListener('contextmenu', e => {
     if (!e.target.closest('.star')) return;
     e.preventDefault();
-    UI.showToast('✦ ¯\\_(ツ)_/¯');
+    starJoke();
   });
 
   /* click del medio (rueda) en cualquier lado: mini confeti, rarísimo de encontrar */
@@ -5562,6 +5563,98 @@ const Easter = (() => {
     if (e.target.closest('.card__cat')) return onCatBadgeClick();
     if (e.target.closest('#fv-p192')) return onFvPreviewClick(e.target);
   });
+
+  /* ═══════════════════════════════════════════════
+     EASTER EGGS DE CELULAR — el teclado (frases secretas, Konami,
+     atajos) y el mouse (click derecho, click del medio, shift/alt+click)
+     no existen en un celu, así que estos son el equivalente táctil:
+     nada de esto depende de tener un teclado físico.
+     ═══════════════════════════════════════════════ */
+
+  /* chiste compartido entre el click derecho (PC) y el long-press (celu) */
+  function starJoke() { UI.showToast('✦ ¯\\_(ツ)_/¯'); }
+
+  /* long-press (~700ms sin moverse) sobre una estrellita: el "click derecho" del celu */
+  let pressTimer = null, pressStart = null;
+  document.addEventListener('touchstart', e => {
+    const star = e.target.closest && e.target.closest('.star');
+    if (!star || e.touches.length !== 1) return;
+    pressStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    pressTimer = setTimeout(() => { pressTimer = null; starJoke(); Audio.blip(); }, 700);
+  }, { passive: true });
+  function cancelPress(e) {
+    if (!pressTimer) return;
+    if (e && e.touches && e.touches.length && pressStart) {
+      const dx = e.touches[0].clientX - pressStart.x, dy = e.touches[0].clientY - pressStart.y;
+      if (Math.hypot(dx, dy) < 15) return; // sigue siendo el mismo toque quieto
+    }
+    clearTimeout(pressTimer);
+    pressTimer = null;
+  }
+  document.addEventListener('touchmove', cancelPress, { passive: true });
+  document.addEventListener('touchend', () => clearTimeout(pressTimer), { passive: true });
+
+  /* dos dedos juntos en cualquier lado: el "click del medio" del celu */
+  document.addEventListener('touchstart', e => {
+    if (e.touches.length !== 2) return;
+    const x = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const y = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    spawnParticles(x, y, CONFETTI_EMOJI, 10, 80);
+    Audio.sparkle();
+  }, { passive: true });
+
+  /* sacudir el teléfono: si el navegador da permiso para el acelerómetro */
+  (function initShake() {
+    let lastX = null, lastY = null, lastZ = null, lastT = 0, hits = 0, hitsTimer = null;
+    function onMotion(ev) {
+      const a = ev.accelerationIncludingGravity;
+      if (!a || a.x === null) return;
+      const now = Date.now();
+      if (now - lastT < 100) return; // no leer más rápido que cada 100ms
+      if (lastX !== null) {
+        const delta = Math.abs(a.x - lastX) + Math.abs(a.y - lastY) + Math.abs(a.z - lastZ);
+        if (delta > 28) {
+          hits++;
+          clearTimeout(hitsTimer);
+          hitsTimer = setTimeout(() => { hits = 0; }, 1000);
+          if (hits >= 3) {
+            hits = 0;
+            UI.showToast('📳 temblor detectado');
+            Audio.tada();
+            document.body.classList.add('egg-glitching');
+            setTimeout(() => document.body.classList.remove('egg-glitching'), 900);
+          }
+        }
+      }
+      lastX = a.x; lastY = a.y; lastZ = a.z; lastT = now;
+    }
+    function attach() { window.addEventListener('devicemotion', onMotion); }
+    // en iOS hace falta permiso explícito, pedido recién al primer toque real de la persona
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      document.addEventListener('touchend', function once() {
+        document.removeEventListener('touchend', once);
+        DeviceMotionEvent.requestPermission().then(state => { if (state === 'granted') attach(); }).catch(() => {});
+      }, { once: true });
+    } else if ('DeviceMotionEvent' in window) {
+      attach();
+    }
+  })();
+
+  /* estirar la página hacia abajo estando ya arriba del todo: guiño al "pull to refresh" */
+  let pullStartY = null, pullFired = false;
+  document.addEventListener('touchstart', e => {
+    if (window.scrollY > 0 || e.touches.length !== 1) { pullStartY = null; return; }
+    pullStartY = e.touches[0].clientY;
+    pullFired = false;
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (pullStartY === null || pullFired || !e.touches.length) return;
+    if (e.touches[0].clientY - pullStartY > 90) {
+      pullFired = true;
+      UI.showToast('esto no refresca nada, pero gracias por estirar');
+      Audio.blip();
+    }
+  }, { passive: true });
 })();
 
 /* ═══════════════════════════════════════════════
