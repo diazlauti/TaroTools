@@ -614,13 +614,14 @@ const ToolUI = (() => {
 
     /* ── IMG COMPRESS ── */
     'img-compress': () =>
-      infoBox('Soporta <b>JPG, PNG, WEBP</b>. Preview en vivo antes/después. Todo en tu navegador. El resultado es JPG: si tu PNG tiene transparencia, se rellena con fondo blanco.') +
-      label('Imagen') +
-      `${dropZone('ic-file','image/jpeg,image/png,image/webp','ToolFn.previewImg()','Arrastrá una imagen acá')}` +
+      infoBox('Soporta <b>JPG, PNG, WEBP</b>. Preview en vivo antes/después. Todo en tu navegador. El resultado es JPG: si tu PNG tiene transparencia, se rellena con fondo blanco. Subí <b>varias a la vez</b> para comprimirlas todas juntas y bajarlas en un .zip.') +
+      label('Imagen (o varias)') +
+      `${dropZone('ic-file','image/jpeg,image/png,image/webp','ToolFn.previewImg()','Arrastrá una o más imágenes acá',true)}` +
       label('Calidad: <span id="ic-ql">75</span>%') +
       `<input type="range" min="5" max="99" value="75" id="ic-q" oninput="ToolFn.onQualityChange()" style="width:100%;margin:.25rem 0 .1rem">` +
       `<div id="ic-reduction" style="font-size:.75rem;color:var(--fg3);font-family:var(--mono);min-height:1.2rem;margin:.3rem 0"></div>` +
-      `<div class="btn-row"><button class="btn" onclick="ToolFn.compressImg()">⬇️ Comprimir y descargar</button></div>` +
+      `<div class="btn-row"><button class="btn" id="ic-go-btn" onclick="ToolFn.compressImg()">⬇️ Comprimir y descargar</button></div>` +
+      loader('ic-batch-loader','⏳ comprimiendo imágenes...') +
       result('ic-result') +
       `<div id="ic-previews" style="display:none;margin:.8rem 0">
         <div style="display:flex;justify-content:space-between;padding:0 .1rem .35rem;font-family:var(--mono);font-size:.68rem;color:var(--fg3)">
@@ -636,7 +637,8 @@ const ToolUI = (() => {
           <span class="compare__label compare__label--after">después</span>
         </div>
         <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-align:center;margin-top:.35rem">arrastrá para comparar</p>
-      </div>`,
+      </div>` +
+      `<div id="ic-batch-list" style="display:none;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:.5rem;margin:.6rem 0"></div>`,
 
     /* ── IMG CONVERT ── */
     'img-convert': () =>
@@ -1808,10 +1810,26 @@ const ToolFn = (() => {
 
   // ── img compress ──
   let _origFile = null;
+  let _icFiles = null; // != null cuando hay más de un archivo cargado (modo lote)
   let _qrDebounce = null;
 
   function previewImg() {
-    const f = document.getElementById('ic-file').files[0]; if (!f) return;
+    const files = document.getElementById('ic-file').files;
+    if (!files.length) return;
+    document.getElementById('ic-result').style.display = 'none';
+    if (files.length > 1) {
+      _origFile = null;
+      _icFiles = Array.from(files);
+      document.getElementById('ic-previews').style.display = 'none';
+      _renderBatchList();
+      document.getElementById('ic-reduction').textContent = `${_icFiles.length} imágenes cargadas — ajustá la calidad y comprimí todo junto`;
+      return;
+    }
+    _icFiles = null;
+    const batchList = document.getElementById('ic-batch-list');
+    batchList.style.display = 'none';
+    batchList.innerHTML = '';
+    const f = files[0];
     _origFile = f;
     const url = URL.createObjectURL(f);
     const before = document.getElementById('ic-before');
@@ -1827,8 +1845,20 @@ const ToolFn = (() => {
     _doLiveCompress();
   }
 
+  function _renderBatchList() {
+    const wrap = document.getElementById('ic-batch-list');
+    wrap.style.display = 'grid';
+    wrap.innerHTML = _icFiles.map(f =>
+      `<div style="text-align:center">
+        <img src="${URL.createObjectURL(f)}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1.5px solid var(--border)" alt="${escHtml(f.name)}">
+        <p style="font-size:.6rem;color:var(--fg3);font-family:var(--mono);margin-top:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escHtml(f.name)}">${escHtml(f.name)}</p>
+      </div>`
+    ).join('');
+  }
+
   function onQualityChange() {
     document.getElementById('ic-ql').textContent = document.getElementById('ic-q').value;
+    if (_icFiles) return; // en modo lote no hay preview en vivo (sería muy pesado)
     _doLiveCompress();
   }
 
@@ -1875,6 +1905,7 @@ const ToolFn = (() => {
   }
 
   function compressImg() {
+    if (_icFiles && _icFiles.length > 1) { _compressBatch(); return; }
     if (!_origFile) return;
     const q = document.getElementById('ic-q').value / 100;
     const img = new Image();
@@ -1891,6 +1922,54 @@ const ToolFn = (() => {
       }, 'image/jpeg', q);
     };
     img.src = URL.createObjectURL(_origFile);
+  }
+
+  async function _compressBatch() {
+    const q = document.getElementById('ic-q').value / 100;
+    const btn = document.getElementById('ic-go-btn');
+    btn.disabled = true;
+    toggleLoader('ic-batch-loader', true);
+    try {
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+      const zip = new JSZip();
+      const usedNames = new Set();
+      let totalOrig = 0, totalOut = 0;
+      for (const f of _icFiles) {
+        const blob = await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => { const c = _drawOpaque(img); c.toBlob(resolve, 'image/jpeg', q); };
+          img.onerror = () => reject(new Error(`no se pudo procesar ${f.name}`));
+          img.src = URL.createObjectURL(f);
+        });
+        totalOrig += f.size;
+        totalOut += blob.size;
+        let name = f.name.replace(/\.[^.]+$/, '.jpg');
+        if (usedNames.has(name)) {
+          const base = name.replace(/\.jpg$/, '');
+          let i = 2;
+          while (usedNames.has(`${base}-${i}.jpg`)) i++;
+          name = `${base}-${i}.jpg`;
+        }
+        usedNames.add(name);
+        zip.file(name, blob);
+      }
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(zipBlob);
+      a.download = 'taro-comprimidas.zip';
+      a.click();
+      const pct = Math.round((1 - totalOut / totalOrig) * 100);
+      showResult('ic-result',
+        `✅ ${_icFiles.length} imágenes comprimidas · ${fmtSize(totalOrig)} → ${fmtSize(totalOut)} ${pct > 0 ? '<b style="color:var(--accent)">(-'+pct+'%)</b>' : ''}\n` +
+        `Se descargaron en un .zip`
+      );
+      Audio.success();
+    } catch (e) {
+      showResult('ic-result', '❌ ' + e.message, true);
+      Audio.error();
+    }
+    toggleLoader('ic-batch-loader', false);
+    btn.disabled = false;
   }
 
   // ── img convert ──
