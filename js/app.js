@@ -5237,12 +5237,19 @@ const Guestbook = (() => {
 })();
 
 /* ═══════════════════════════════════════════════
-   NOW PLAYING — reproductor real (no decorativo). Todavía sin pista:
-   completá NOW_PLAYING_TRACK con un mp3 propio o con licencia libre para
-   que deje de mostrar el estado "sin pista cargada".
+   NOW PLAYING — reproductor real (no decorativo), con playlist de
+   varias pistas 8-bit. Al terminar una, pasa sola a la siguiente.
+   Se acuerda de la última pista elegida (localStorage) entre visitas.
 ═══════════════════════════════════════════════ */
 const NowPlaying = (() => {
-  const NOW_PLAYING_TRACK = { title: '', artist: '', src: '' };
+  const TRACKS = [
+    { title: 'Game 8-Bit On',                artist: 'Moodmode',       src: 'audio/moodmode-game-8-bit-on.mp3' },
+    { title: 'Palabras perdidas en 8 bits',  artist: 'pabloherrera01', src: 'audio/pabloherrera01-palabras-perdidas-en-8-bits.mp3' },
+    { title: 'I Love My 8-Bit Game Console', artist: 'DJArtMusic',     src: 'audio/djartmusic-i-love-my-8-bit-game-console.mp3' },
+    { title: 'The Return of the 8-Bit Era',  artist: 'DJArtMusic',     src: 'audio/djartmusic-the-return-of-the-8-bit-era.mp3' },
+    { title: 'Game 8-Bit',                   artist: 'inono777',       src: 'audio/inono777-game-8-bit.mp3' },
+  ];
+  const KEY_IDX = 'tt_np_track';
 
   const wrap = document.getElementById('np');
   const audio = document.getElementById('np-audio');
@@ -5251,6 +5258,11 @@ const NowPlaying = (() => {
   const subEl = document.getElementById('np-sub');
   const barFill = document.getElementById('np-bar-fill');
   const timeEl = document.getElementById('np-time');
+  const idxEl = document.getElementById('np-idx');
+
+  let idx = 0;
+  try { idx = parseInt(localStorage.getItem(KEY_IDX), 10) || 0; } catch (e) {}
+  if (!(idx >= 0 && idx < TRACKS.length)) idx = 0;
 
   function fmt(sec) {
     if (!isFinite(sec) || sec < 0) sec = 0;
@@ -5264,33 +5276,46 @@ const NowPlaying = (() => {
     timeEl.textContent = fmt(audio.currentTime) + ' / ' + fmt(dur);
   }
 
+  function loadTrack(i, autoplay) {
+    idx = (i + TRACKS.length) % TRACKS.length;
+    try { localStorage.setItem(KEY_IDX, idx); } catch (e) {}
+    const t = TRACKS[idx];
+    titleEl.textContent = t.title;
+    subEl.textContent = t.artist;
+    if (idxEl) idxEl.textContent = `${idx + 1}/${TRACKS.length}`;
+    audio.src = t.src;
+    if (autoplay) audio.play().catch(() => {});
+  }
+
   function toggle() {
-    if (!NOW_PLAYING_TRACK.src) { UI.showToast('todavía no hay una pista configurada'); return; }
+    if (!TRACKS.length) { UI.showToast('todavía no hay pistas configuradas'); return; }
+    if (!audio.src) loadTrack(idx, false);
     if (audio.paused) audio.play().catch(() => UI.showToast('no se pudo reproducir el audio'));
     else audio.pause();
   }
 
+  function next() { loadTrack(idx + 1, !audio.paused); Audio.blip(); }
+  function prev() { loadTrack(idx - 1, !audio.paused); Audio.blip(); }
+
   function init() {
     if (!wrap || !audio) return;
-    if (NOW_PLAYING_TRACK.src) {
-      titleEl.textContent = NOW_PLAYING_TRACK.title || 'sin título';
-      subEl.textContent = NOW_PLAYING_TRACK.artist || '';
-      audio.src = NOW_PLAYING_TRACK.src;
-      disc.setAttribute('aria-label', 'Reproducir / pausar');
-    } else {
+    if (!TRACKS.length) {
       titleEl.textContent = 'sin pista cargada';
-      subEl.textContent = 'configurala en NOW_PLAYING_TRACK (app.js)';
+      subEl.textContent = 'configurala en TRACKS (app.js)';
       disc.setAttribute('aria-label', 'Sin pista configurada');
+      return;
     }
+    loadTrack(idx, false);
+    disc.setAttribute('aria-label', 'Reproducir / pausar');
     audio.addEventListener('play', () => wrap.classList.add('np--playing'));
     audio.addEventListener('pause', () => wrap.classList.remove('np--playing'));
-    audio.addEventListener('ended', () => wrap.classList.remove('np--playing'));
+    audio.addEventListener('ended', () => loadTrack(idx + 1, true));
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateTime);
   }
 
   init();
-  return { toggle };
+  return { toggle, next, prev };
 })();
 
 /* ═══════════════════════════════════════════════

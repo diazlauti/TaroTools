@@ -110,7 +110,12 @@
             </div>
           </div>
           <div class="np__bar" aria-hidden="true"><i id="np-bar-fill"></i></div>
-          <div class="np__time" id="np-time">00:00 / 00:00</div>
+          <div class="np__row np__row--nav">
+            <button type="button" class="np__nav-btn" onclick="NowPlaying.prev()" aria-label="Pista anterior">⏮</button>
+            <span class="np__time" id="np-time">00:00 / 00:00</span>
+            <button type="button" class="np__nav-btn" onclick="NowPlaying.next()" aria-label="Pista siguiente">⏭</button>
+          </div>
+          <div class="np__track-idx" id="np-idx"></div>
         </div>
       </div>
     </section>
