@@ -51,6 +51,29 @@
   <input type="search" id="search" oninput="Tools.filter()" aria-label="Buscar herramienta" autocomplete="off">
 </div>
 
+<!-- ── OTROS PROYECTOS ── -->
+<section class="projects-banner" aria-label="Otros proyectos de Taro">
+  <span class="projects-banner__label">🚀 también hice</span>
+  <div class="projects-banner__cards">
+    <a class="project-card" href="https://tarofits.netlify.app" target="_blank" rel="noopener">
+      <span class="project-card__icon" aria-hidden="true">💪</span>
+      <span>
+        <span class="project-card__name">TarosFit</span>
+        <span class="project-card__desc">seguimiento de entrenamiento</span>
+      </span>
+      <span class="project-card__go" aria-hidden="true">↗</span>
+    </a>
+    <a class="project-card" href="https://taromoney.netlify.app" target="_blank" rel="noopener">
+      <span class="project-card__icon" aria-hidden="true">💰</span>
+      <span>
+        <span class="project-card__name">TarosMoney</span>
+        <span class="project-card__desc">control de finanzas personales</span>
+      </span>
+      <span class="project-card__go" aria-hidden="true">↗</span>
+    </a>
+  </div>
+</section>
+
 <!-- ── MAIN ── -->
 <div class="layout">
   <main class="content" id="main-content">
@@ -87,7 +110,16 @@
             </div>
           </div>
           <div class="np__bar" aria-hidden="true"><i id="np-bar-fill"></i></div>
-          <div class="np__time" id="np-time">00:00 / 00:00</div>
+          <div class="np__row np__row--nav">
+            <button type="button" class="np__nav-btn" onclick="NowPlaying.prev()" aria-label="Pista anterior">⏮</button>
+            <span class="np__time" id="np-time">00:00 / 00:00</span>
+            <button type="button" class="np__nav-btn" onclick="NowPlaying.next()" aria-label="Pista siguiente">⏭</button>
+          </div>
+          <div class="np__row np__vol-row">
+            <button type="button" class="np__nav-btn" id="np-mute" onclick="NowPlaying.toggleMute()" aria-label="Silenciar">🔊</button>
+            <input type="range" id="np-vol" min="0" max="100" value="50" oninput="NowPlaying.setVolume(this.value)" aria-label="Volumen de la música">
+          </div>
+          <div class="np__track-idx" id="np-idx"></div>
         </div>
       </div>
     </section>

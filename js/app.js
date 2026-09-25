@@ -2311,6 +2311,7 @@ const ToolFn = (() => {
     const val = inp.value.trim();
     if (!val) { status.textContent = ''; status.className = ''; return; }
     _dlDebounce = setTimeout(() => {
+      if (!document.getElementById('dl-meta')) return; // se cambió de herramienta antes de que corra el debounce
       try {
         const u = new URL(val);
         const validHosts = [
@@ -2516,7 +2517,9 @@ const ToolFn = (() => {
   function liveQR() {
     clearTimeout(_qrDebounce);
     _qrDebounce = setTimeout(async () => {
-      const txt  = document.getElementById('qr-input').value.trim(); if (!txt) return;
+      const input = document.getElementById('qr-input');
+      if (!input) return; // se cambió de herramienta antes de que corra el debounce
+      const txt = input.value.trim(); if (!txt) return;
       const size = parseInt(document.getElementById('qr-size').value);
       const bg   = document.getElementById('qr-bg').value;
       const fg   = document.getElementById('qr-fg').value;
@@ -2947,9 +2950,10 @@ const ToolFn = (() => {
     if (!_irOrig) return;
     clearTimeout(_irDebounce);
     _irDebounce = setTimeout(() => {
+      const canvas = document.getElementById('ir-canvas');
+      if (!canvas) return; // se cambió de herramienta antes de que corra el debounce
       const { w, h } = _irGetDims();
       if (!w || !h) return;
-      const canvas = document.getElementById('ir-canvas');
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(_irOrig, 0, 0, w, h);
       const infoEl = document.getElementById('ir-preview-info');
@@ -4460,7 +4464,9 @@ const ToolFn = (() => {
   }
 
   function _regexRunNow() {
-    const pattern = document.getElementById('rx-pattern').value;
+    const patternEl = document.getElementById('rx-pattern');
+    if (!patternEl) return; // se cambió de herramienta antes de que corra el debounce
+    const pattern = patternEl.value;
     const testStr = document.getElementById('rx-test').value;
     const resultEl = document.getElementById('rx-result');
     const infoEl = document.getElementById('rx-groups');
@@ -5231,12 +5237,26 @@ const Guestbook = (() => {
 })();
 
 /* ═══════════════════════════════════════════════
-   NOW PLAYING — reproductor real (no decorativo). Todavía sin pista:
-   completá NOW_PLAYING_TRACK con un mp3 propio o con licencia libre para
-   que deje de mostrar el estado "sin pista cargada".
+   NOW PLAYING — reproductor real (no decorativo), con playlist de
+   varias pistas 8-bit. Al terminar una, pasa sola a la siguiente.
+   Se acuerda de la última pista elegida (localStorage) entre visitas.
 ═══════════════════════════════════════════════ */
 const NowPlaying = (() => {
-  const NOW_PLAYING_TRACK = { title: '', artist: '', src: '' };
+  const TRACKS = [
+    { title: 'Game 8-Bit On',                artist: 'Moodmode',            src: 'audio/moodmode-game-8-bit-on.mp3' },
+    { title: 'Palabras perdidas en 8 bits',  artist: 'pabloherrera01',      src: 'audio/pabloherrera01-palabras-perdidas-en-8-bits.mp3' },
+    { title: 'I Love My 8-Bit Game Console', artist: 'DJArtMusic',          src: 'audio/djartmusic-i-love-my-8-bit-game-console.mp3' },
+    { title: 'The Return of the 8-Bit Era',  artist: 'DJArtMusic',          src: 'audio/djartmusic-the-return-of-the-8-bit-era.mp3' },
+    { title: 'Game 8-Bit',                   artist: 'inono777',            src: 'audio/inono777-game-8-bit.mp3' },
+    { title: 'Flat 8-Bit Gaming Music',      artist: 'SoundUniverseStudio', src: 'audio/sounduniversestudio-flat-8-bit-gaming-music-instrumental.mp3' },
+    { title: 'Best Game Console',            artist: 'DJArtMusic',          src: 'audio/djartmusic-best-game-console.mp3' },
+    { title: 'The World of 8-Bit Games',     artist: 'DJArtMusic',          src: 'audio/djartmusic-the-world-of-8-bit-games.mp3' },
+    { title: 'Cosmos',                       artist: 'Lesiakower',          src: 'audio/lesiakower-cosmos.mp3' },
+    { title: 'Retro Arcade Game Music',      artist: 'ArpMedia',            src: 'audio/arpmedia-retro-arcade-game-music.mp3' },
+  ];
+  const KEY_IDX = 'tt_np_track';
+  const KEY_VOL = 'tt_np_vol';
+  const KEY_MUTED = 'tt_np_muted';
 
   const wrap = document.getElementById('np');
   const audio = document.getElementById('np-audio');
@@ -5245,6 +5265,19 @@ const NowPlaying = (() => {
   const subEl = document.getElementById('np-sub');
   const barFill = document.getElementById('np-bar-fill');
   const timeEl = document.getElementById('np-time');
+  const idxEl = document.getElementById('np-idx');
+  const volSlider = document.getElementById('np-vol');
+  const muteBtn = document.getElementById('np-mute');
+
+  let idx = 0;
+  try { idx = parseInt(localStorage.getItem(KEY_IDX), 10) || 0; } catch (e) {}
+  if (!(idx >= 0 && idx < TRACKS.length)) idx = 0;
+
+  // arranca a mitad de volumen para no tapar los sonidos de la página (Audio module)
+  let volume = 0.5;
+  try { const v = parseFloat(localStorage.getItem(KEY_VOL)); if (v >= 0 && v <= 1) volume = v; } catch (e) {}
+  let muted = false;
+  try { muted = localStorage.getItem(KEY_MUTED) === '1'; } catch (e) {}
 
   function fmt(sec) {
     if (!isFinite(sec) || sec < 0) sec = 0;
@@ -5258,33 +5291,67 @@ const NowPlaying = (() => {
     timeEl.textContent = fmt(audio.currentTime) + ' / ' + fmt(dur);
   }
 
+  function loadTrack(i, autoplay) {
+    idx = (i + TRACKS.length) % TRACKS.length;
+    try { localStorage.setItem(KEY_IDX, idx); } catch (e) {}
+    const t = TRACKS[idx];
+    titleEl.textContent = t.title;
+    subEl.textContent = t.artist;
+    if (idxEl) idxEl.textContent = `${idx + 1}/${TRACKS.length}`;
+    audio.src = t.src;
+    if (autoplay) audio.play().catch(() => {});
+  }
+
+  function applyVolume() {
+    audio.volume = muted ? 0 : volume;
+    if (muteBtn) muteBtn.textContent = muted || volume === 0 ? '🔇' : volume < 0.5 ? '🔉' : '🔊';
+    if (volSlider) volSlider.value = Math.round(volume * 100);
+  }
+
+  function setVolume(v) {
+    volume = Math.max(0, Math.min(1, v / 100));
+    if (volume > 0) muted = false; // subir el volumen desde 0 desmutea, como en cualquier reproductor
+    try { localStorage.setItem(KEY_VOL, volume); localStorage.setItem(KEY_MUTED, muted ? '1' : '0'); } catch (e) {}
+    applyVolume();
+  }
+
+  function toggleMute() {
+    muted = !muted;
+    try { localStorage.setItem(KEY_MUTED, muted ? '1' : '0'); } catch (e) {}
+    applyVolume();
+    Audio.click();
+  }
+
   function toggle() {
-    if (!NOW_PLAYING_TRACK.src) { UI.showToast('todavía no hay una pista configurada'); return; }
+    if (!TRACKS.length) { UI.showToast('todavía no hay pistas configuradas'); return; }
+    if (!audio.src) loadTrack(idx, false);
     if (audio.paused) audio.play().catch(() => UI.showToast('no se pudo reproducir el audio'));
     else audio.pause();
   }
 
+  function next() { loadTrack(idx + 1, !audio.paused); Audio.blip(); }
+  function prev() { loadTrack(idx - 1, !audio.paused); Audio.blip(); }
+
   function init() {
     if (!wrap || !audio) return;
-    if (NOW_PLAYING_TRACK.src) {
-      titleEl.textContent = NOW_PLAYING_TRACK.title || 'sin título';
-      subEl.textContent = NOW_PLAYING_TRACK.artist || '';
-      audio.src = NOW_PLAYING_TRACK.src;
-      disc.setAttribute('aria-label', 'Reproducir / pausar');
-    } else {
+    if (!TRACKS.length) {
       titleEl.textContent = 'sin pista cargada';
-      subEl.textContent = 'configurala en NOW_PLAYING_TRACK (app.js)';
+      subEl.textContent = 'configurala en TRACKS (app.js)';
       disc.setAttribute('aria-label', 'Sin pista configurada');
+      return;
     }
+    loadTrack(idx, false);
+    applyVolume();
+    disc.setAttribute('aria-label', 'Reproducir / pausar');
     audio.addEventListener('play', () => wrap.classList.add('np--playing'));
     audio.addEventListener('pause', () => wrap.classList.remove('np--playing'));
-    audio.addEventListener('ended', () => wrap.classList.remove('np--playing'));
+    audio.addEventListener('ended', () => loadTrack(idx + 1, true));
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateTime);
   }
 
   init();
-  return { toggle };
+  return { toggle, next, prev, setVolume, toggleMute };
 })();
 
 /* ═══════════════════════════════════════════════
