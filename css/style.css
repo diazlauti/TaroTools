@@ -401,6 +401,7 @@ header {
 .np__nav-btn { background:transparent; border:none; color:var(--fg3); font-size:.8rem; padding:.1rem .3rem; cursor:var(--cursor); }
 .np__nav-btn:hover { color:var(--accent2); }
 .np__track-idx { font-size:.58rem; color:var(--fg4); font-family:var(--mono); text-align:center; }
+.np__vol-row #np-vol { flex:1; height:4px; }
 
 /* ── misiones ── */
 #missions-panel .panel__bar span { font-family:var(--lcd); font-size:.9rem; letter-spacing:0; }
