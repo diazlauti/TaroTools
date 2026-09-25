@@ -239,6 +239,31 @@ header {
 .search-bar input:focus { border-color:var(--accent2); }
 .search-bar input::placeholder { color:var(--fg4); }
 
+/* ── banner destacado: otros proyectos del autor ── */
+.projects-banner {
+  padding:.6rem 1.1rem; background:var(--bg2);
+  border-top:2px solid var(--accent); border-bottom:2px solid var(--border2);
+  display:flex; align-items:center; gap:.8rem; flex-wrap:wrap;
+}
+.projects-banner__label {
+  font-family:var(--mono); font-size:.75rem; color:var(--accent); white-space:nowrap;
+}
+.projects-banner__cards { display:flex; gap:.6rem; flex-wrap:wrap; flex:1; }
+.project-card {
+  background:var(--bg3); border:1.5px solid var(--border); padding:.4rem .7rem;
+  display:flex; align-items:center; gap:.5rem; text-decoration:none;
+  transition:border-color var(--transition), transform var(--transition);
+}
+.project-card:hover { border-color:var(--accent2); transform:translate(-1px,-1px); box-shadow:2px 2px 0 var(--border2); text-decoration:none; }
+.project-card__icon { font-size:1.1rem; }
+.project-card__name { font-family:var(--pixel); font-size:.58rem; text-transform:uppercase; color:var(--fg); display:block; }
+.project-card__desc { font-size:.68rem; color:var(--fg3); font-family:var(--mono); display:block; margin-top:.15rem; }
+.project-card__go { color:var(--fg3); font-size:.8rem; margin-left:.2rem; }
+@media (max-width:640px) {
+  .projects-banner { flex-direction:column; align-items:flex-start; }
+  .project-card { width:100%; }
+}
+
 .tabs { display:flex; gap:.3rem; margin-bottom:1rem; flex-wrap:wrap; }
 .tab {
   background:transparent; border:1.5px solid var(--border); border-radius:0;
