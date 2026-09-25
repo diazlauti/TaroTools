@@ -2311,6 +2311,7 @@ const ToolFn = (() => {
     const val = inp.value.trim();
     if (!val) { status.textContent = ''; status.className = ''; return; }
     _dlDebounce = setTimeout(() => {
+      if (!document.getElementById('dl-meta')) return; // se cambió de herramienta antes de que corra el debounce
       try {
         const u = new URL(val);
         const validHosts = [
@@ -2516,7 +2517,9 @@ const ToolFn = (() => {
   function liveQR() {
     clearTimeout(_qrDebounce);
     _qrDebounce = setTimeout(async () => {
-      const txt  = document.getElementById('qr-input').value.trim(); if (!txt) return;
+      const input = document.getElementById('qr-input');
+      if (!input) return; // se cambió de herramienta antes de que corra el debounce
+      const txt = input.value.trim(); if (!txt) return;
       const size = parseInt(document.getElementById('qr-size').value);
       const bg   = document.getElementById('qr-bg').value;
       const fg   = document.getElementById('qr-fg').value;
@@ -2947,9 +2950,10 @@ const ToolFn = (() => {
     if (!_irOrig) return;
     clearTimeout(_irDebounce);
     _irDebounce = setTimeout(() => {
+      const canvas = document.getElementById('ir-canvas');
+      if (!canvas) return; // se cambió de herramienta antes de que corra el debounce
       const { w, h } = _irGetDims();
       if (!w || !h) return;
-      const canvas = document.getElementById('ir-canvas');
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(_irOrig, 0, 0, w, h);
       const infoEl = document.getElementById('ir-preview-info');
@@ -4460,7 +4464,9 @@ const ToolFn = (() => {
   }
 
   function _regexRunNow() {
-    const pattern = document.getElementById('rx-pattern').value;
+    const patternEl = document.getElementById('rx-pattern');
+    if (!patternEl) return; // se cambió de herramienta antes de que corra el debounce
+    const pattern = patternEl.value;
     const testStr = document.getElementById('rx-test').value;
     const resultEl = document.getElementById('rx-result');
     const infoEl = document.getElementById('rx-groups');
