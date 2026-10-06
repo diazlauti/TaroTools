@@ -158,6 +158,7 @@ const I18n = (() => {
     { id:'g3',  icon:'🔢', cat:'pdf',        type:'pdf-pagenum',  isNew:true },
     { id:'g4',  icon:'💧', cat:'imagen',     type:'img-watermark',isNew:true },
     { id:'g5',  icon:'📱', cat:'conversion', type:'img-heic',     isNew:true },
+    { id:'g6',  icon:'🧩', cat:'imagen',     type:'img-collage',  isNew:true },
   ];
 
   const STRINGS = {
@@ -198,7 +199,7 @@ const I18n = (() => {
         f1:'Probador de regex', f2:'Generador de Lorem Ipsum', f3:'Slugify',
         f4:'Paleta de una imagen',
         g1:'Recortar imagen', g2:'Rotar/espejar imagen', g3:'Numerar páginas de PDF', g4:'Marca de agua en imagen',
-        g5:'Convertir HEIC a JPG/PNG',
+        g5:'Convertir HEIC a JPG/PNG', g6:'Collage de imágenes',
       },
       toolDescs:{
         b1:'Reducí el tamaño de JPG/PNG con preview y comparación antes/después.',
@@ -254,6 +255,7 @@ const I18n = (() => {
         g3:'Agregá número de página a cada hoja de un PDF, con la posición y el formato que elijas.',
         g4:'Superponé tu propio texto como marca de agua, en una esquina o repetido en diagonal sobre toda la imagen. 100% local.',
         g5:'Convertí fotos HEIC/HEIF (el formato de tu iPhone) a JPG o PNG para poder subirlas a cualquier sitio. Varias a la vez, 100% local.',
+        g6:'Armá un collage con varias fotos en una grilla (2×2, 3×3 y más), con espaciado y color de fondo a tu gusto. 100% local.',
       },
       langs:['Inglés','Español','Portugués','Francés','Alemán','Italiano','Japonés','Chino (simplificado)','Árabe','Ruso','Coreano','Hindi'],
     },
@@ -1780,6 +1782,28 @@ const ToolUI = (() => {
       `<div class="btn-row"><button class="btn" id="hc-btn" onclick="ToolFn.heicConvert()">📱 Convertir</button></div>` +
       loader('hc-loader','⏳ convirtiendo (puede tardar unos segundos por foto)...') +
       `<div id="hc-result" style="margin-top:.7rem"></div>`,
+
+    /* ── IMG COLLAGE ── */
+    'img-collage': () =>
+      infoBox('Armá un collage con varias imágenes en una grilla. Subilas en el orden que querés que aparezcan, elegí la grilla, y descargá el resultado. 100% local.') +
+      label('Imágenes (en el orden que querés)') +
+      `${dropZone('cl-file','image/*','ToolFn.collageLoad()','Arrastrá tus imágenes acá',true)}` +
+      `<div id="cl-previews" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:.4rem;margin:.5rem 0"></div>` +
+      `<div class="pr-scope-group" id="cl-grid-group" style="margin:.5rem 0;flex-wrap:wrap">
+        <button class="pr-scope-btn active" id="cl-grid-2x2" onclick="ToolFn.collageSetGrid(2,2,this)">2×2</button>
+        <button class="pr-scope-btn" id="cl-grid-1x2" onclick="ToolFn.collageSetGrid(1,2,this)">1×2</button>
+        <button class="pr-scope-btn" id="cl-grid-2x1" onclick="ToolFn.collageSetGrid(2,1,this)">2×1</button>
+        <button class="pr-scope-btn" id="cl-grid-2x3" onclick="ToolFn.collageSetGrid(2,3,this)">2×3</button>
+        <button class="pr-scope-btn" id="cl-grid-3x2" onclick="ToolFn.collageSetGrid(3,2,this)">3×2</button>
+        <button class="pr-scope-btn" id="cl-grid-3x3" onclick="ToolFn.collageSetGrid(3,3,this)">3×3</button>
+      </div>` +
+      `<canvas id="cl-canvas" style="width:100%;display:block;max-height:380px;object-fit:contain;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3)"></canvas>` +
+      `<p id="cl-hint" style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>` +
+      label('Espaciado') +
+      `<input type="range" min="0" max="40" value="10" id="cl-gap" oninput="ToolFn.collageDraw()" style="width:100%">` +
+      label('Color de fondo') +
+      `<input type="color" id="cl-bg" value="#000000" oninput="ToolFn.collageDraw()" style="width:100%;height:2.4rem;padding:.2rem">` +
+      `<div class="btn-row" style="margin-top:.6rem"><button class="btn" onclick="ToolFn.collageExport()">🧩 Descargar collage</button></div>`,
 
     /* ── PASSWORD GENERATOR ── */
     'pwd-gen': () =>
@@ -5135,6 +5159,93 @@ const ToolFn = (() => {
     if (ok) Audio.success(); else Audio.error();
   }
 
+  // ── img collage ──
+  let _clImgs = [], _clCols = 2, _clRows = 2;
+
+  function collageLoad() {
+    const files = [...document.getElementById('cl-file').files];
+    if (!files.length) return;
+    const wrap = document.getElementById('cl-previews');
+    wrap.innerHTML = '';
+    _clImgs = new Array(files.length);
+    let loaded = 0;
+    files.forEach((f, i) => {
+      const url = URL.createObjectURL(f);
+      const thumb = document.createElement('div');
+      thumb.style.cssText = 'position:relative;display:inline-block';
+      const thumbImg = document.createElement('img');
+      thumbImg.src = url;
+      thumbImg.style.cssText = 'width:56px;height:56px;object-fit:cover;border-radius:6px;border:1.5px solid var(--border)';
+      const num = document.createElement('span');
+      num.textContent = i + 1;
+      num.style.cssText = 'position:absolute;bottom:2px;right:4px;font-size:.6rem;font-family:var(--mono);color:#fff;text-shadow:0 0 3px #000';
+      thumb.appendChild(thumbImg); thumb.appendChild(num);
+      wrap.appendChild(thumb);
+
+      const im = new Image();
+      im.onload = () => {
+        _clImgs[i] = im;
+        loaded++;
+        if (loaded === files.length) collageDraw();
+      };
+      im.src = url;
+    });
+  }
+
+  function collageSetGrid(cols, rows, btn) {
+    _clCols = cols; _clRows = rows;
+    document.querySelectorAll('#cl-grid-group .pr-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    Audio.click();
+    collageDraw();
+  }
+
+  function _drawCover(ctx, img, x, y, w, h) {
+    const ir = img.width / img.height, cr = w / h;
+    let sw, sh, sx, sy;
+    if (ir > cr) { sh = img.height; sw = sh * cr; sx = (img.width - sw) / 2; sy = 0; }
+    else { sw = img.width; sh = sw / cr; sx = 0; sy = (img.height - sh) / 2; }
+    ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+  }
+
+  function collageDraw() {
+    if (!_clImgs.length) return;
+    const canvas = document.getElementById('cl-canvas');
+    const gap = parseInt(document.getElementById('cl-gap').value, 10);
+    const bg = document.getElementById('cl-bg').value;
+    const cell = 360;
+    const w = _clCols * cell + (_clCols + 1) * gap;
+    const h = _clRows * cell + (_clRows + 1) * gap;
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+    const total = _clCols * _clRows;
+    for (let i = 0; i < total; i++) {
+      const img = _clImgs[i]; if (!img) continue;
+      const col = i % _clCols, row = (i / _clCols) | 0;
+      const x = gap + col * (cell + gap), y = gap + row * (cell + gap);
+      _drawCover(ctx, img, x, y, cell, cell);
+    }
+    const hint = document.getElementById('cl-hint');
+    const n = _clImgs.filter(Boolean).length;
+    if (n < total) hint.textContent = `${total} celdas, subiste ${n} imagen${n === 1 ? '' : 'es'} — el resto queda con el color de fondo`;
+    else if (n > total) hint.textContent = `${total} celdas — se usan las primeras ${total} imágenes (subiste ${n})`;
+    else hint.textContent = `${total} celdas, ${n} imágenes — listo`;
+  }
+
+  function collageExport() {
+    if (!_clImgs.filter(Boolean).length) { UI.showToast('subí imágenes primero'); return; }
+    const canvas = document.getElementById('cl-canvas');
+    canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-collage.jpg';
+      a.click();
+      Audio.success();
+    }, 'image/jpeg', 0.92);
+  }
+
   // ── unit converter ──
   const UNIT_DATA = {
     longitud:   { units: { mm:0.001, cm:0.01, m:1, km:1000, in:0.0254, ft:0.3048, yd:0.9144, mi:1609.344 } },
@@ -5351,6 +5462,7 @@ const ToolFn = (() => {
     pnLoad, pnExport,
     wmLoad, wmSetMode, wmDraw, wmExport,
     heicPreview, heicConvert,
+    collageLoad, collageSetGrid, collageDraw, collageExport,
     unitCatChange, unitConvert, unitSwap,
     ctSetPreset, ctSetCustom, ctToggle, ctReset,
     paletteGenerate,
