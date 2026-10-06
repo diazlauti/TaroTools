@@ -1785,19 +1785,31 @@ const ToolUI = (() => {
 
     /* ── IMG COLLAGE ── */
     'img-collage': () =>
-      infoBox('Armá un collage con varias imágenes en una grilla. Subilas en el orden que querés que aparezcan, elegí la grilla, y descargá el resultado. 100% local.') +
+      infoBox('Armá un collage con varias imágenes en una grilla. Subilas en el orden que querés que aparezcan, elegí la grilla, el tamaño y el estilo, y descargá el resultado. 100% local.') +
       label('Imágenes (en el orden que querés)') +
       `${dropZone('cl-file','image/*','ToolFn.collageLoad()','Arrastrá tus imágenes acá',true)}` +
       `<div id="cl-previews" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:.4rem;margin:.5rem 0"></div>` +
-      `<div class="pr-scope-group" id="cl-grid-group" style="margin:.5rem 0;flex-wrap:wrap">
+      label('Grilla') +
+      `<div class="pr-scope-group" id="cl-grid-group" style="margin:.3rem 0;flex-wrap:wrap">
         <button class="pr-scope-btn active" id="cl-grid-2x2" onclick="ToolFn.collageSetGrid(2,2,this)">2×2</button>
         <button class="pr-scope-btn" id="cl-grid-1x2" onclick="ToolFn.collageSetGrid(1,2,this)">1×2</button>
         <button class="pr-scope-btn" id="cl-grid-2x1" onclick="ToolFn.collageSetGrid(2,1,this)">2×1</button>
+        <button class="pr-scope-btn" id="cl-grid-1x3" onclick="ToolFn.collageSetGrid(1,3,this)">1×3</button>
+        <button class="pr-scope-btn" id="cl-grid-3x1" onclick="ToolFn.collageSetGrid(3,1,this)">3×1</button>
         <button class="pr-scope-btn" id="cl-grid-2x3" onclick="ToolFn.collageSetGrid(2,3,this)">2×3</button>
         <button class="pr-scope-btn" id="cl-grid-3x2" onclick="ToolFn.collageSetGrid(3,2,this)">3×2</button>
         <button class="pr-scope-btn" id="cl-grid-3x3" onclick="ToolFn.collageSetGrid(3,3,this)">3×3</button>
+        <button class="pr-scope-btn" id="cl-grid-4x4" onclick="ToolFn.collageSetGrid(4,4,this)">4×4</button>
       </div>` +
-      `<canvas id="cl-canvas" style="width:100%;display:block;max-height:380px;object-fit:contain;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3)"></canvas>` +
+      label('Estilo') +
+      `<div class="pr-scope-group" id="cl-style-group" style="margin:.3rem 0;flex-wrap:wrap">
+        <button class="pr-scope-btn active" id="cl-style-clean" onclick="ToolFn.collageSetStyle('clean',this)">Clásico</button>
+        <button class="pr-scope-btn" id="cl-style-rounded" onclick="ToolFn.collageSetStyle('rounded',this)">Redondeado</button>
+        <button class="pr-scope-btn" id="cl-style-polaroid" onclick="ToolFn.collageSetStyle('polaroid',this)">Polaroid</button>
+      </div>` +
+      label(`Tamaño de celda: <span id="cl-size-val">360</span>px`) +
+      `<input type="range" min="150" max="560" step="10" value="360" id="cl-size" oninput="document.getElementById('cl-size-val').textContent=this.value;ToolFn.collageDraw()" style="width:100%">` +
+      `<canvas id="cl-canvas" style="width:100%;display:block;max-height:380px;object-fit:contain;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3);margin-top:.6rem"></canvas>` +
       `<p id="cl-hint" style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>` +
       label('Espaciado') +
       `<input type="range" min="0" max="40" value="10" id="cl-gap" oninput="ToolFn.collageDraw()" style="width:100%">` +
@@ -5160,7 +5172,7 @@ const ToolFn = (() => {
   }
 
   // ── img collage ──
-  let _clImgs = [], _clCols = 2, _clRows = 2;
+  let _clImgs = [], _clCols = 2, _clRows = 2, _clStyle = 'clean';
 
   function collageLoad() {
     const files = [...document.getElementById('cl-file').files];
@@ -5200,7 +5212,18 @@ const ToolFn = (() => {
     collageDraw();
   }
 
-  function _drawCover(ctx, img, x, y, w, h) {
+  function collageSetStyle(style, btn) {
+    _clStyle = style;
+    document.querySelectorAll('#cl-style-group .pr-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    Audio.click();
+    collageDraw();
+  }
+
+  // nombre propio (_clDrawCover) para no pisar _drawCover() del generador de favicons —
+  // ambos vivían en el mismo scope de ToolFn con firmas distintas y la declaración de acá
+  // ganaba por hoisting, rompiendo favicon-gen en silencio (sin error de consola).
+  function _clDrawCover(ctx, img, x, y, w, h) {
     const ir = img.width / img.height, cr = w / h;
     let sw, sh, sx, sy;
     if (ir > cr) { sh = img.height; sw = sh * cr; sx = (img.width - sw) / 2; sy = 0; }
@@ -5208,24 +5231,70 @@ const ToolFn = (() => {
     ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
   }
 
+  function _clRoundRectPath(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
   function collageDraw() {
     if (!_clImgs.length) return;
     const canvas = document.getElementById('cl-canvas');
     const gap = parseInt(document.getElementById('cl-gap').value, 10);
     const bg = document.getElementById('cl-bg').value;
-    const cell = 360;
-    const w = _clCols * cell + (_clCols + 1) * gap;
-    const h = _clRows * cell + (_clRows + 1) * gap;
+    const cell = parseInt(document.getElementById('cl-size').value, 10);
+    const style = _clStyle;
+
+    let cardW = cell, cardH = cell, border = 0, caption = 0, radius = 0;
+    if (style === 'rounded') {
+      radius = Math.round(cell * 0.1);
+    } else if (style === 'polaroid') {
+      border = Math.max(10, Math.round(cell * 0.06));
+      caption = Math.max(30, Math.round(cell * 0.18));
+      cardW = cell + border * 2;
+      cardH = cell + border + caption;
+    }
+
+    const w = _clCols * cardW + (_clCols + 1) * gap;
+    const h = _clRows * cardH + (_clRows + 1) * gap;
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);
+
     const total = _clCols * _clRows;
     for (let i = 0; i < total; i++) {
-      const img = _clImgs[i]; if (!img) continue;
+      const img = _clImgs[i];
       const col = i % _clCols, row = (i / _clCols) | 0;
-      const x = gap + col * (cell + gap), y = gap + row * (cell + gap);
-      _drawCover(ctx, img, x, y, cell, cell);
+      const cx = gap + col * (cardW + gap), cy = gap + row * (cardH + gap);
+
+      if (style === 'polaroid') {
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,.35)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetY = 4;
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(cx, cy, cardW, cardH);
+        ctx.restore();
+      }
+      if (!img) continue;
+
+      if (style === 'rounded') {
+        ctx.save();
+        _clRoundRectPath(ctx, cx, cy, cardW, cardH, radius);
+        ctx.clip();
+        _clDrawCover(ctx, img, cx, cy, cardW, cardH);
+        ctx.restore();
+      } else if (style === 'polaroid') {
+        _clDrawCover(ctx, img, cx + border, cy + border, cell, cell);
+      } else {
+        _clDrawCover(ctx, img, cx, cy, cardW, cardH);
+      }
     }
     const hint = document.getElementById('cl-hint');
     const n = _clImgs.filter(Boolean).length;
@@ -5462,7 +5531,7 @@ const ToolFn = (() => {
     pnLoad, pnExport,
     wmLoad, wmSetMode, wmDraw, wmExport,
     heicPreview, heicConvert,
-    collageLoad, collageSetGrid, collageDraw, collageExport,
+    collageLoad, collageSetGrid, collageSetStyle, collageDraw, collageExport,
     unitCatChange, unitConvert, unitSwap,
     ctSetPreset, ctSetCustom, ctToggle, ctReset,
     paletteGenerate,
