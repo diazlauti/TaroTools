@@ -157,6 +157,7 @@ const I18n = (() => {
     { id:'g2',  icon:'🔃', cat:'imagen',     type:'img-rotate',   isNew:true },
     { id:'g3',  icon:'🔢', cat:'pdf',        type:'pdf-pagenum',  isNew:true },
     { id:'g4',  icon:'💧', cat:'imagen',     type:'img-watermark',isNew:true },
+    { id:'g5',  icon:'📱', cat:'conversion', type:'img-heic',     isNew:true },
   ];
 
   const STRINGS = {
@@ -197,6 +198,7 @@ const I18n = (() => {
         f1:'Probador de regex', f2:'Generador de Lorem Ipsum', f3:'Slugify',
         f4:'Paleta de una imagen',
         g1:'Recortar imagen', g2:'Rotar/espejar imagen', g3:'Numerar páginas de PDF', g4:'Marca de agua en imagen',
+        g5:'Convertir HEIC a JPG/PNG',
       },
       toolDescs:{
         b1:'Reducí el tamaño de JPG/PNG con preview y comparación antes/después.',
@@ -251,6 +253,7 @@ const I18n = (() => {
         g2:'Rotá en pasos de 90° o espejá horizontal/vertical con un click. Preview en vivo, 100% local.',
         g3:'Agregá número de página a cada hoja de un PDF, con la posición y el formato que elijas.',
         g4:'Superponé tu propio texto como marca de agua, en una esquina o repetido en diagonal sobre toda la imagen. 100% local.',
+        g5:'Convertí fotos HEIC/HEIF (el formato de tu iPhone) a JPG o PNG para poder subirlas a cualquier sitio. Varias a la vez, 100% local.',
       },
       langs:['Inglés','Español','Portugués','Francés','Alemán','Italiano','Japonés','Chino (simplificado)','Árabe','Ruso','Coreano','Hindi'],
     },
@@ -473,7 +476,7 @@ const Tools = (() => {
   const REMEMBER_TYPES = new Set([
     'ai-correct','ai-expand','ai-summarize','ai-translate','aud-compress',
     'base64','case-conv','cobalt-dl','color-conv','hash-gen','img-compress',
-    'img-convert','img-palette','img-pdf','json-fmt','lorem-gen','meta-remove',
+    'img-convert','img-heic','img-palette','img-pdf','json-fmt','lorem-gen','meta-remove',
     'my-ip','palette-gen','pdf-pagenum','pdf-text','pwd-gen','regex-test','slugify',
     'text-diff','unit-conv','uuid-gen','vid-compress','word-count',
   ]);
@@ -1765,6 +1768,18 @@ const ToolUI = (() => {
         <input type="color" id="wm-color" value="#ffffff" oninput="ToolFn.wmDraw()" style="width:100%;height:2.4rem;padding:.2rem">
         <div class="btn-row" style="margin-top:.6rem"><button class="btn" onclick="ToolFn.wmExport()">💧 Agregar marca y descargar</button></div>
       </div>`,
+
+    /* ── IMG HEIC → JPG/PNG ── */
+    'img-heic': () =>
+      infoBox('Convertí fotos HEIC/HEIF (el formato que usa tu iPhone) a JPG o PNG para poder subirlas a cualquier sitio. Podés convertir varias a la vez. 100% local — la primera vez se descarga una librería liviana para poder leer el formato.') +
+      label('Fotos HEIC/HEIF (múltiples)') +
+      `${dropZone('hc-file','.heic,.heif,image/heic,image/heif','ToolFn.heicPreview()','Arrastrá tus fotos HEIC acá',true)}` +
+      `<div id="hc-names" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></div>` +
+      label('Convertir a') +
+      sel('hc-fmt', [['image/jpeg','JPG'],['image/png','PNG']]) +
+      `<div class="btn-row"><button class="btn" id="hc-btn" onclick="ToolFn.heicConvert()">📱 Convertir</button></div>` +
+      loader('hc-loader','⏳ convirtiendo (puede tardar unos segundos por foto)...') +
+      `<div id="hc-result" style="margin-top:.7rem"></div>`,
 
     /* ── PASSWORD GENERATOR ── */
     'pwd-gen': () =>
@@ -5065,6 +5080,61 @@ const ToolFn = (() => {
     }, mime, 0.92);
   }
 
+  // ── img heic → jpg/png ──
+  function heicPreview() {
+    const files = document.getElementById('hc-file').files;
+    document.getElementById('hc-names').textContent = files.length
+      ? `${files.length} archivo${files.length === 1 ? '' : 's'} listo${files.length === 1 ? '' : 's'} para convertir`
+      : '';
+  }
+
+  async function heicConvert() {
+    const files = [...document.getElementById('hc-file').files];
+    if (!files.length) return;
+    const fmt = document.getElementById('hc-fmt').value;
+    const ext = fmt === 'image/jpeg' ? 'jpg' : 'png';
+    const btn = document.getElementById('hc-btn');
+    const res = document.getElementById('hc-result');
+    res.innerHTML = '';
+    btn.disabled = true;
+    toggleLoader('hc-loader', true);
+    try {
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js');
+    } catch (e) {
+      showResult('hc-result', '❌ ' + e.message, true);
+      toggleLoader('hc-loader', false);
+      btn.disabled = false;
+      return;
+    }
+    let ok = 0;
+    for (const f of files) {
+      try {
+        const out = await heic2any({ blob: f, toType: fmt, quality: 0.92 });
+        const blobs = Array.isArray(out) ? out : [out];
+        blobs.forEach((blob, i) => {
+          const suffix = blobs.length > 1 ? `_${i + 1}` : '';
+          const name = f.name.replace(/\.[^.]+$/, '') + suffix + '.' + ext;
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = name;
+          a.className = 'dl-link';
+          a.style.cssText = 'margin:.25rem .25rem 0 0;display:inline-block';
+          a.textContent = `⬇️ ${name}`;
+          res.appendChild(a);
+        });
+        ok++;
+      } catch (e) {
+        const p = document.createElement('p');
+        p.style.cssText = 'font-size:.72rem;color:#ff8899;font-family:var(--mono);margin:.2rem 0';
+        p.textContent = `❌ ${f.name}: no se pudo convertir (¿es realmente un HEIC/HEIF?)`;
+        res.appendChild(p);
+      }
+    }
+    toggleLoader('hc-loader', false);
+    btn.disabled = false;
+    if (ok) Audio.success(); else Audio.error();
+  }
+
   // ── unit converter ──
   const UNIT_DATA = {
     longitud:   { units: { mm:0.001, cm:0.01, m:1, km:1000, in:0.0254, ft:0.3048, yd:0.9144, mi:1609.344 } },
@@ -5280,6 +5350,7 @@ const ToolFn = (() => {
     rotLoad, rotStep, rotFlip, rotExport,
     pnLoad, pnExport,
     wmLoad, wmSetMode, wmDraw, wmExport,
+    heicPreview, heicConvert,
     unitCatChange, unitConvert, unitSwap,
     ctSetPreset, ctSetCustom, ctToggle, ctReset,
     paletteGenerate,

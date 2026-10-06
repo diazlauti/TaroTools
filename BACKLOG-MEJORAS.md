@@ -25,7 +25,6 @@ cosa que dependa de un modelo de IA (upscaler, generación de imagen, restauraci
 remover objetos) y "quitar marca de agua" (en la práctica se usa casi siempre para romper
 protección de copyright ajena — no sumar esto).
 
-- [ ] **Convertir HEIC a JPG/PNG** — sumar HEIC como formato de entrada en `img-convert` (o herramienta standalone `img-heic`). Fricción real: fotos de iPhone no suben a casi ningún sitio. Necesita un decoder HEIC vía WASM cargado desde CDN (ej. `heic2any` o `libheif.js`, mismo patrón que `loadScript()` ya usa para pdf-lib/jszip/tesseract) — probar que el CDN y el tamaño del WASM sean razonables antes de comprometerse. _(agregado 2026-10-06)_
 - [ ] **Combinar imágenes en un collage** — herramienta nueva `img-collage`: grilla simple (2x2, 3x3, etc.) armada con canvas a partir de varias imágenes subidas. 100% cliente. _(agregado 2026-10-06)_
 - [ ] **Comparar dos PDFs** — herramienta nueva `pdf-compare`: extraé texto de ambos con pdf.js (ya cargado para `pdf-text`/`pdf-ocr`) y reusá el motor de diff que ya existe en `text-diff` en vez de reescribirlo. Sinergia directa con código ya probado. _(agregado 2026-10-06)_
 - [ ] **Recortar márgenes de un PDF (crop box)** — herramienta nueva `pdf-crop`: ajustar el cropBox de cada página con `pdf-lib`, con preview de miniaturas igual que `pdf-rotate`/`pdf-delete-p`. _(agregado 2026-10-06)_
@@ -48,4 +47,5 @@ protección de copyright ajena — no sumar esto).
 - [x] **Rotar/espejar imagen** — `img-rotate`, rotación en pasos de 90° y espejo horizontal/vertical con preview en vivo sobre canvas. _(hecho 2026-10-06)_
 - [x] **Agregar números de página a un PDF** — `pdf-pagenum`, con posición (6 variantes), formato (simple/con total/"Página N") y número inicial configurables. _(hecho 2026-10-06)_
 - [x] **Agregar marca de agua propia a una imagen** — `img-watermark`, texto propio en una esquina (5 posiciones) o repetido en diagonal sobre toda la imagen, con tamaño/opacidad/color configurables y preview en vivo sobre canvas. _(hecho 2026-10-06)_
+- [x] **Convertir HEIC a JPG/PNG** — herramienta standalone `img-heic` (se eligió standalone en vez de sumarlo a `img-convert`, porque HEIC no se puede decodificar con un `<img>`/canvas normal del navegador). Usa `heic2any` cargado desde cdnjs vía `loadScript()` (mismo patrón que pdf-lib/tesseract), soporta varios archivos a la vez y maneja el caso de HEIC "burst" (varias fotos en un mismo archivo) generando un link de descarga por cada una. Probado con un HEIC sintético real (generado con `pillow-heif`): conversión a JPG y a PNG verificadas byte a byte (magic bytes + dimensiones correctas con PIL), y el caso de un archivo corrupto/no-HEIC muestra el error sin romper la UI. _(hecho 2026-10-06)_
 
