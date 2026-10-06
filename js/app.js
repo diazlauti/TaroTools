@@ -1787,7 +1787,7 @@ const ToolUI = (() => {
 
     /* ── IMG COLLAGE ── */
     'img-collage': () =>
-      infoBox('Armá un collage con varias imágenes en una grilla. Subilas en el orden que querés que aparezcan, elegí la grilla, el tamaño y el estilo, y descargá el resultado. 100% local.') +
+      infoBox('Armá un collage con varias imágenes en una grilla. Subilas en el orden que querés que aparezcan, elegí la grilla, el tamaño y el estilo, sumale stickers arrastrables encima, y descargá el resultado. 100% local.') +
       label('Imágenes (en el orden que querés)') +
       `${dropZone('cl-file','image/*','ToolFn.collageLoad()','Arrastrá tus imágenes acá',true)}` +
       `<div id="cl-previews" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:.4rem;margin:.5rem 0"></div>` +
@@ -1811,8 +1811,11 @@ const ToolUI = (() => {
       </div>` +
       label(`Tamaño de celda: <span id="cl-size-val">360</span>px`) +
       `<input type="range" min="150" max="560" step="10" value="360" id="cl-size" oninput="document.getElementById('cl-size-val').textContent=this.value;ToolFn.collageDraw()" style="width:100%">` +
-      `<canvas id="cl-canvas" style="width:100%;display:block;max-height:380px;object-fit:contain;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3);margin-top:.6rem"></canvas>` +
+      `<canvas id="cl-canvas" style="width:100%;display:block;max-height:380px;object-fit:contain;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3);margin-top:.6rem;cursor:grab;touch-action:none"></canvas>` +
       `<p id="cl-hint" style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>` +
+      label('Stickers — imágenes sobrepuestas que podés arrastrar donde quieras') +
+      `${dropZone('cl-sticker-file','image/*','ToolFn.collageAddSticker()','Arrastrá un sticker acá',true)}` +
+      `<div id="cl-sticker-list" style="display:flex;flex-direction:column;gap:.4rem;margin:.5rem 0"></div>` +
       label('Espaciado') +
       `<input type="range" min="0" max="40" value="10" id="cl-gap" oninput="ToolFn.collageDraw()" style="width:100%">` +
       label('Color de fondo') +
@@ -5195,6 +5198,7 @@ const ToolFn = (() => {
 
   // ── img collage ──
   let _clImgs = [], _clCols = 2, _clRows = 2, _clStyle = 'clean';
+  let _clStickers = []; // { img, fx, fy, fsize } — posición/tamaño como fracción del canvas (0..1), para que sobrevivan a cambios de grilla/tamaño sin desubicarse
 
   function collageLoad() {
     const files = [...document.getElementById('cl-file').files];
@@ -5264,9 +5268,93 @@ const ToolFn = (() => {
     ctx.closePath();
   }
 
+  function collageAddSticker() {
+    const files = [...document.getElementById('cl-sticker-file').files];
+    if (!files.length) return;
+    let loaded = 0;
+    files.forEach((f, n) => {
+      const im = new Image();
+      im.onload = () => {
+        const stagger = (_clStickers.length % 4) * 0.06;
+        _clStickers.push({ img: im, fx: 0.5 + stagger, fy: 0.5 + stagger, fsize: 0.22 });
+        loaded++;
+        if (loaded === files.length) { _clRenderStickerList(); collageDraw(); }
+      };
+      im.src = URL.createObjectURL(f);
+    });
+  }
+
+  function _clRenderStickerList() {
+    const wrap = document.getElementById('cl-sticker-list');
+    wrap.innerHTML = _clStickers.map((s, i) => `
+      <div style="display:flex;align-items:center;gap:.5rem;padding:.4rem;border:1.5px solid var(--border);border-radius:6px">
+        <img src="${s.img.src}" style="width:36px;height:36px;object-fit:contain;border-radius:4px;background:var(--bg3)">
+        <input type="range" min="8" max="45" value="${Math.round(s.fsize * 100)}" oninput="ToolFn.collageStickerResize(${i},this.value)" style="flex:1">
+        <button class="btn btn--sec" style="padding:.3rem .5rem" onclick="ToolFn.collageRemoveSticker(${i})">✕</button>
+      </div>`).join('');
+  }
+
+  function collageStickerResize(i, val) {
+    if (!_clStickers[i]) return;
+    _clStickers[i].fsize = parseInt(val, 10) / 100;
+    collageDraw();
+  }
+
+  function collageRemoveSticker(i) {
+    _clStickers.splice(i, 1);
+    _clRenderStickerList();
+    collageDraw();
+    Audio.click();
+  }
+
+  function _clClientToCanvasXY(canvas, e) {
+    const rect = canvas.getBoundingClientRect();
+    const boxW = rect.width, boxH = rect.height;
+    const iw = canvas.width, ih = canvas.height;
+    const boxRatio = boxW / boxH, intrinsicRatio = iw / ih;
+    let contentW, contentH, offX = 0, offY = 0;
+    if (intrinsicRatio > boxRatio) { contentW = boxW; contentH = boxW / intrinsicRatio; offY = (boxH - contentH) / 2; }
+    else { contentH = boxH; contentW = boxH * intrinsicRatio; offX = (boxW - contentW) / 2; }
+    const scale = iw / contentW;
+    return { x: (e.clientX - rect.left - offX) * scale, y: (e.clientY - rect.top - offY) * scale };
+  }
+
+  function _clInitStickerDrag(canvas) {
+    if (canvas.dataset.stickerInit) return;
+    canvas.dataset.stickerInit = '1';
+    let dragIdx = -1, dragDX = 0, dragDY = 0;
+
+    canvas.addEventListener('pointerdown', e => {
+      const p = _clClientToCanvasXY(canvas, e);
+      for (let i = _clStickers.length - 1; i >= 0; i--) {
+        const s = _clStickers[i];
+        const cx = s.fx * canvas.width, cy = s.fy * canvas.height, half = s.fsize * canvas.width / 2;
+        if (p.x >= cx - half && p.x <= cx + half && p.y >= cy - half && p.y <= cy + half) {
+          dragIdx = i;
+          dragDX = p.x - cx; dragDY = p.y - cy;
+          canvas.setPointerCapture(e.pointerId);
+          canvas.style.cursor = 'grabbing';
+          break;
+        }
+      }
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (dragIdx < 0) return;
+      const p = _clClientToCanvasXY(canvas, e);
+      const s = _clStickers[dragIdx];
+      s.fx = Math.min(1, Math.max(0, (p.x - dragDX) / canvas.width));
+      s.fy = Math.min(1, Math.max(0, (p.y - dragDY) / canvas.height));
+      collageDraw();
+    });
+    const endDrag = () => { dragIdx = -1; canvas.style.cursor = 'grab'; };
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+  }
+
   function collageDraw() {
     if (!_clImgs.length) return;
     const canvas = document.getElementById('cl-canvas');
+    _clInitStickerDrag(canvas);
     const gap = parseInt(document.getElementById('cl-gap').value, 10);
     const bg = document.getElementById('cl-bg').value;
     const cell = parseInt(document.getElementById('cl-size').value, 10);
@@ -5318,6 +5406,18 @@ const ToolFn = (() => {
         _clDrawCover(ctx, img, cx, cy, cardW, cardH);
       }
     }
+
+    _clStickers.forEach(s => {
+      const size = s.fsize * canvas.width;
+      const iar = s.img.width / s.img.height;
+      const dw = iar > 1 ? size : size * iar, dh = iar > 1 ? size / iar : size;
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,.4)';
+      ctx.shadowBlur = 6;
+      ctx.drawImage(s.img, s.fx * canvas.width - dw / 2, s.fy * canvas.height - dh / 2, dw, dh);
+      ctx.restore();
+    });
+
     const hint = document.getElementById('cl-hint');
     const n = _clImgs.filter(Boolean).length;
     if (n < total) hint.textContent = `${total} celdas, subiste ${n} imagen${n === 1 ? '' : 'es'} — el resto queda con el color de fondo`;
@@ -5647,6 +5747,7 @@ const ToolFn = (() => {
     wmLoad, wmSetMode, wmDraw, wmExport,
     heicPreview, heicConvert,
     collageLoad, collageSetGrid, collageSetStyle, collageDraw, collageExport,
+    collageAddSticker, collageStickerResize, collageRemoveSticker,
     pcmpLoad, pcmpSetMode, pcmpRun,
     unitCatChange, unitConvert, unitSwap,
     ctSetPreset, ctSetCustom, ctToggle, ctReset,
