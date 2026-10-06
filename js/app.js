@@ -156,6 +156,7 @@ const I18n = (() => {
     { id:'g1',  icon:'🔲', cat:'imagen',     type:'img-crop',     isNew:true },
     { id:'g2',  icon:'🔃', cat:'imagen',     type:'img-rotate',   isNew:true },
     { id:'g3',  icon:'🔢', cat:'pdf',        type:'pdf-pagenum',  isNew:true },
+    { id:'g4',  icon:'💧', cat:'imagen',     type:'img-watermark',isNew:true },
   ];
 
   const STRINGS = {
@@ -195,7 +196,7 @@ const I18n = (() => {
         e4:'Wayback Machine', e5:'Down For Everyone Or Just Me', e6:'Carbon',
         f1:'Probador de regex', f2:'Generador de Lorem Ipsum', f3:'Slugify',
         f4:'Paleta de una imagen',
-        g1:'Recortar imagen', g2:'Rotar/espejar imagen', g3:'Numerar páginas de PDF',
+        g1:'Recortar imagen', g2:'Rotar/espejar imagen', g3:'Numerar páginas de PDF', g4:'Marca de agua en imagen',
       },
       toolDescs:{
         b1:'Reducí el tamaño de JPG/PNG con preview y comparación antes/después.',
@@ -249,6 +250,7 @@ const I18n = (() => {
         g1:'Recortá tu imagen a la zona que te interesa — arrastrá la caja de recorte en vivo sobre el preview. 100% local.',
         g2:'Rotá en pasos de 90° o espejá horizontal/vertical con un click. Preview en vivo, 100% local.',
         g3:'Agregá número de página a cada hoja de un PDF, con la posición y el formato que elijas.',
+        g4:'Superponé tu propio texto como marca de agua, en una esquina o repetido en diagonal sobre toda la imagen. 100% local.',
       },
       langs:['Inglés','Español','Portugués','Francés','Alemán','Italiano','Japonés','Chino (simplificado)','Árabe','Ruso','Coreano','Hindi'],
     },
@@ -1731,6 +1733,37 @@ const ToolUI = (() => {
         <input type="number" id="pn-start" value="1" min="1" style="width:100%">
         <div class="btn-row" style="margin-top:.6rem"><button class="btn" onclick="ToolFn.pnExport()">🔢 Agregar números y descargar</button></div>
         <div id="pn-result" style="margin-top:.6rem"></div>
+      </div>`,
+
+    /* ── IMG WATERMARK ── */
+    'img-watermark': () =>
+      infoBox('Superponé tu propio texto como marca de agua sobre una imagen — en una esquina o repetido en diagonal sobre toda la foto. 100% local.') +
+      `<input type="file" id="wm-file" accept="image/*" style="display:none" onchange="ToolFn.wmLoad()">` +
+      `<div class="file-drop" id="wm-drop" onclick="document.getElementById('wm-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('wm-file').files=event.dataTransfer.files;ToolFn.wmLoad()">
+        <div class="file-drop__icon">💧</div>
+        <div class="file-drop__title">Arrastrá una imagen acá</div>
+        <div class="file-drop__sub">o hacé click para elegir</div>
+        <div class="file-drop__name" id="wm-name"></div>
+      </div>` +
+      `<div id="wm-info" style="display:none">
+        <canvas id="wm-canvas" style="width:100%;display:block;max-height:340px;object-fit:contain;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3)"></canvas>
+        ${label('Texto de la marca')}
+        <input type="text" id="wm-text" value="© Mi marca" maxlength="60" oninput="ToolFn.wmDraw()">
+        <div class="pr-scope-group" style="margin:.5rem 0">
+          <button class="pr-scope-btn active" id="wm-mode-single" onclick="ToolFn.wmSetMode('single',this)">Una esquina</button>
+          <button class="pr-scope-btn" id="wm-mode-tile" onclick="ToolFn.wmSetMode('tile',this)">Repetida en diagonal</button>
+        </div>
+        <div id="wm-pos-row">
+          ${label('Posición')}
+          ${sel('wm-pos', [['bottom-right','Abajo, derecha'],['bottom-left','Abajo, izquierda'],['top-right','Arriba, derecha'],['top-left','Arriba, izquierda'],['center','Centro']])}
+        </div>
+        <label>Tamaño: <span id="wm-size-val">4</span>% del ancho</label>
+        <input type="range" min="1" max="12" value="4" id="wm-size" oninput="document.getElementById('wm-size-val').textContent=this.value;ToolFn.wmDraw()" style="width:100%">
+        <label>Opacidad: <span id="wm-op-val">50</span>%</label>
+        <input type="range" min="10" max="100" value="50" id="wm-op" oninput="document.getElementById('wm-op-val').textContent=this.value;ToolFn.wmDraw()" style="width:100%">
+        <label>Color</label>
+        <input type="color" id="wm-color" value="#ffffff" oninput="ToolFn.wmDraw()" style="width:100%;height:2.4rem;padding:.2rem">
+        <div class="btn-row" style="margin-top:.6rem"><button class="btn" onclick="ToolFn.wmExport()">💧 Agregar marca y descargar</button></div>
       </div>`,
 
     /* ── PASSWORD GENERATOR ── */
@@ -4945,6 +4978,93 @@ const ToolFn = (() => {
     if (btn) btn.disabled = false;
   }
 
+  // ── img watermark ──
+  let _wmImg = null, _wmFile = null, _wmMode = 'single';
+
+  function wmLoad() {
+    const f = document.getElementById('wm-file').files[0]; if (!f) return;
+    _wmFile = f;
+    document.getElementById('wm-name').textContent = f.name;
+    const img = new Image();
+    img.onload = () => {
+      _wmImg = img;
+      document.getElementById('wm-info').style.display = 'block';
+      wmDraw();
+    };
+    img.src = URL.createObjectURL(f);
+  }
+
+  function wmSetMode(mode, btn) {
+    _wmMode = mode;
+    document.querySelectorAll('#wm-info .pr-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('wm-pos-row').style.display = mode === 'tile' ? 'none' : 'block';
+    Audio.click();
+    wmDraw();
+  }
+
+  function _wmStampAt(ctx, text, x, y, angle) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (angle) ctx.rotate(angle);
+    ctx.fillText(text, 0, 0);
+    ctx.restore();
+  }
+
+  function wmDraw() {
+    if (!_wmImg) return;
+    const canvas = document.getElementById('wm-canvas');
+    canvas.width = _wmImg.width; canvas.height = _wmImg.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(_wmImg, 0, 0);
+
+    const text = document.getElementById('wm-text').value.trim() || '© Mi marca';
+    const sizePct = parseInt(document.getElementById('wm-size').value, 10);
+    const opacity = parseInt(document.getElementById('wm-op').value, 10) / 100;
+    const color = document.getElementById('wm-color').value;
+    const fontSize = Math.max(10, Math.round(canvas.width * sizePct / 100));
+    const margin = Math.max(8, Math.round(fontSize * 0.5));
+
+    ctx.font = `bold ${fontSize}px var(--mono), monospace`;
+    ctx.fillStyle = color;
+    ctx.globalAlpha = opacity;
+
+    if (_wmMode === 'tile') {
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const stepX = ctx.measureText(text).width + fontSize * 2;
+      const stepY = fontSize * 4;
+      const angle = -Math.PI / 6;
+      for (let y = -stepY; y < canvas.height + stepY; y += stepY) {
+        for (let x = -stepX; x < canvas.width + stepX; x += stepX) {
+          _wmStampAt(ctx, text, x, y, angle);
+        }
+      }
+    } else {
+      const pos = document.getElementById('wm-pos').value;
+      ctx.textAlign = pos.includes('right') ? 'right' : pos.includes('left') ? 'left' : 'center';
+      ctx.textBaseline = pos.startsWith('top') ? 'top' : pos === 'center' ? 'middle' : 'bottom';
+      const x = pos.includes('right') ? canvas.width - margin : pos.includes('left') ? margin : canvas.width / 2;
+      const y = pos.startsWith('top') ? margin : pos === 'center' ? canvas.height / 2 : canvas.height - margin;
+      ctx.fillText(text, x, y);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function wmExport() {
+    if (!_wmImg) return;
+    const canvas = document.getElementById('wm-canvas');
+    const mime = _wmFile && _wmFile.type === 'image/png' ? 'image/png' : 'image/jpeg';
+    const ext = mime === 'image/png' ? 'png' : 'jpg';
+    canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-marca-de-agua.' + ext;
+      a.click();
+      Audio.success();
+    }, mime, 0.92);
+  }
+
   // ── unit converter ──
   const UNIT_DATA = {
     longitud:   { units: { mm:0.001, cm:0.01, m:1, km:1000, in:0.0254, ft:0.3048, yd:0.9144, mi:1609.344 } },
@@ -5159,6 +5279,7 @@ const ToolFn = (() => {
     cropLoad, cropSetRatio, cropExport,
     rotLoad, rotStep, rotFlip, rotExport,
     pnLoad, pnExport,
+    wmLoad, wmSetMode, wmDraw, wmExport,
     unitCatChange, unitConvert, unitSwap,
     ctSetPreset, ctSetCustom, ctToggle, ctReset,
     paletteGenerate,
