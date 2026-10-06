@@ -136,6 +136,9 @@ const I18n = (() => {
     { id:'f2',  icon:'¶',  cat:'texto',      type:'lorem-gen',    isNew:true },
     { id:'f3',  icon:'🏷️', cat:'texto',      type:'slugify',      isNew:true },
     { id:'f4',  icon:'🖌️', cat:'imagen',     type:'img-palette',  isNew:true },
+    { id:'g1',  icon:'🔲', cat:'imagen',     type:'img-crop',     isNew:true },
+    { id:'g2',  icon:'🔃', cat:'imagen',     type:'img-rotate',   isNew:true },
+    { id:'g3',  icon:'🔢', cat:'pdf',        type:'pdf-pagenum',  isNew:true },
   ];
 
   const STRINGS = {
@@ -175,6 +178,7 @@ const I18n = (() => {
         e4:'Wayback Machine', e5:'Down For Everyone Or Just Me', e6:'Carbon',
         f1:'Probador de regex', f2:'Generador de Lorem Ipsum', f3:'Slugify',
         f4:'Paleta de una imagen',
+        g1:'Recortar imagen', g2:'Rotar/espejar imagen', g3:'Numerar páginas de PDF',
       },
       toolDescs:{
         b1:'Reducí el tamaño de JPG/PNG con preview y comparación antes/después.',
@@ -225,6 +229,9 @@ const I18n = (() => {
         f2:'Generá texto de relleno Lorem Ipsum en palabras, oraciones o párrafos para tus maquetas.',
         f3:'Convertí cualquier texto en un slug apto para URLs, en vivo mientras escribís.',
         f4:'Extraé los colores dominantes de cualquier imagen automáticamente. 100% local.',
+        g1:'Recortá tu imagen a la zona que te interesa — arrastrá la caja de recorte en vivo sobre el preview. 100% local.',
+        g2:'Rotá en pasos de 90° o espejá horizontal/vertical con un click. Preview en vivo, 100% local.',
+        g3:'Agregá número de página a cada hoja de un PDF, con la posición y el formato que elijas.',
       },
       langs:['Inglés','Español','Portugués','Francés','Alemán','Italiano','Japonés','Chino (simplificado)','Árabe','Ruso','Coreano','Hindi'],
     },
@@ -448,7 +455,7 @@ const Tools = (() => {
     'ai-correct','ai-expand','ai-summarize','ai-translate','aud-compress',
     'base64','case-conv','cobalt-dl','color-conv','hash-gen','img-compress',
     'img-convert','img-palette','img-pdf','json-fmt','lorem-gen','meta-remove',
-    'my-ip','palette-gen','pdf-text','pwd-gen','regex-test','slugify',
+    'my-ip','palette-gen','pdf-pagenum','pdf-text','pwd-gen','regex-test','slugify',
     'text-diff','unit-conv','uuid-gen','vid-compress','word-count',
   ]);
   const _memory = new Map(); // toolId -> { html, values }
@@ -1643,6 +1650,70 @@ const ToolUI = (() => {
         <label>Cantidad de colores: <span id="ip-count-val">6</span></label>
         <input type="range" min="3" max="10" value="6" id="ip-count" oninput="document.getElementById('ip-count-val').textContent=this.value;ToolFn.imgPaletteExtract()" style="width:100%">
         <div id="ip-result" class="pal-grid" style="display:none;margin-top:.8rem"></div>
+      </div>`,
+
+    /* ── IMG CROP ── */
+    'img-crop': () =>
+      infoBox('Recortá tu imagen arrastrando sobre la vista previa para elegir la zona que querés conservar. 100% local.') +
+      `<input type="file" id="ic2-file" accept="image/*" style="display:none" onchange="ToolFn.cropLoad()">` +
+      `<div class="file-drop" id="ic2-drop" onclick="document.getElementById('ic2-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('ic2-file').files=event.dataTransfer.files;ToolFn.cropLoad()">
+        <div class="file-drop__icon">🔲</div>
+        <div class="file-drop__title">Arrastrá una imagen acá</div>
+        <div class="file-drop__sub">o hacé click para elegir</div>
+        <div class="file-drop__name" id="ic2-name"></div>
+      </div>` +
+      `<div id="ic2-info" style="display:none">
+        <div class="pr-scope-group" style="margin:.5rem 0">
+          <button class="pr-scope-btn active" id="ic2-ratio-free" onclick="ToolFn.cropSetRatio(null,this)">Libre</button>
+          <button class="pr-scope-btn" id="ic2-ratio-1x1" onclick="ToolFn.cropSetRatio(1,this)">Cuadrado 1:1</button>
+          <button class="pr-scope-btn" id="ic2-ratio-16x9" onclick="ToolFn.cropSetRatio(16/9,this)">16:9</button>
+          <button class="pr-scope-btn" id="ic2-ratio-4x3" onclick="ToolFn.cropSetRatio(4/3,this)">4:3</button>
+        </div>
+        <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.4rem">arrastrá sobre la imagen para dibujar el recorte</p>
+        <div id="ic2-wrap" style="position:relative;display:inline-block;max-width:100%;touch-action:none;user-select:none">
+          <img id="ic2-img" draggable="false" ondragstart="return false" style="display:block;max-width:100%;border-radius:8px;border:1.5px solid var(--border)" alt="original">
+          <div id="ic2-box" class="crop-box" style="display:none"></div>
+        </div>
+        <p id="ic2-dims" style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-top:.4rem"></p>
+        <div class="btn-row" style="margin-top:.6rem"><button class="btn" onclick="ToolFn.cropExport()">🔲 Recortar y descargar</button></div>
+      </div>`,
+
+    /* ── IMG ROTATE ── */
+    'img-rotate': () =>
+      infoBox('Rotá tu imagen en pasos de 90° o espejala horizontal/vertical. Preview en vivo, 100% local.') +
+      `<input type="file" id="irt-file" accept="image/*" style="display:none" onchange="ToolFn.rotLoad()">` +
+      `<div class="file-drop" id="irt-drop" onclick="document.getElementById('irt-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('irt-file').files=event.dataTransfer.files;ToolFn.rotLoad()">
+        <div class="file-drop__icon">🔃</div>
+        <div class="file-drop__title">Arrastrá una imagen acá</div>
+        <div class="file-drop__sub">o hacé click para elegir</div>
+        <div class="file-drop__name" id="irt-name"></div>
+      </div>` +
+      `<div id="irt-info" style="display:none">
+        <canvas id="irt-canvas" style="width:100%;display:block;max-height:340px;object-fit:contain;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3)"></canvas>
+        <div class="btn-row" style="margin:.6rem 0">
+          <button class="btn btn--sec" onclick="ToolFn.rotStep(-90)">↺ -90°</button>
+          <button class="btn btn--sec" onclick="ToolFn.rotStep(90)">↻ +90°</button>
+          <button class="btn btn--sec" onclick="ToolFn.rotFlip('h')">⇋ Espejo H</button>
+          <button class="btn btn--sec" onclick="ToolFn.rotFlip('v')">⇅ Espejo V</button>
+        </div>
+        <div class="btn-row"><button class="btn" onclick="ToolFn.rotExport()">⬇️ Descargar</button></div>
+      </div>`,
+
+    /* ── PDF PAGE NUMBERS ── */
+    'pdf-pagenum': () =>
+      infoBox('Agregá el número de página a cada hoja de tu PDF, en la posición y con el formato que elijas. 100% local.') +
+      label('Archivo PDF') +
+      `${dropZone('pn-file','application/pdf','ToolFn.pnLoad()','Arrastrá un PDF acá')}` +
+      `<div id="pn-info" style="display:none">
+        <p id="pn-pages-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>
+        ${label('Posición')}
+        ${sel('pn-pos', [['bottom-center','Abajo, centro'],['bottom-right','Abajo, derecha'],['bottom-left','Abajo, izquierda'],['top-center','Arriba, centro'],['top-right','Arriba, derecha'],['top-left','Arriba, izquierda']])}
+        ${label('Formato')}
+        ${sel('pn-fmt', [['n','1, 2, 3...'],['n-total','1 / N, 2 / N...'],['pag-n','Página 1, Página 2...']])}
+        ${label('Empezar en')}
+        <input type="number" id="pn-start" value="1" min="1" style="width:100%">
+        <div class="btn-row" style="margin-top:.6rem"><button class="btn" onclick="ToolFn.pnExport()">🔢 Agregar números y descargar</button></div>
+        <div id="pn-result" style="margin-top:.6rem"></div>
       </div>`,
 
     /* ── PASSWORD GENERATOR ── */
@@ -4622,6 +4693,226 @@ const ToolFn = (() => {
     resultEl.style.display = 'grid';
   }
 
+  // ── img crop ──
+  let _cropFile = null, _cropImgEl = null, _cropRatio = null, _cropRect = null;
+
+  function cropLoad() {
+    const f = document.getElementById('ic2-file').files[0]; if (!f) return;
+    _cropFile = f;
+    document.getElementById('ic2-name').textContent = f.name;
+    const img = document.getElementById('ic2-img');
+    img.onload = () => {
+      _cropImgEl = img;
+      _cropRect = null;
+      document.getElementById('ic2-box').style.display = 'none';
+      document.getElementById('ic2-dims').textContent = '';
+      document.getElementById('ic2-info').style.display = 'block';
+      _initCropDrag();
+    };
+    img.src = URL.createObjectURL(f);
+  }
+
+  function _initCropDrag() {
+    const wrap = document.getElementById('ic2-wrap');
+    if (wrap.dataset.cropInit) return;
+    wrap.dataset.cropInit = '1';
+    let dragging = false, startX = 0, startY = 0;
+
+    function clientToLocal(e) {
+      const rect = wrap.getBoundingClientRect();
+      return {
+        x: Math.max(0, Math.min(rect.width, e.clientX - rect.left)),
+        y: Math.max(0, Math.min(rect.height, e.clientY - rect.top)),
+      };
+    }
+
+    function updateBox(x0, y0, x1, y1) {
+      const wrapRect = wrap.getBoundingClientRect();
+      let w = Math.abs(x1 - x0);
+      let h = _cropRatio ? w / _cropRatio : Math.abs(y1 - y0);
+      w = Math.min(w, wrapRect.width); h = Math.min(h, wrapRect.height);
+      const x = x1 >= x0 ? x0 : x0 - w;
+      const y = (_cropRatio ? y0 : (y1 >= y0 ? y0 : y0 - h));
+      const box = document.getElementById('ic2-box');
+      box.style.left = x + 'px'; box.style.top = y + 'px';
+      box.style.width = w + 'px'; box.style.height = h + 'px';
+      box.style.display = 'block';
+      _cropRect = { x, y, w, h };
+      _updateCropDims();
+    }
+
+    wrap.addEventListener('pointerdown', e => {
+      dragging = true;
+      const p = clientToLocal(e);
+      startX = p.x; startY = p.y;
+      wrap.setPointerCapture(e.pointerId);
+    });
+    wrap.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      const p = clientToLocal(e);
+      updateBox(startX, startY, p.x, p.y);
+    });
+    wrap.addEventListener('pointerup', () => { dragging = false; });
+    wrap.addEventListener('pointercancel', () => { dragging = false; });
+  }
+
+  function _updateCropDims() {
+    if (!_cropRect || !_cropImgEl || !_cropImgEl.clientWidth) return;
+    const scale = _cropImgEl.naturalWidth / _cropImgEl.clientWidth;
+    const w = Math.round(_cropRect.w * scale), h = Math.round(_cropRect.h * scale);
+    document.getElementById('ic2-dims').textContent = `${w} × ${h}px`;
+  }
+
+  function cropSetRatio(ratio, btn) {
+    _cropRatio = ratio;
+    document.querySelectorAll('#ic2-info .pr-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('ic2-box').style.display = 'none';
+    _cropRect = null;
+    document.getElementById('ic2-dims').textContent = '';
+    Audio.click();
+  }
+
+  function cropExport() {
+    if (!_cropRect || !_cropImgEl) { UI.showToast('dibujá un recorte sobre la imagen primero'); return; }
+    const scale = _cropImgEl.naturalWidth / _cropImgEl.clientWidth;
+    const sx = _cropRect.x * scale, sy = _cropRect.y * scale;
+    const sw = _cropRect.w * scale, sh = _cropRect.h * scale;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(sw)); canvas.height = Math.max(1, Math.round(sh));
+    canvas.getContext('2d').drawImage(_cropImgEl, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    const mime = _cropFile && _cropFile.type === 'image/png' ? 'image/png' : 'image/jpeg';
+    const ext = mime === 'image/png' ? 'png' : 'jpg';
+    canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-recortada.' + ext;
+      a.click();
+      Audio.success();
+    }, mime, 0.92);
+  }
+
+  // ── img rotate ──
+  let _rotFile = null, _rotImg = null, _rotAngle = 0, _rotFlipH = false, _rotFlipV = false;
+
+  function rotLoad() {
+    const f = document.getElementById('irt-file').files[0]; if (!f) return;
+    _rotFile = f;
+    document.getElementById('irt-name').textContent = f.name;
+    _rotAngle = 0; _rotFlipH = false; _rotFlipV = false;
+    const img = new Image();
+    img.onload = () => {
+      _rotImg = img;
+      document.getElementById('irt-info').style.display = 'block';
+      _rotDraw();
+    };
+    img.src = URL.createObjectURL(f);
+  }
+
+  function _rotDraw() {
+    if (!_rotImg) return;
+    const canvas = document.getElementById('irt-canvas');
+    const swapped = _rotAngle % 180 !== 0;
+    const w = swapped ? _rotImg.height : _rotImg.width;
+    const h = swapped ? _rotImg.width : _rotImg.height;
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    // el flip se aplica ANTES de rotar en el orden de llamadas (se compone al revés:
+    // la última transformación llamada es la primera en aplicarse al punto crudo) para
+    // que siempre espeje lo que se ve en pantalla, sin importar la rotación acumulada.
+    ctx.scale(_rotFlipH ? -1 : 1, _rotFlipV ? -1 : 1);
+    ctx.rotate(_rotAngle * Math.PI / 180);
+    ctx.drawImage(_rotImg, -_rotImg.width / 2, -_rotImg.height / 2);
+    ctx.restore();
+  }
+
+  function rotStep(delta) {
+    if (!_rotImg) return;
+    _rotAngle = (_rotAngle + delta + 360) % 360;
+    _rotDraw();
+    Audio.click();
+  }
+
+  function rotFlip(axis) {
+    if (!_rotImg) return;
+    if (axis === 'h') _rotFlipH = !_rotFlipH; else _rotFlipV = !_rotFlipV;
+    _rotDraw();
+    Audio.click();
+  }
+
+  function rotExport() {
+    if (!_rotImg) return;
+    const canvas = document.getElementById('irt-canvas');
+    const mime = _rotFile && _rotFile.type === 'image/png' ? 'image/png' : 'image/jpeg';
+    const ext = mime === 'image/png' ? 'png' : 'jpg';
+    canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-rotada.' + ext;
+      a.click();
+      Audio.success();
+    }, mime, 0.92);
+  }
+
+  // ── pdf page numbers ──
+  let _pnFile = null;
+
+  async function pnLoad() {
+    const f = document.getElementById('pn-file').files[0]; if (!f) return;
+    _pnFile = f;
+    document.getElementById('pn-info').style.display = 'block';
+    document.getElementById('pn-pages-info').textContent = '⏳ leyendo PDF...';
+    try {
+      const { PDFDocument } = await _loadPdfLib();
+      const doc = await PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption: true });
+      const count = doc.getPageCount();
+      document.getElementById('pn-pages-info').textContent = `${f.name} · ${count} página${count === 1 ? '' : 's'}`;
+    } catch (e) {
+      document.getElementById('pn-pages-info').textContent = '❌ No se pudo leer el PDF: ' + e.message;
+    }
+  }
+
+  async function pnExport() {
+    if (!_pnFile) return;
+    const btn = document.querySelector('#pn-info .btn');
+    if (btn) btn.disabled = true;
+    try {
+      const { PDFDocument, StandardFonts, rgb } = await _loadPdfLib();
+      const doc = await PDFDocument.load(await _pnFile.arrayBuffer(), { ignoreEncryption: true });
+      const font = await doc.embedFont(StandardFonts.Helvetica);
+      const pos = document.getElementById('pn-pos').value;
+      const fmt = document.getElementById('pn-fmt').value;
+      const start = parseInt(document.getElementById('pn-start').value, 10) || 1;
+      const pages = doc.getPages();
+      const total = pages.length;
+      const size = 10;
+      pages.forEach((page, i) => {
+        const num = start + i;
+        const text = fmt === 'n-total' ? `${num} / ${total}` : fmt === 'pag-n' ? `Página ${num}` : String(num);
+        const textWidth = font.widthOfTextAtSize(text, size);
+        const { width, height } = page.getSize();
+        const margin = 24;
+        const x = pos.includes('center') ? (width - textWidth) / 2 : pos.includes('right') ? width - textWidth - margin : margin;
+        const y = pos.startsWith('top') ? height - margin : margin - size / 3;
+        page.drawText(text, { x, y, size, font, color: rgb(0.35, 0.35, 0.35) });
+      });
+      const bytes = await doc.save();
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-numerado.pdf';
+      a.click();
+      showResult('pn-result', `✅ Números agregados a las ${total} páginas`);
+      Audio.success();
+    } catch (e) {
+      showResult('pn-result', '❌ ' + e.message, true);
+      Audio.error();
+    }
+    if (btn) btn.disabled = false;
+  }
+
   // ── unit converter ──
   const UNIT_DATA = {
     longitud:   { units: { mm:0.001, cm:0.01, m:1, km:1000, in:0.0254, ft:0.3048, yd:0.9144, mi:1609.344 } },
@@ -4833,6 +5124,9 @@ const ToolFn = (() => {
     loremGenerate,
     slugifyLive,
     imgPaletteLoad, imgPaletteExtract,
+    cropLoad, cropSetRatio, cropExport,
+    rotLoad, rotStep, rotFlip, rotExport,
+    pnLoad, pnExport,
     unitCatChange, unitConvert, unitSwap,
     ctSetPreset, ctSetCustom, ctToggle, ctReset,
     paletteGenerate,

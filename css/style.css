@@ -726,6 +726,11 @@ footer::after {
 .pr-deg-btn.active, .pr-scope-btn.active { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
 .pr-mode-btn.active { background:var(--accent2); color:var(--on-accent); border-color:var(--accent2); }
 
+.crop-box {
+  position:absolute; border:2px dashed var(--accent2);
+  background:rgba(255,255,255,.1); cursor:move; pointer-events:none;
+}
+
 /* ─────────────────────────────────────────
    17. COMMAND PALETTE (Ctrl+K)
 ───────────────────────────────────────── */
