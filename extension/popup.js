@@ -1,14 +1,29 @@
+// La app completa de Taro's Tools (51 herramientas) vive en tarotools.netlify.app — abrirla
+// es simplemente navegar ahí, con el mismo deep-link #<id> que ya usa el sitio para enlazar
+// directo a una herramienta. (Se intentó empaquetar el sitio completo offline dentro de la
+// extensión, pero el sitio usa atributos onclick="..."/onchange="..." en cientos de lugares,
+// y el CSP de Manifest V3 bloquea los manejadores de eventos inline — ver BACKLOG-MEJORAS.md.)
+
 const DEFAULT_SITE = 'https://tarotools.netlify.app';
+
+async function getSiteUrl() {
+  const { siteUrl } = await chrome.storage.local.get('siteUrl');
+  return (siteUrl || DEFAULT_SITE).replace(/\/$/, '');
+}
 
 const QUICK_TOOLS = [
   { id: 'b1',  icon: '🖼️', name: 'Comprimir imagen' },
+  { id: 'g1',  icon: '🔲', name: 'Recortar imagen' },
   { id: 'b2',  icon: '🔄', name: 'Convertir imagen' },
+  { id: 'b24', icon: '✂️',  name: 'Quitar fondo' },
+  { id: 'c1',  icon: '🔗', name: 'Combinar PDFs' },
   { id: 'b6',  icon: '📄', name: 'PDF a texto' },
   { id: 'b12', icon: '◼️', name: 'Generador QR' },
   { id: 'b13', icon: '🎨', name: 'Colores' },
   { id: 'b16', icon: '💾', name: 'Base64' },
   { id: 'd2',  icon: '{ }', name: 'JSON' },
   { id: 'd4',  icon: '🧮', name: 'Unidades' },
+  { id: 'b9',  icon: '🌐', name: 'Traductor IA' },
 ];
 
 function toast(msg) {
@@ -17,17 +32,12 @@ function toast(msg) {
   setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 1800);
 }
 
-async function getSiteUrl() {
-  const { siteUrl } = await chrome.storage.local.get('siteUrl');
-  return (siteUrl || DEFAULT_SITE).replace(/\/$/, '');
-}
-
 async function openTool(toolId) {
   const site = await getSiteUrl();
   chrome.tabs.create({ url: `${site}/#${toolId}` });
 }
 
-async function renderQuickGrid() {
+function renderQuickGrid() {
   const grid = document.getElementById('quick-grid');
   grid.innerHTML = '';
   QUICK_TOOLS.forEach(t => {

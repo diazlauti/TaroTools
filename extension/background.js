@@ -1,8 +1,8 @@
 // Taro's Tools — service worker de la extensión.
-// Nada de esto manda tus imágenes ni tu texto a ningún servidor: la compresión y la paleta de
-// colores se procesan acá mismo, en tu navegador, con OffscreenCanvas. Solo "Generar QR" abre
-// una pestaña nueva en Taro's Tools (con el texto ya cargado, vía el mismo deep-link que usa el
-// sitio — no hay servidor intermedio ahí tampoco, el QR también se genera en tu navegador).
+// Nada de esto manda tus imágenes ni tu texto a ningún servidor propio: la compresión y la
+// paleta de colores se procesan acá mismo, en tu navegador, con OffscreenCanvas. "Generar QR" y
+// "Abrir Taro's Tools" abren una pestaña en el sitio real (con el deep-link #<id> para ir directo
+// a la herramienta) — el QR también se genera ahí en el navegador, no hay servidor intermedio.
 
 const DEFAULT_SITE = 'https://tarotools.netlify.app';
 
@@ -134,8 +134,7 @@ async function openQrWithText(text) {
   const clean = text.trim();
   if (!clean) throw new Error('no hay texto seleccionado');
   const site = await getSiteUrl();
-  const url = `${site}/#b12?text=${encodeURIComponent(clean)}`;
-  await chrome.tabs.create({ url });
+  await chrome.tabs.create({ url: `${site}/#b12?text=${encodeURIComponent(clean)}` });
 }
 
 function fmtSize(bytes) {

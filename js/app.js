@@ -1,13 +1,30 @@
 'use strict';
 
 /* ═══════════════════════════════════════════════
+   ENTORNO — preparado para que esta misma app.js también pueda correr
+   empaquetada dentro de la extensión de Chrome (en chrome-extension://),
+   sirviendo la misma lógica ya probada en vez de mantener una copia
+   aparte — ver BACKLOG-MEJORAS.md ("Migrar los manejadores de eventos
+   inline") para por qué eso todavía no está activo. Mientras tanto esto
+   es inerte: IS_EXTENSION da false en el sitio normal, así que nada
+   cambia. Cuando corra en una extensión: las llamadas a las funciones
+   de Netlify (IA, descargador, visitas, firmas) y los archivos de audio
+   tienen que apuntar al sitio real en vez de una ruta relativa, y las
+   librerías de CDN se cargan desde una copia local empaquetada (ver
+   loadScript()) en vez de cdnjs, porque las extensiones no pueden
+   ejecutar código remoto.
+═══════════════════════════════════════════════ */
+const IS_EXTENSION = typeof location !== 'undefined' && location.protocol === 'chrome-extension:';
+const SITE_BASE = IS_EXTENSION ? 'https://tarotools.netlify.app' : '';
+
+/* ═══════════════════════════════════════════════
    CONFIG
 ═══════════════════════════════════════════════ */
 const CONFIG = {
-  GEMINI_PROXY: '/.netlify/functions/gemini',
-  COBALT_API: '/.netlify/functions/cobalt',
-  VISITS_API: '/.netlify/functions/visits',
-  GUESTBOOK_API: '/.netlify/functions/guestbook',
+  GEMINI_PROXY: SITE_BASE + '/.netlify/functions/gemini',
+  COBALT_API: SITE_BASE + '/.netlify/functions/cobalt',
+  VISITS_API: SITE_BASE + '/.netlify/functions/visits',
+  GUESTBOOK_API: SITE_BASE + '/.netlify/functions/guestbook',
   IP_API: 'https://api.ipify.org?format=json',
   ADMIN_PASS_HASH: 'a0f50e4075fa8fc1c8acce4c6ab92f7713913eb7906850bb25cc3a72f88e4550',
 };
@@ -1840,11 +1857,21 @@ const ToolUI = (() => {
 const ToolFn = (() => {
 
   // ── internal helpers ──
+  // Dentro de la extensión, las librerías de terceros vienen empaquetadas localmente
+  // (extension/app/libs/) en vez de pedirse a cdnjs — las extensiones no pueden ejecutar
+  // código remoto. Se mapea por nombre de archivo: misma estructura para los dos entornos.
+  function _cdnOrLocal(url) {
+    if (IS_EXTENSION && url.includes('cdnjs.cloudflare.com')) return 'libs/' + url.split('/').pop();
+    return url;
+  }
+
   function loadScript(src) {
+    src = _cdnOrLocal(src);
     return new Promise((res, rej) => {
       if (document.querySelector(`script[src="${src}"]`)) { res(); return; }
       const s = document.createElement('script');
-      s.src = src; s.onload = res; s.onerror = rej;
+      s.src = src; s.onload = res;
+      s.onerror = () => rej(new Error('No se pudo cargar una librería externa — revisá tu conexión'));
       document.head.appendChild(s);
     });
   }
@@ -2353,7 +2380,7 @@ const ToolFn = (() => {
     const result = document.getElementById('pdf-result'); result.style.display = 'none';
     try {
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = _cdnOrLocal('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js');
       const pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise;
       let text = '';
       for (let i = 1; i <= pdf.numPages; i++) {
@@ -4383,6 +4410,11 @@ const ToolFn = (() => {
         }
 
         const result = await Tesseract.recognize(imageUrl, lang, {
+          ...(IS_EXTENSION ? {
+            workerPath: 'libs/worker.min.js',
+            corePath: 'libs/tesseract-core',
+            langPath: 'libs/tesseract-lang',
+          } : {}),
           logger: m => {
             if (m.status === 'recognizing text') {
               const pct = Math.round((idx / total + m.progress / total) * 100);
@@ -5363,8 +5395,10 @@ const Admin = (() => {
 ═══════════════════════════════════════════════ */
 I18n.set('es');
 
-/* ── PWA: cachea lo estático para que ande offline después de la primera visita ── */
-if ('serviceWorker' in navigator) {
+/* ── PWA: cachea lo estático para que ande offline después de la primera visita ──
+   (no aplica dentro de la extensión: ahí el origen es chrome-extension:// y los archivos
+   ya están empaquetados localmente, no hace falta un service worker para eso) ── */
+if ('serviceWorker' in navigator && !IS_EXTENSION) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
 }
 
@@ -5592,7 +5626,7 @@ const NowPlaying = (() => {
     titleEl.textContent = t.title;
     subEl.textContent = t.artist;
     if (idxEl) idxEl.textContent = `${idx + 1}/${TRACKS.length}`;
-    audio.src = t.src;
+    audio.src = SITE_BASE + '/' + t.src;
     if (autoplay) audio.play().catch(() => {});
   }
 

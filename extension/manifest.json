@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Taro's Tools — acceso rápido",
+  "name": "Taro's Tools \u2014 acceso r\u00e1pido",
   "version": "1.0.0",
-  "description": "Comprimí o mirá la paleta de una imagen con un click derecho, convertí texto seleccionado en QR, y abrí tus herramientas de Taro's Tools favoritas sin buscarlas.",
+  "description": "Comprim\u00ed o mir\u00e1 la paleta de una imagen con un click derecho, convert\u00ed texto seleccionado en QR, y abr\u00ed tus herramientas de Taro's Tools favoritas sin buscarlas.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -21,6 +21,14 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["contextMenus", "downloads", "notifications", "storage"],
-  "host_permissions": ["https://*/*", "http://*/*"]
+  "permissions": [
+    "contextMenus",
+    "downloads",
+    "notifications",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ]
 }
