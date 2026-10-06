@@ -159,6 +159,7 @@ const I18n = (() => {
     { id:'g4',  icon:'💧', cat:'imagen',     type:'img-watermark',isNew:true },
     { id:'g5',  icon:'📱', cat:'conversion', type:'img-heic',     isNew:true },
     { id:'g6',  icon:'🧩', cat:'imagen',     type:'img-collage',  isNew:true },
+    { id:'g7',  icon:'📑', cat:'pdf',        type:'pdf-compare',  isNew:true },
   ];
 
   const STRINGS = {
@@ -199,7 +200,7 @@ const I18n = (() => {
         f1:'Probador de regex', f2:'Generador de Lorem Ipsum', f3:'Slugify',
         f4:'Paleta de una imagen',
         g1:'Recortar imagen', g2:'Rotar/espejar imagen', g3:'Numerar páginas de PDF', g4:'Marca de agua en imagen',
-        g5:'Convertir HEIC a JPG/PNG', g6:'Collage de imágenes',
+        g5:'Convertir HEIC a JPG/PNG', g6:'Collage de imágenes', g7:'Comparar dos PDFs',
       },
       toolDescs:{
         b1:'Reducí el tamaño de JPG/PNG con preview y comparación antes/después.',
@@ -256,6 +257,7 @@ const I18n = (() => {
         g4:'Superponé tu propio texto como marca de agua, en una esquina o repetido en diagonal sobre toda la imagen. 100% local.',
         g5:'Convertí fotos HEIC/HEIF (el formato de tu iPhone) a JPG o PNG para poder subirlas a cualquier sitio. Varias a la vez, 100% local.',
         g6:'Armá un collage con varias fotos en una grilla (2×2, 3×3 y más), con espaciado y color de fondo a tu gusto. 100% local.',
+        g7:'Compará el texto de dos PDFs y mirá exactamente qué cambió, palabra por palabra o página por página. 100% local.',
       },
       langs:['Inglés','Español','Portugués','Francés','Alemán','Italiano','Japonés','Chino (simplificado)','Árabe','Ruso','Coreano','Hindi'],
     },
@@ -479,7 +481,7 @@ const Tools = (() => {
     'ai-correct','ai-expand','ai-summarize','ai-translate','aud-compress',
     'base64','case-conv','cobalt-dl','color-conv','hash-gen','img-compress',
     'img-convert','img-heic','img-palette','img-pdf','json-fmt','lorem-gen','meta-remove',
-    'my-ip','palette-gen','pdf-pagenum','pdf-text','pwd-gen','regex-test','slugify',
+    'my-ip','palette-gen','pdf-compare','pdf-pagenum','pdf-text','pwd-gen','regex-test','slugify',
     'text-diff','unit-conv','uuid-gen','vid-compress','word-count',
   ]);
   const _memory = new Map(); // toolId -> { html, values }
@@ -1816,6 +1818,26 @@ const ToolUI = (() => {
       label('Color de fondo') +
       `<input type="color" id="cl-bg" value="#000000" oninput="ToolFn.collageDraw()" style="width:100%;height:2.4rem;padding:.2rem">` +
       `<div class="btn-row" style="margin-top:.6rem"><button class="btn" onclick="ToolFn.collageExport()">🧩 Descargar collage</button></div>`,
+
+    /* ── PDF COMPARE ── */
+    'pdf-compare': () =>
+      infoBox('Compará el texto de dos PDFs y mirá las diferencias: <span class="diff-ins">agregado</span> y <span class="diff-del">eliminado</span>. Compara el texto extraído, no el diseño visual de la página.') +
+      `<div class="diff-cols">
+        <div>${label('PDF A')}${dropZone('pcmp-a-file','application/pdf','ToolFn.pcmpLoad(\'a\')','Arrastrá el PDF A acá')}
+          <p id="pcmp-a-info" style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-top:.3rem"></p>
+        </div>
+        <div>${label('PDF B')}${dropZone('pcmp-b-file','application/pdf','ToolFn.pcmpLoad(\'b\')','Arrastrá el PDF B acá')}
+          <p id="pcmp-b-info" style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-top:.3rem"></p>
+        </div>
+      </div>` +
+      `<div class="pr-scope-group" id="pcmp-mode-group" style="margin:.6rem 0">
+        <button class="pr-scope-btn active" id="pcmp-mode-word" onclick="ToolFn.pcmpSetMode('word',this)">Por palabra</button>
+        <button class="pr-scope-btn" id="pcmp-mode-page" onclick="ToolFn.pcmpSetMode('page',this)">Por página</button>
+      </div>` +
+      `<div class="btn-row"><button class="btn" id="pcmp-btn" onclick="ToolFn.pcmpRun()">📑 Comparar</button></div>` +
+      loader('pcmp-loader','⏳ extrayendo y comparando texto...') +
+      `<div id="pcmp-stats" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin-top:.4rem;min-height:1rem"></div>` +
+      result('pcmp-result'),
 
     /* ── PASSWORD GENERATOR ── */
     'pwd-gen': () =>
@@ -5315,6 +5337,99 @@ const ToolFn = (() => {
     }, 'image/jpeg', 0.92);
   }
 
+  // ── pdf compare ──
+  let _pcmpA = null, _pcmpB = null, _pcmpMode = 'word';
+
+  function pcmpSetMode(mode, btn) {
+    _pcmpMode = mode;
+    document.querySelectorAll('#pcmp-mode-group .pr-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    Audio.click();
+  }
+
+  async function pcmpLoad(which) {
+    const f = document.getElementById(`pcmp-${which}-file`).files[0]; if (!f) return;
+    if (which === 'a') _pcmpA = f; else _pcmpB = f;
+    const info = document.getElementById(`pcmp-${which}-info`);
+    info.textContent = `⏳ leyendo ${f.name}...`;
+    try {
+      const pdfjs = await _loadPdfJs();
+      const pdf = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
+      info.textContent = `${f.name} · ${pdf.numPages} página${pdf.numPages === 1 ? '' : 's'}`;
+    } catch (e) {
+      info.textContent = `❌ No se pudo leer ${f.name}: ${e.message}`;
+    }
+  }
+
+  async function _pcmpExtractPages(file) {
+    const pdfjs = await _loadPdfJs();
+    const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+    const pages = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const pg = await pdf.getPage(i);
+      const ct = await pg.getTextContent();
+      pages.push(ct.items.map(s => s.str).join(' ').replace(/\s+/g, ' ').trim());
+    }
+    return pages;
+  }
+
+  async function pcmpRun() {
+    if (!_pcmpA || !_pcmpB) { UI.showToast('subí los dos PDFs primero'); return; }
+    const btn = document.getElementById('pcmp-btn');
+    btn.disabled = true;
+    toggleLoader('pcmp-loader', true);
+    document.getElementById('pcmp-stats').textContent = '';
+    try {
+      const [pagesA, pagesB] = await Promise.all([_pcmpExtractPages(_pcmpA), _pcmpExtractPages(_pcmpB)]);
+      let ops, html, added, removed;
+      if (_pcmpMode === 'page') {
+        ops = _diffTokens(pagesA, pagesB);
+        let aPage = 0, bPage = 0;
+        html = ops.map(([type, pageText]) => {
+          if (type === 'eq') {
+            aPage++; bPage++;
+            return `<div style="margin-bottom:.6rem;padding-bottom:.5rem;border-bottom:1px dashed var(--border);color:var(--fg3)"><b>Página ${aPage} — sin cambios</b></div>`;
+          }
+          if (type === 'del') {
+            aPage++;
+            return `<div style="margin-bottom:.6rem;padding-bottom:.5rem;border-bottom:1px dashed var(--border)"><b class="diff-del">Página ${aPage} de A — eliminada/modificada</b><br>${_escHtml(pageText || '(sin texto)')}</div>`;
+          }
+          bPage++;
+          return `<div style="margin-bottom:.6rem;padding-bottom:.5rem;border-bottom:1px dashed var(--border)"><b class="diff-ins">Página ${bPage} de B — agregada/modificada</b><br>${_escHtml(pageText || '(sin texto)')}</div>`;
+        }).join('');
+        added = ops.filter(o => o[0] === 'ins').length;
+        removed = ops.filter(o => o[0] === 'del').length;
+      } else {
+        const textA = pagesA.join('\n\n'), textB = pagesB.join('\n\n');
+        const tokA = textA.split(/(\s+)/), tokB = textB.split(/(\s+)/);
+        if (tokA.length * tokB.length > 1500000) {
+          showResult('pcmp-result', '⚠️ Los PDFs son demasiado largos para comparar palabra por palabra en el navegador. Probá con el modo "Por página".', true);
+          Audio.error();
+          toggleLoader('pcmp-loader', false);
+          btn.disabled = false;
+          return;
+        }
+        ops = _diffTokens(tokA, tokB);
+        html = ops.map(([type, tok]) => type === 'eq' ? _escHtml(tok) : `<span class="diff-${type}">${_escHtml(tok)}</span>`).join('');
+        added = ops.filter(o => o[0] === 'ins' && o[1].trim()).length;
+        removed = ops.filter(o => o[0] === 'del' && o[1].trim()).length;
+      }
+      showResult('pcmp-result', html || '<span style="color:var(--fg3)">Sin diferencias.</span>');
+      document.getElementById('pcmp-stats').textContent =
+        (added || removed)
+          ? (_pcmpMode === 'page'
+              ? `${added} página${added === 1 ? '' : 's'} agregada(s)/modificada(s) · ${removed} eliminada(s)/modificada(s)`
+              : `+${added} agregadas · -${removed} eliminadas`)
+          : 'Los PDFs tienen el mismo texto';
+      Audio.success();
+    } catch (e) {
+      showResult('pcmp-result', '❌ ' + e.message, true);
+      Audio.error();
+    }
+    toggleLoader('pcmp-loader', false);
+    btn.disabled = false;
+  }
+
   // ── unit converter ──
   const UNIT_DATA = {
     longitud:   { units: { mm:0.001, cm:0.01, m:1, km:1000, in:0.0254, ft:0.3048, yd:0.9144, mi:1609.344 } },
@@ -5532,6 +5647,7 @@ const ToolFn = (() => {
     wmLoad, wmSetMode, wmDraw, wmExport,
     heicPreview, heicConvert,
     collageLoad, collageSetGrid, collageSetStyle, collageDraw, collageExport,
+    pcmpLoad, pcmpSetMode, pcmpRun,
     unitCatChange, unitConvert, unitSwap,
     ctSetPreset, ctSetCustom, ctToggle, ctReset,
     paletteGenerate,
