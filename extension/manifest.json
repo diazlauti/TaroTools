@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Taro's Tools \u2014 acceso r\u00e1pido",
+  "version": "1.0.0",
+  "description": "Comprim\u00ed o mir\u00e1 la paleta de una imagen con un click derecho, convert\u00ed texto seleccionado en QR, y abr\u00ed tus herramientas de Taro's Tools favoritas sin buscarlas.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "contextMenus",
+    "downloads",
+    "notifications",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ]
+}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Taro's Tools</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+
+<header>
+  <div class="logo">T_T <span>Taro's Tools</span></div>
+  <button id="open-site" title="Abrir todas las herramientas">↗</button>
+</header>
+
+<section>
+  <p class="section-title">accesos rápidos</p>
+  <div class="grid" id="quick-grid"></div>
+</section>
+
+<section>
+  <p class="section-title">mini-herramientas (sin abrir nada más)</p>
+
+  <div class="mini">
+    <p class="mini__label">🔑 contraseña</p>
+    <div class="mini__row">
+      <div class="pwd-out" id="pwd-out">—</div>
+      <button class="icon-btn" id="pwd-copy" title="Copiar">⧉</button>
+      <button class="icon-btn" id="pwd-regen" title="Generar otra">↻</button>
+    </div>
+  </div>
+
+  <div class="mini">
+    <p class="mini__label">🆔 UUID</p>
+    <div class="mini__row">
+      <div class="pwd-out" id="uuid-out">—</div>
+      <button class="icon-btn" id="uuid-copy" title="Copiar">⧉</button>
+      <button class="icon-btn" id="uuid-regen" title="Generar otro">↻</button>
+    </div>
+  </div>
+
+  <div class="mini" id="eyedropper-mini" style="display:none">
+    <p class="mini__label">🎨 color de la pantalla</p>
+    <div class="mini__row">
+      <button class="btn" id="pick-color">Elegir color</button>
+      <div class="color-swatch" id="color-swatch"></div>
+      <div class="pwd-out" id="color-out">—</div>
+      <button class="icon-btn" id="color-copy" title="Copiar">⧉</button>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span id="toast"></span>
+  <a href="#" id="settings-link">configurar sitio</a>
+</footer>
+
+<div id="settings-panel" style="display:none">
+  <label for="site-input">URL de tu sitio TaroTools</label>
+  <input type="text" id="site-input" placeholder="https://tarotools.netlify.app">
+  <div class="mini__row">
+    <button class="btn" id="site-save">Guardar</button>
+    <button class="icon-btn" id="settings-close">✕</button>
+  </div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>

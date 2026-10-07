@@ -12,6 +12,27 @@ mejora chica y bien probada que un batch grande sin verificar. Si el usuario pid
 cada una sigue siendo un ciclo completo de analizar→arreglar→verificar→commit antes de pasar a la
 siguiente.
 
+## Antes que nada: revisá el backlog
+
+Si existe `BACKLOG-MEJORAS.md` en la raíz del repo y tiene algún ítem sin marcar en su sección
+`## Pendientes`, esa es la tarea de esta pasada — tiene prioridad sobre el análisis automático de
+bugs/seguridad/visual de más abajo, porque es algo que el usuario pidió explícitamente en algún
+momento (vía la skill `agregar-tarea` o directamente en el chat). Tomá el primer ítem sin marcar
+de arriba hacia abajo, resolvelo con el mismo ciclo de siempre (implementar, verificar de verdad,
+commitear), y al terminar:
+
+1. Movelo de `## Pendientes` a `## Hechas` en `BACKLOG-MEJORAS.md`, marcado `[x]`, con la fecha y
+   el hash corto del commit que lo resolvió.
+2. Incluí ese movimiento en el mismo commit que resuelve la tarea (o el commit inmediatamente
+   siguiente) — no lo dejes para una pasada aparte, se pierde el rastro de qué se resolvió cuándo.
+
+Si el ítem del backlog es ambiguo o demasiado grande para una sola pasada, no lo fuerces: resolvé
+la parte más chica y accionable, dejá el resto como un ítem nuevo más específico en
+`## Pendientes`, y explicá la división en el mensaje de commit.
+
+Solo si el backlog está vacío (o el archivo no existe todavía) pasá al análisis automático de las
+secciones de abajo.
+
 ## Por qué esta prioridad
 
 Un bug roto o un hueco de seguridad afecta a cualquiera que use la herramienta ahora mismo; un

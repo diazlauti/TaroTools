@@ -1,13 +1,30 @@
 'use strict';
 
 /* ═══════════════════════════════════════════════
+   ENTORNO — preparado para que esta misma app.js también pueda correr
+   empaquetada dentro de la extensión de Chrome (en chrome-extension://),
+   sirviendo la misma lógica ya probada en vez de mantener una copia
+   aparte — ver BACKLOG-MEJORAS.md ("Migrar los manejadores de eventos
+   inline") para por qué eso todavía no está activo. Mientras tanto esto
+   es inerte: IS_EXTENSION da false en el sitio normal, así que nada
+   cambia. Cuando corra en una extensión: las llamadas a las funciones
+   de Netlify (IA, descargador, visitas, firmas) y los archivos de audio
+   tienen que apuntar al sitio real en vez de una ruta relativa, y las
+   librerías de CDN se cargan desde una copia local empaquetada (ver
+   loadScript()) en vez de cdnjs, porque las extensiones no pueden
+   ejecutar código remoto.
+═══════════════════════════════════════════════ */
+const IS_EXTENSION = typeof location !== 'undefined' && location.protocol === 'chrome-extension:';
+const SITE_BASE = IS_EXTENSION ? 'https://tarotools.netlify.app' : '';
+
+/* ═══════════════════════════════════════════════
    CONFIG
 ═══════════════════════════════════════════════ */
 const CONFIG = {
-  GEMINI_PROXY: '/.netlify/functions/gemini',
-  COBALT_API: '/.netlify/functions/cobalt',
-  VISITS_API: '/.netlify/functions/visits',
-  GUESTBOOK_API: '/.netlify/functions/guestbook',
+  GEMINI_PROXY: SITE_BASE + '/.netlify/functions/gemini',
+  COBALT_API: SITE_BASE + '/.netlify/functions/cobalt',
+  VISITS_API: SITE_BASE + '/.netlify/functions/visits',
+  GUESTBOOK_API: SITE_BASE + '/.netlify/functions/guestbook',
   IP_API: 'https://api.ipify.org?format=json',
   ADMIN_PASS_HASH: 'a0f50e4075fa8fc1c8acce4c6ab92f7713913eb7906850bb25cc3a72f88e4550',
 };
@@ -136,6 +153,16 @@ const I18n = (() => {
     { id:'f2',  icon:'¶',  cat:'texto',      type:'lorem-gen',    isNew:true },
     { id:'f3',  icon:'🏷️', cat:'texto',      type:'slugify',      isNew:true },
     { id:'f4',  icon:'🖌️', cat:'imagen',     type:'img-palette',  isNew:true },
+    { id:'g1',  icon:'🔲', cat:'imagen',     type:'img-crop',     isNew:true },
+    { id:'g2',  icon:'🔃', cat:'imagen',     type:'img-rotate',   isNew:true },
+    { id:'g3',  icon:'🔢', cat:'pdf',        type:'pdf-pagenum',  isNew:true },
+    { id:'g4',  icon:'💧', cat:'imagen',     type:'img-watermark',isNew:true },
+    { id:'g5',  icon:'📱', cat:'conversion', type:'img-heic',     isNew:true },
+    { id:'g6',  icon:'🧩', cat:'imagen',     type:'img-collage',  isNew:true },
+    { id:'g7',  icon:'📑', cat:'pdf',        type:'pdf-compare',  isNew:true },
+    { id:'g8',  icon:'📐', cat:'pdf',        type:'pdf-crop',     isNew:true },
+    { id:'g9',  icon:'⬛', cat:'pdf',        type:'pdf-redact',   isNew:true },
+    { id:'g10', icon:'🩹', cat:'pdf',        type:'pdf-repair',   isNew:true },
   ];
 
   const STRINGS = {
@@ -175,6 +202,9 @@ const I18n = (() => {
         e4:'Wayback Machine', e5:'Down For Everyone Or Just Me', e6:'Carbon',
         f1:'Probador de regex', f2:'Generador de Lorem Ipsum', f3:'Slugify',
         f4:'Paleta de una imagen',
+        g1:'Recortar imagen', g2:'Rotar/espejar imagen', g3:'Numerar páginas de PDF', g4:'Marca de agua en imagen',
+        g5:'Convertir HEIC a JPG/PNG', g6:'Collage de imágenes', g7:'Comparar dos PDFs',
+        g8:'Recortar márgenes de PDF', g9:'Redactar PDF', g10:'Reparar PDF dañado',
       },
       toolDescs:{
         b1:'Reducí el tamaño de JPG/PNG con preview y comparación antes/después.',
@@ -225,6 +255,16 @@ const I18n = (() => {
         f2:'Generá texto de relleno Lorem Ipsum en palabras, oraciones o párrafos para tus maquetas.',
         f3:'Convertí cualquier texto en un slug apto para URLs, en vivo mientras escribís.',
         f4:'Extraé los colores dominantes de cualquier imagen automáticamente. 100% local.',
+        g1:'Recortá tu imagen a la zona que te interesa — arrastrá la caja de recorte en vivo sobre el preview. 100% local.',
+        g2:'Rotá en pasos de 90° o espejá horizontal/vertical con un click. Preview en vivo, 100% local.',
+        g3:'Agregá número de página a cada hoja de un PDF, con la posición y el formato que elijas.',
+        g4:'Superponé tu propio texto como marca de agua, en una esquina o repetido en diagonal sobre toda la imagen. 100% local.',
+        g5:'Convertí fotos HEIC/HEIF (el formato de tu iPhone) a JPG o PNG para poder subirlas a cualquier sitio. Varias a la vez, 100% local.',
+        g6:'Armá un collage con varias fotos en una grilla (2×2, 3×3 y más), con espaciado y color de fondo a tu gusto. 100% local.',
+        g7:'Compará el texto de dos PDFs y mirá exactamente qué cambió, palabra por palabra o página por página. 100% local.',
+        g8:'Recortá los márgenes de tu PDF dibujando el área que querés conservar sobre una vista previa. Se aplica a todas las páginas. 100% local.',
+        g9:'Tapá texto o datos sensibles (DNI, direcciones) antes de compartir un PDF — dibujá rectángulos negros sobre cada página. El tapado es permanente, no se puede deshacer ni copiar el texto de abajo. 100% local.',
+        g10:'Intentá arreglar un PDF que no abre o da error. Mejor esfuerzo: relee el archivo de forma tolerante y lo re-guarda limpio; si está muy dañado, lo reconstruye como imagen. 100% local.',
       },
       langs:['Inglés','Español','Portugués','Francés','Alemán','Italiano','Japonés','Chino (simplificado)','Árabe','Ruso','Coreano','Hindi'],
     },
@@ -447,8 +487,8 @@ const Tools = (() => {
   const REMEMBER_TYPES = new Set([
     'ai-correct','ai-expand','ai-summarize','ai-translate','aud-compress',
     'base64','case-conv','cobalt-dl','color-conv','hash-gen','img-compress',
-    'img-convert','img-palette','img-pdf','json-fmt','lorem-gen','meta-remove',
-    'my-ip','palette-gen','pdf-text','pwd-gen','regex-test','slugify',
+    'img-convert','img-heic','img-palette','img-pdf','json-fmt','lorem-gen','meta-remove',
+    'my-ip','palette-gen','pdf-compare','pdf-pagenum','pdf-repair','pdf-text','pwd-gen','regex-test','slugify',
     'text-diff','unit-conv','uuid-gen','vid-compress','word-count',
   ]);
   const _memory = new Map(); // toolId -> { html, values }
@@ -1645,6 +1685,286 @@ const ToolUI = (() => {
         <div id="ip-result" class="pal-grid" style="display:none;margin-top:.8rem"></div>
       </div>`,
 
+    /* ── IMG CROP ── */
+    'img-crop': () =>
+      infoBox('Recortá tu imagen arrastrando sobre la vista previa para elegir la zona que querés conservar. 100% local.') +
+      `<input type="file" id="ic2-file" accept="image/*" style="display:none" onchange="ToolFn.cropLoad()">` +
+      `<div class="file-drop" id="ic2-drop" onclick="document.getElementById('ic2-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('ic2-file').files=event.dataTransfer.files;ToolFn.cropLoad()">
+        <div class="file-drop__icon">🔲</div>
+        <div class="file-drop__title">Arrastrá una imagen acá</div>
+        <div class="file-drop__sub">o hacé click para elegir</div>
+        <div class="file-drop__name" id="ic2-name"></div>
+      </div>` +
+      `<div id="ic2-info" style="display:none">
+        <div class="pr-scope-group" style="margin:.5rem 0">
+          <button class="pr-scope-btn active" id="ic2-ratio-free" onclick="ToolFn.cropSetRatio(null,this)">Libre</button>
+          <button class="pr-scope-btn" id="ic2-ratio-1x1" onclick="ToolFn.cropSetRatio(1,this)">Cuadrado 1:1</button>
+          <button class="pr-scope-btn" id="ic2-ratio-16x9" onclick="ToolFn.cropSetRatio(16/9,this)">16:9</button>
+          <button class="pr-scope-btn" id="ic2-ratio-4x3" onclick="ToolFn.cropSetRatio(4/3,this)">4:3</button>
+        </div>
+        <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.4rem">arrastrá sobre la imagen para dibujar el recorte</p>
+        <div id="ic2-wrap" style="position:relative;display:inline-block;max-width:100%;touch-action:none;user-select:none">
+          <img id="ic2-img" draggable="false" ondragstart="return false" style="display:block;max-width:100%;border-radius:8px;border:1.5px solid var(--border)" alt="original">
+          <div id="ic2-box" class="crop-box" style="display:none"></div>
+        </div>
+        <p id="ic2-dims" style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-top:.4rem"></p>
+        <div class="btn-row" style="margin-top:.6rem"><button class="btn" onclick="ToolFn.cropExport()">🔲 Recortar y descargar</button></div>
+      </div>`,
+
+    /* ── IMG ROTATE ── */
+    'img-rotate': () =>
+      infoBox('Rotá tu imagen en pasos de 90° o espejala horizontal/vertical. Preview en vivo, 100% local.') +
+      `<input type="file" id="irt-file" accept="image/*" style="display:none" onchange="ToolFn.rotLoad()">` +
+      `<div class="file-drop" id="irt-drop" onclick="document.getElementById('irt-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('irt-file').files=event.dataTransfer.files;ToolFn.rotLoad()">
+        <div class="file-drop__icon">🔃</div>
+        <div class="file-drop__title">Arrastrá una imagen acá</div>
+        <div class="file-drop__sub">o hacé click para elegir</div>
+        <div class="file-drop__name" id="irt-name"></div>
+      </div>` +
+      `<div id="irt-info" style="display:none">
+        <canvas id="irt-canvas" style="width:100%;display:block;max-height:340px;object-fit:contain;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3)"></canvas>
+        <div class="btn-row" style="margin:.6rem 0">
+          <button class="btn btn--sec" onclick="ToolFn.rotStep(-90)">↺ -90°</button>
+          <button class="btn btn--sec" onclick="ToolFn.rotStep(90)">↻ +90°</button>
+          <button class="btn btn--sec" onclick="ToolFn.rotFlip('h')">⇋ Espejo H</button>
+          <button class="btn btn--sec" onclick="ToolFn.rotFlip('v')">⇅ Espejo V</button>
+        </div>
+        <div class="btn-row"><button class="btn" onclick="ToolFn.rotExport()">⬇️ Descargar</button></div>
+      </div>`,
+
+    /* ── PDF PAGE NUMBERS ── */
+    'pdf-pagenum': () =>
+      infoBox('Agregá el número de página a cada hoja de tu PDF, en la posición y con el formato que elijas. 100% local.') +
+      label('Archivo PDF') +
+      `${dropZone('pn-file','application/pdf','ToolFn.pnLoad()','Arrastrá un PDF acá')}` +
+      `<div id="pn-info" style="display:none">
+        <p id="pn-pages-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>
+        ${label('Posición')}
+        ${sel('pn-pos', [['bottom-center','Abajo, centro'],['bottom-right','Abajo, derecha'],['bottom-left','Abajo, izquierda'],['top-center','Arriba, centro'],['top-right','Arriba, derecha'],['top-left','Arriba, izquierda']])}
+        ${label('Formato')}
+        ${sel('pn-fmt', [['n','1, 2, 3...'],['n-total','1 / N, 2 / N...'],['pag-n','Página 1, Página 2...']])}
+        ${label('Empezar en')}
+        <input type="number" id="pn-start" value="1" min="1" style="width:100%">
+        <div class="btn-row" style="margin-top:.6rem"><button class="btn" onclick="ToolFn.pnExport()">🔢 Agregar números y descargar</button></div>
+        <div id="pn-result" style="margin-top:.6rem"></div>
+      </div>`,
+
+    /* ── IMG WATERMARK ── */
+    'img-watermark': () =>
+      infoBox('Superponé tu propio texto como marca de agua sobre una imagen — en una esquina o repetido en diagonal sobre toda la foto. 100% local.') +
+      `<input type="file" id="wm-file" accept="image/*" style="display:none" onchange="ToolFn.wmLoad()">` +
+      `<div class="file-drop" id="wm-drop" onclick="document.getElementById('wm-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('wm-file').files=event.dataTransfer.files;ToolFn.wmLoad()">
+        <div class="file-drop__icon">💧</div>
+        <div class="file-drop__title">Arrastrá una imagen acá</div>
+        <div class="file-drop__sub">o hacé click para elegir</div>
+        <div class="file-drop__name" id="wm-name"></div>
+      </div>` +
+      `<div id="wm-info" style="display:none">
+        <canvas id="wm-canvas" style="width:100%;display:block;max-height:340px;object-fit:contain;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3)"></canvas>
+        ${label('Texto de la marca')}
+        <input type="text" id="wm-text" value="© Mi marca" maxlength="60" oninput="ToolFn.wmDraw()">
+        <div class="pr-scope-group" style="margin:.5rem 0">
+          <button class="pr-scope-btn active" id="wm-mode-single" onclick="ToolFn.wmSetMode('single',this)">Una esquina</button>
+          <button class="pr-scope-btn" id="wm-mode-tile" onclick="ToolFn.wmSetMode('tile',this)">Repetida en diagonal</button>
+        </div>
+        <div id="wm-pos-row">
+          ${label('Posición')}
+          ${sel('wm-pos', [['bottom-right','Abajo, derecha'],['bottom-left','Abajo, izquierda'],['top-right','Arriba, derecha'],['top-left','Arriba, izquierda'],['center','Centro']])}
+        </div>
+        <label>Tamaño: <span id="wm-size-val">4</span>% del ancho</label>
+        <input type="range" min="1" max="12" value="4" id="wm-size" oninput="document.getElementById('wm-size-val').textContent=this.value;ToolFn.wmDraw()" style="width:100%">
+        <label>Opacidad: <span id="wm-op-val">50</span>%</label>
+        <input type="range" min="10" max="100" value="50" id="wm-op" oninput="document.getElementById('wm-op-val').textContent=this.value;ToolFn.wmDraw()" style="width:100%">
+        <label>Color</label>
+        <input type="color" id="wm-color" value="#ffffff" oninput="ToolFn.wmDraw()" style="width:100%;height:2.4rem;padding:.2rem">
+        <div class="btn-row" style="margin-top:.6rem"><button class="btn" onclick="ToolFn.wmExport()">💧 Agregar marca y descargar</button></div>
+      </div>`,
+
+    /* ── IMG HEIC → JPG/PNG ── */
+    'img-heic': () =>
+      infoBox('Convertí fotos HEIC/HEIF (el formato que usa tu iPhone) a JPG o PNG para poder subirlas a cualquier sitio. Podés convertir varias a la vez. 100% local — la primera vez se descarga una librería liviana para poder leer el formato.') +
+      label('Fotos HEIC/HEIF (múltiples)') +
+      `${dropZone('hc-file','.heic,.heif,image/heic,image/heif','ToolFn.heicPreview()','Arrastrá tus fotos HEIC acá',true)}` +
+      `<div id="hc-names" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></div>` +
+      label('Convertir a') +
+      sel('hc-fmt', [['image/jpeg','JPG'],['image/png','PNG']]) +
+      `<div class="btn-row"><button class="btn" id="hc-btn" onclick="ToolFn.heicConvert()">📱 Convertir</button></div>` +
+      loader('hc-loader','⏳ convirtiendo (puede tardar unos segundos por foto)...') +
+      `<div id="hc-result" style="margin-top:.7rem"></div>`,
+
+    /* ── IMG COLLAGE ── */
+    'img-collage': () =>
+      infoBox('Armá un collage con varias imágenes en una grilla. Subilas en el orden que querés que aparezcan, elegí la grilla, el tamaño y el estilo, sumale stickers arrastrables encima, y descargá el resultado. 100% local.') +
+      label('Imágenes (en el orden que querés)') +
+      `${dropZone('cl-file','image/*','ToolFn.collageLoad()','Arrastrá tus imágenes acá',true)}` +
+      `<div id="cl-previews" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:.4rem;margin:.5rem 0"></div>` +
+      label('Grilla') +
+      `<div class="pr-scope-group" id="cl-grid-group" style="margin:.3rem 0;flex-wrap:wrap">
+        <button class="pr-scope-btn active" id="cl-grid-2x2" onclick="ToolFn.collageSetGrid(2,2,this)">2×2</button>
+        <button class="pr-scope-btn" id="cl-grid-1x2" onclick="ToolFn.collageSetGrid(1,2,this)">1×2</button>
+        <button class="pr-scope-btn" id="cl-grid-2x1" onclick="ToolFn.collageSetGrid(2,1,this)">2×1</button>
+        <button class="pr-scope-btn" id="cl-grid-1x3" onclick="ToolFn.collageSetGrid(1,3,this)">1×3</button>
+        <button class="pr-scope-btn" id="cl-grid-3x1" onclick="ToolFn.collageSetGrid(3,1,this)">3×1</button>
+        <button class="pr-scope-btn" id="cl-grid-2x3" onclick="ToolFn.collageSetGrid(2,3,this)">2×3</button>
+        <button class="pr-scope-btn" id="cl-grid-3x2" onclick="ToolFn.collageSetGrid(3,2,this)">3×2</button>
+        <button class="pr-scope-btn" id="cl-grid-3x3" onclick="ToolFn.collageSetGrid(3,3,this)">3×3</button>
+        <button class="pr-scope-btn" id="cl-grid-4x4" onclick="ToolFn.collageSetGrid(4,4,this)">4×4</button>
+      </div>` +
+      label('Estilo') +
+      `<div class="pr-scope-group" id="cl-style-group" style="margin:.3rem 0;flex-wrap:wrap">
+        <button class="pr-scope-btn active" id="cl-style-clean" onclick="ToolFn.collageSetStyle('clean',this)">Clásico</button>
+        <button class="pr-scope-btn" id="cl-style-rounded" onclick="ToolFn.collageSetStyle('rounded',this)">Redondeado</button>
+        <button class="pr-scope-btn" id="cl-style-polaroid" onclick="ToolFn.collageSetStyle('polaroid',this)">Polaroid</button>
+      </div>` +
+      label(`Tamaño de celda: <span id="cl-size-val">360</span>px`) +
+      `<input type="range" min="150" max="560" step="10" value="360" id="cl-size" oninput="document.getElementById('cl-size-val').textContent=this.value;ToolFn.collageDraw()" style="width:100%">` +
+      `<canvas id="cl-canvas" style="width:100%;display:block;max-height:380px;object-fit:contain;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3);margin-top:.6rem;cursor:grab;touch-action:none"></canvas>` +
+      `<p id="cl-hint" style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>` +
+      label('Stickers — imágenes sobrepuestas que podés arrastrar donde quieras') +
+      `${dropZone('cl-sticker-file','image/*','ToolFn.collageAddSticker()','Arrastrá un sticker acá',true)}` +
+      `<div id="cl-sticker-list" style="display:flex;flex-direction:column;gap:.4rem;margin:.5rem 0"></div>` +
+      label('Espaciado') +
+      `<input type="range" min="0" max="40" value="10" id="cl-gap" oninput="ToolFn.collageDraw()" style="width:100%">` +
+      label('Color de fondo') +
+      `<input type="color" id="cl-bg" value="#000000" oninput="ToolFn.collageDraw()" style="width:100%;height:2.4rem;padding:.2rem">` +
+      `<div class="btn-row" style="margin-top:.6rem"><button class="btn" onclick="ToolFn.collageExport()">🧩 Descargar collage</button></div>`,
+
+    /* ── PDF COMPARE ── */
+    'pdf-compare': () =>
+      infoBox('Compará el texto de dos PDFs y mirá las diferencias: <span class="diff-ins">agregado</span> y <span class="diff-del">eliminado</span>. Compara el texto extraído, no el diseño visual de la página.') +
+      `<div class="diff-cols">
+        <div>${label('PDF A')}${dropZone('pcmp-a-file','application/pdf','ToolFn.pcmpLoad(\'a\')','Arrastrá el PDF A acá')}
+          <p id="pcmp-a-info" style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-top:.3rem"></p>
+        </div>
+        <div>${label('PDF B')}${dropZone('pcmp-b-file','application/pdf','ToolFn.pcmpLoad(\'b\')','Arrastrá el PDF B acá')}
+          <p id="pcmp-b-info" style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-top:.3rem"></p>
+        </div>
+      </div>` +
+      `<div class="pr-scope-group" id="pcmp-mode-group" style="margin:.6rem 0">
+        <button class="pr-scope-btn active" id="pcmp-mode-word" onclick="ToolFn.pcmpSetMode('word',this)">Por palabra</button>
+        <button class="pr-scope-btn" id="pcmp-mode-page" onclick="ToolFn.pcmpSetMode('page',this)">Por página</button>
+      </div>` +
+      `<div class="btn-row"><button class="btn" id="pcmp-btn" onclick="ToolFn.pcmpRun()">📑 Comparar</button></div>` +
+      loader('pcmp-loader','⏳ extrayendo y comparando texto...') +
+      `<div id="pcmp-stats" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin-top:.4rem;min-height:1rem"></div>` +
+      result('pcmp-result'),
+
+    /* ── PDF CROP ── */
+    'pdf-crop': () => {
+      const loaderHtml = loader('pcrop-loader','⏳ recortando PDF...');
+      const resultHtml = result('pcrop-result');
+      return `<div id="pcrop-upload-screen">` +
+        infoBox('Dibujá sobre la vista previa el área que querés conservar — movela y cambiale el tamaño con los tiradores, como en cualquier editor de recorte. Elegí a qué páginas se aplica: todas, solo la que estás viendo, o un rango.') +
+        `<input type="file" id="pcrop-file" accept="application/pdf" style="display:none" onchange="ToolFn.pcropLoad()">
+        <div class="file-drop" onclick="document.getElementById('pcrop-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pcrop-file').files=event.dataTransfer.files;ToolFn.pcropLoad()">
+          <div class="file-drop__icon">📐</div>
+          <div class="file-drop__title">Arrastrá un PDF acá</div>
+          <div class="file-drop__sub">o hacé click para elegir</div>
+          <div class="file-drop__name" id="pcrop-name"></div>
+        </div>
+        </div>
+        <div id="pcrop-editor" style="display:none">
+          <div class="pr-topbar">
+            <div class="pr-topbar__info">
+              <span id="pcrop-filename" style="font-family:var(--mono);font-size:.78rem;color:var(--fg2)"></span>
+              <span id="pcrop-pages-info" style="font-family:var(--mono);font-size:.7rem;color:var(--fg3);margin-left:.6rem"></span>
+            </div>
+            <button class="btn btn--sec" onclick="ToolFn.pcropReset()" style="font-size:.7rem;padding:.25rem .6rem">✕ Cambiar PDF</button>
+          </div>
+          <div class="pr-workspace">
+            <div class="pr-sidebar" id="pcrop-sidebar">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Páginas</p>
+              <p style="font-size:.65rem;color:var(--accent2);font-family:var(--mono);margin-bottom:.4rem">Click = usar como referencia</p>
+              <div id="pcrop-thumbs"></div>
+            </div>
+            <div class="pr-panel">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Área a conservar</p>
+              <p style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.5rem">arrastrá para dibujar, arrastrá adentro para mover, usá los círculos para cambiar el tamaño</p>
+              <canvas id="pcrop-canvas" style="width:100%;max-width:520px;display:block;border-radius:8px;border:1.5px solid var(--border);touch-action:none;cursor:crosshair;background:var(--bg3)"></canvas>
+              <div class="pr-scope-group" style="margin:.6rem 0;flex-wrap:wrap">
+                <button class="pr-scope-btn" onclick="ToolFn.pcropQuickMargin(5)">Margen 5%</button>
+                <button class="pr-scope-btn" onclick="ToolFn.pcropQuickMargin(10)">Margen 10%</button>
+                <button class="pr-scope-btn" onclick="ToolFn.pcropQuickMargin(15)">Margen 15%</button>
+                <button class="pr-scope-btn" onclick="ToolFn.pcropQuickMargin(20)">Margen 20%</button>
+                <button class="pr-scope-btn" onclick="ToolFn.pcropClear()" style="border-style:dashed">✕ Restablecer</button>
+              </div>
+              <div id="pcrop-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.7rem">sin recorte — dibujá uno o usá un margen rápido</div>
+
+              <label>Aplicar a</label>
+              <div class="pr-scope-group" id="pcrop-scope-group">
+                <button class="pr-scope-btn active" onclick="ToolFn.pcropSetScope('all',this)">Todas las páginas</button>
+                <button class="pr-scope-btn" onclick="ToolFn.pcropSetScope('current',this)">Solo esta página</button>
+                <button class="pr-scope-btn" onclick="ToolFn.pcropSetScope('range',this)">Rango</button>
+              </div>
+              <div id="pcrop-range-row" style="display:none;margin-top:.5rem">
+                <input type="text" id="pcrop-range" placeholder="ej: 1, 3, 5-7">
+              </div>
+
+              <div class="btn-row" style="margin-top:.9rem">
+                <button class="btn" onclick="ToolFn.pcropExport()">📐 Recortar y descargar</button>
+              </div>
+              ${loaderHtml}${resultHtml}
+            </div>
+          </div>
+        </div>`;
+    },
+
+    /* ── PDF REDACT ── */
+    'pdf-redact': () => {
+      const loaderHtml = loader('pred-loader','⏳ redactando PDF...');
+      const resultHtml = result('pred-result');
+      return `<div id="pred-upload-screen">` +
+        infoBox('Dibujá rectángulos negros sobre las páginas para tapar texto o datos sensibles (DNI, direcciones, firmas). El tapado es permanente: las páginas con algo tapado se convierten en imagen, así que no hay forma de deshacerlo ni de copiar el texto de abajo. Las páginas sin nada tapado mantienen su texto normal.') +
+        `<input type="file" id="pred-file" accept="application/pdf" style="display:none" onchange="ToolFn.predLoad()">
+        <div class="file-drop" onclick="document.getElementById('pred-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pred-file').files=event.dataTransfer.files;ToolFn.predLoad()">
+          <div class="file-drop__icon">⬛</div>
+          <div class="file-drop__title">Arrastrá un PDF acá</div>
+          <div class="file-drop__sub">o hacé click para elegir</div>
+          <div class="file-drop__name" id="pred-name"></div>
+        </div>
+        </div>
+        <div id="pred-editor" style="display:none">
+          <div class="pr-topbar">
+            <div class="pr-topbar__info">
+              <span id="pred-filename" style="font-family:var(--mono);font-size:.78rem;color:var(--fg2)"></span>
+              <span id="pred-pages-info" style="font-family:var(--mono);font-size:.7rem;color:var(--fg3);margin-left:.6rem"></span>
+            </div>
+            <button class="btn btn--sec" onclick="ToolFn.predReset()" style="font-size:.7rem;padding:.25rem .6rem">✕ Cambiar PDF</button>
+          </div>
+          <div class="pr-workspace">
+            <div class="pr-sidebar" id="pred-sidebar">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Páginas</p>
+              <p style="font-size:.65rem;color:var(--accent2);font-family:var(--mono);margin-bottom:.4rem">Click = editar esta página</p>
+              <div id="pred-thumbs"></div>
+            </div>
+            <div class="pr-panel">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Tapar en esta página</p>
+              <p style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.5rem">arrastrá para tapar un área · click sobre un rectángulo para sacarlo</p>
+              <canvas id="pred-canvas" style="width:100%;max-width:520px;display:block;border-radius:8px;border:1.5px solid var(--border);touch-action:none;cursor:crosshair;background:var(--bg3)"></canvas>
+              <div class="btn-row" style="margin:.6rem 0">
+                <button class="btn btn--sec" onclick="ToolFn.predClearPage()">✕ Vaciar esta página</button>
+              </div>
+              <div id="pred-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.7rem">sin tapados en esta página</div>
+              <div class="btn-row">
+                <button class="btn" onclick="ToolFn.predExport()">⬛ Redactar y descargar</button>
+              </div>
+              ${loaderHtml}${resultHtml}
+            </div>
+          </div>
+        </div>`;
+    },
+
+    /* ── PDF REPAIR ── */
+    'pdf-repair': () =>
+      infoBox('Mejor esfuerzo, no magia: releemos tu PDF de forma tolerante (ignorando partes corruptas) y lo re-guardamos limpio — funciona para la mayoría de los casos reales (metadata corrupta, referencias rotas, etc.). Si el archivo está TAN dañado que ni así se puede leer, como último recurso convertimos cada página en imagen para al menos recuperar el contenido visual (se pierde el texto seleccionable).') +
+      label('Archivo PDF') +
+      `${dropZone('prep-file','application/pdf','ToolFn.prepLoad()','Arrastrá un PDF acá')}` +
+      `<div id="prep-info" style="display:none">
+        <p id="prep-status" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>
+        <div class="btn-row" style="margin-top:.6rem"><button class="btn" id="prep-btn" onclick="ToolFn.prepExport()">🩹 Reparar y descargar</button></div>
+        <div id="prep-result" style="margin-top:.6rem"></div>
+      </div>`,
+
     /* ── PASSWORD GENERATOR ── */
     'pwd-gen': () =>
       infoBox('Generá contraseñas seguras usando <b>crypto.getRandomValues</b>. Todo se genera en tu navegador, nunca se envía a ningún servidor.') +
@@ -1769,11 +2089,21 @@ const ToolUI = (() => {
 const ToolFn = (() => {
 
   // ── internal helpers ──
+  // Dentro de la extensión, las librerías de terceros vienen empaquetadas localmente
+  // (extension/app/libs/) en vez de pedirse a cdnjs — las extensiones no pueden ejecutar
+  // código remoto. Se mapea por nombre de archivo: misma estructura para los dos entornos.
+  function _cdnOrLocal(url) {
+    if (IS_EXTENSION && url.includes('cdnjs.cloudflare.com')) return 'libs/' + url.split('/').pop();
+    return url;
+  }
+
   function loadScript(src) {
+    src = _cdnOrLocal(src);
     return new Promise((res, rej) => {
       if (document.querySelector(`script[src="${src}"]`)) { res(); return; }
       const s = document.createElement('script');
-      s.src = src; s.onload = res; s.onerror = rej;
+      s.src = src; s.onload = res;
+      s.onerror = () => rej(new Error('No se pudo cargar una librería externa — revisá tu conexión'));
       document.head.appendChild(s);
     });
   }
@@ -2282,7 +2612,7 @@ const ToolFn = (() => {
     const result = document.getElementById('pdf-result'); result.style.display = 'none';
     try {
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = _cdnOrLocal('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js');
       const pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise;
       let text = '';
       for (let i = 1; i <= pdf.numPages; i++) {
@@ -4312,6 +4642,11 @@ const ToolFn = (() => {
         }
 
         const result = await Tesseract.recognize(imageUrl, lang, {
+          ...(IS_EXTENSION ? {
+            workerPath: 'libs/worker.min.js',
+            corePath: 'libs/tesseract-core',
+            langPath: 'libs/tesseract-lang',
+          } : {}),
           logger: m => {
             if (m.status === 'recognizing text') {
               const pct = Math.round((idx / total + m.progress / total) * 100);
@@ -4622,6 +4957,1266 @@ const ToolFn = (() => {
     resultEl.style.display = 'grid';
   }
 
+  // ── img crop ──
+  let _cropFile = null, _cropImgEl = null, _cropRatio = null, _cropRect = null;
+
+  function cropLoad() {
+    const f = document.getElementById('ic2-file').files[0]; if (!f) return;
+    _cropFile = f;
+    document.getElementById('ic2-name').textContent = f.name;
+    const img = document.getElementById('ic2-img');
+    img.onload = () => {
+      _cropImgEl = img;
+      _cropRect = null;
+      document.getElementById('ic2-box').style.display = 'none';
+      document.getElementById('ic2-dims').textContent = '';
+      document.getElementById('ic2-info').style.display = 'block';
+      _initCropDrag();
+    };
+    img.src = URL.createObjectURL(f);
+  }
+
+  function _initCropDrag() {
+    const wrap = document.getElementById('ic2-wrap');
+    if (wrap.dataset.cropInit) return;
+    wrap.dataset.cropInit = '1';
+    let dragging = false, startX = 0, startY = 0;
+
+    function clientToLocal(e) {
+      const rect = wrap.getBoundingClientRect();
+      return {
+        x: Math.max(0, Math.min(rect.width, e.clientX - rect.left)),
+        y: Math.max(0, Math.min(rect.height, e.clientY - rect.top)),
+      };
+    }
+
+    function updateBox(x0, y0, x1, y1) {
+      const wrapRect = wrap.getBoundingClientRect();
+      let w = Math.abs(x1 - x0);
+      let h = _cropRatio ? w / _cropRatio : Math.abs(y1 - y0);
+      w = Math.min(w, wrapRect.width); h = Math.min(h, wrapRect.height);
+      const x = x1 >= x0 ? x0 : x0 - w;
+      const y = (_cropRatio ? y0 : (y1 >= y0 ? y0 : y0 - h));
+      const box = document.getElementById('ic2-box');
+      box.style.left = x + 'px'; box.style.top = y + 'px';
+      box.style.width = w + 'px'; box.style.height = h + 'px';
+      box.style.display = 'block';
+      _cropRect = { x, y, w, h };
+      _updateCropDims();
+    }
+
+    wrap.addEventListener('pointerdown', e => {
+      dragging = true;
+      const p = clientToLocal(e);
+      startX = p.x; startY = p.y;
+      wrap.setPointerCapture(e.pointerId);
+    });
+    wrap.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      const p = clientToLocal(e);
+      updateBox(startX, startY, p.x, p.y);
+    });
+    wrap.addEventListener('pointerup', () => { dragging = false; });
+    wrap.addEventListener('pointercancel', () => { dragging = false; });
+  }
+
+  function _updateCropDims() {
+    if (!_cropRect || !_cropImgEl || !_cropImgEl.clientWidth) return;
+    const scale = _cropImgEl.naturalWidth / _cropImgEl.clientWidth;
+    const w = Math.round(_cropRect.w * scale), h = Math.round(_cropRect.h * scale);
+    document.getElementById('ic2-dims').textContent = `${w} × ${h}px`;
+  }
+
+  function cropSetRatio(ratio, btn) {
+    _cropRatio = ratio;
+    document.querySelectorAll('#ic2-info .pr-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('ic2-box').style.display = 'none';
+    _cropRect = null;
+    document.getElementById('ic2-dims').textContent = '';
+    Audio.click();
+  }
+
+  function cropExport() {
+    if (!_cropRect || !_cropImgEl) { UI.showToast('dibujá un recorte sobre la imagen primero'); return; }
+    const scale = _cropImgEl.naturalWidth / _cropImgEl.clientWidth;
+    const sx = _cropRect.x * scale, sy = _cropRect.y * scale;
+    const sw = _cropRect.w * scale, sh = _cropRect.h * scale;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(sw)); canvas.height = Math.max(1, Math.round(sh));
+    canvas.getContext('2d').drawImage(_cropImgEl, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    const mime = _cropFile && _cropFile.type === 'image/png' ? 'image/png' : 'image/jpeg';
+    const ext = mime === 'image/png' ? 'png' : 'jpg';
+    canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-recortada.' + ext;
+      a.click();
+      Audio.success();
+    }, mime, 0.92);
+  }
+
+  // ── img rotate ──
+  let _rotFile = null, _rotImg = null, _rotAngle = 0, _rotFlipH = false, _rotFlipV = false;
+
+  function rotLoad() {
+    const f = document.getElementById('irt-file').files[0]; if (!f) return;
+    _rotFile = f;
+    document.getElementById('irt-name').textContent = f.name;
+    _rotAngle = 0; _rotFlipH = false; _rotFlipV = false;
+    const img = new Image();
+    img.onload = () => {
+      _rotImg = img;
+      document.getElementById('irt-info').style.display = 'block';
+      _rotDraw();
+    };
+    img.src = URL.createObjectURL(f);
+  }
+
+  function _rotDraw() {
+    if (!_rotImg) return;
+    const canvas = document.getElementById('irt-canvas');
+    const swapped = _rotAngle % 180 !== 0;
+    const w = swapped ? _rotImg.height : _rotImg.width;
+    const h = swapped ? _rotImg.width : _rotImg.height;
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    // el flip se aplica ANTES de rotar en el orden de llamadas (se compone al revés:
+    // la última transformación llamada es la primera en aplicarse al punto crudo) para
+    // que siempre espeje lo que se ve en pantalla, sin importar la rotación acumulada.
+    ctx.scale(_rotFlipH ? -1 : 1, _rotFlipV ? -1 : 1);
+    ctx.rotate(_rotAngle * Math.PI / 180);
+    ctx.drawImage(_rotImg, -_rotImg.width / 2, -_rotImg.height / 2);
+    ctx.restore();
+  }
+
+  function rotStep(delta) {
+    if (!_rotImg) return;
+    _rotAngle = (_rotAngle + delta + 360) % 360;
+    _rotDraw();
+    Audio.click();
+  }
+
+  function rotFlip(axis) {
+    if (!_rotImg) return;
+    if (axis === 'h') _rotFlipH = !_rotFlipH; else _rotFlipV = !_rotFlipV;
+    _rotDraw();
+    Audio.click();
+  }
+
+  function rotExport() {
+    if (!_rotImg) return;
+    const canvas = document.getElementById('irt-canvas');
+    const mime = _rotFile && _rotFile.type === 'image/png' ? 'image/png' : 'image/jpeg';
+    const ext = mime === 'image/png' ? 'png' : 'jpg';
+    canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-rotada.' + ext;
+      a.click();
+      Audio.success();
+    }, mime, 0.92);
+  }
+
+  // ── pdf page numbers ──
+  let _pnFile = null;
+
+  async function pnLoad() {
+    const f = document.getElementById('pn-file').files[0]; if (!f) return;
+    _pnFile = f;
+    document.getElementById('pn-info').style.display = 'block';
+    document.getElementById('pn-pages-info').textContent = '⏳ leyendo PDF...';
+    try {
+      const { PDFDocument } = await _loadPdfLib();
+      const doc = await PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption: true });
+      const count = doc.getPageCount();
+      document.getElementById('pn-pages-info').textContent = `${f.name} · ${count} página${count === 1 ? '' : 's'}`;
+    } catch (e) {
+      document.getElementById('pn-pages-info').textContent = '❌ No se pudo leer el PDF: ' + e.message;
+    }
+  }
+
+  async function pnExport() {
+    if (!_pnFile) return;
+    const btn = document.querySelector('#pn-info .btn');
+    if (btn) btn.disabled = true;
+    try {
+      const { PDFDocument, StandardFonts, rgb } = await _loadPdfLib();
+      const doc = await PDFDocument.load(await _pnFile.arrayBuffer(), { ignoreEncryption: true });
+      const font = await doc.embedFont(StandardFonts.Helvetica);
+      const pos = document.getElementById('pn-pos').value;
+      const fmt = document.getElementById('pn-fmt').value;
+      const start = parseInt(document.getElementById('pn-start').value, 10) || 1;
+      const pages = doc.getPages();
+      const total = pages.length;
+      const size = 10;
+      pages.forEach((page, i) => {
+        const num = start + i;
+        const text = fmt === 'n-total' ? `${num} / ${total}` : fmt === 'pag-n' ? `Página ${num}` : String(num);
+        const textWidth = font.widthOfTextAtSize(text, size);
+        const { width, height } = page.getSize();
+        const margin = 24;
+        const x = pos.includes('center') ? (width - textWidth) / 2 : pos.includes('right') ? width - textWidth - margin : margin;
+        const y = pos.startsWith('top') ? height - margin : margin - size / 3;
+        page.drawText(text, { x, y, size, font, color: rgb(0.35, 0.35, 0.35) });
+      });
+      const bytes = await doc.save();
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-numerado.pdf';
+      a.click();
+      showResult('pn-result', `✅ Números agregados a las ${total} páginas`);
+      Audio.success();
+    } catch (e) {
+      showResult('pn-result', '❌ ' + e.message, true);
+      Audio.error();
+    }
+    if (btn) btn.disabled = false;
+  }
+
+  // ── img watermark ──
+  let _wmImg = null, _wmFile = null, _wmMode = 'single';
+
+  function wmLoad() {
+    const f = document.getElementById('wm-file').files[0]; if (!f) return;
+    _wmFile = f;
+    document.getElementById('wm-name').textContent = f.name;
+    const img = new Image();
+    img.onload = () => {
+      _wmImg = img;
+      document.getElementById('wm-info').style.display = 'block';
+      wmDraw();
+    };
+    img.src = URL.createObjectURL(f);
+  }
+
+  function wmSetMode(mode, btn) {
+    _wmMode = mode;
+    document.querySelectorAll('#wm-info .pr-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('wm-pos-row').style.display = mode === 'tile' ? 'none' : 'block';
+    Audio.click();
+    wmDraw();
+  }
+
+  function _wmStampAt(ctx, text, x, y, angle) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (angle) ctx.rotate(angle);
+    ctx.fillText(text, 0, 0);
+    ctx.restore();
+  }
+
+  function wmDraw() {
+    if (!_wmImg) return;
+    const canvas = document.getElementById('wm-canvas');
+    canvas.width = _wmImg.width; canvas.height = _wmImg.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(_wmImg, 0, 0);
+
+    const text = document.getElementById('wm-text').value.trim() || '© Mi marca';
+    const sizePct = parseInt(document.getElementById('wm-size').value, 10);
+    const opacity = parseInt(document.getElementById('wm-op').value, 10) / 100;
+    const color = document.getElementById('wm-color').value;
+    const fontSize = Math.max(10, Math.round(canvas.width * sizePct / 100));
+    const margin = Math.max(8, Math.round(fontSize * 0.5));
+
+    ctx.font = `bold ${fontSize}px var(--mono), monospace`;
+    ctx.fillStyle = color;
+    ctx.globalAlpha = opacity;
+
+    if (_wmMode === 'tile') {
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const stepX = ctx.measureText(text).width + fontSize * 2;
+      const stepY = fontSize * 4;
+      const angle = -Math.PI / 6;
+      for (let y = -stepY; y < canvas.height + stepY; y += stepY) {
+        for (let x = -stepX; x < canvas.width + stepX; x += stepX) {
+          _wmStampAt(ctx, text, x, y, angle);
+        }
+      }
+    } else {
+      const pos = document.getElementById('wm-pos').value;
+      ctx.textAlign = pos.includes('right') ? 'right' : pos.includes('left') ? 'left' : 'center';
+      ctx.textBaseline = pos.startsWith('top') ? 'top' : pos === 'center' ? 'middle' : 'bottom';
+      const x = pos.includes('right') ? canvas.width - margin : pos.includes('left') ? margin : canvas.width / 2;
+      const y = pos.startsWith('top') ? margin : pos === 'center' ? canvas.height / 2 : canvas.height - margin;
+      ctx.fillText(text, x, y);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function wmExport() {
+    if (!_wmImg) return;
+    const canvas = document.getElementById('wm-canvas');
+    const mime = _wmFile && _wmFile.type === 'image/png' ? 'image/png' : 'image/jpeg';
+    const ext = mime === 'image/png' ? 'png' : 'jpg';
+    canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-marca-de-agua.' + ext;
+      a.click();
+      Audio.success();
+    }, mime, 0.92);
+  }
+
+  // ── img heic → jpg/png ──
+  function heicPreview() {
+    const files = document.getElementById('hc-file').files;
+    document.getElementById('hc-names').textContent = files.length
+      ? `${files.length} archivo${files.length === 1 ? '' : 's'} listo${files.length === 1 ? '' : 's'} para convertir`
+      : '';
+  }
+
+  async function heicConvert() {
+    const files = [...document.getElementById('hc-file').files];
+    if (!files.length) return;
+    const fmt = document.getElementById('hc-fmt').value;
+    const ext = fmt === 'image/jpeg' ? 'jpg' : 'png';
+    const btn = document.getElementById('hc-btn');
+    const res = document.getElementById('hc-result');
+    res.innerHTML = '';
+    btn.disabled = true;
+    toggleLoader('hc-loader', true);
+    try {
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js');
+    } catch (e) {
+      showResult('hc-result', '❌ ' + e.message, true);
+      toggleLoader('hc-loader', false);
+      btn.disabled = false;
+      return;
+    }
+    let ok = 0;
+    for (const f of files) {
+      try {
+        const out = await heic2any({ blob: f, toType: fmt, quality: 0.92 });
+        const blobs = Array.isArray(out) ? out : [out];
+        blobs.forEach((blob, i) => {
+          const suffix = blobs.length > 1 ? `_${i + 1}` : '';
+          const name = f.name.replace(/\.[^.]+$/, '') + suffix + '.' + ext;
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = name;
+          a.className = 'dl-link';
+          a.style.cssText = 'margin:.25rem .25rem 0 0;display:inline-block';
+          a.textContent = `⬇️ ${name}`;
+          res.appendChild(a);
+        });
+        ok++;
+      } catch (e) {
+        const p = document.createElement('p');
+        p.style.cssText = 'font-size:.72rem;color:#ff8899;font-family:var(--mono);margin:.2rem 0';
+        p.textContent = `❌ ${f.name}: no se pudo convertir (¿es realmente un HEIC/HEIF?)`;
+        res.appendChild(p);
+      }
+    }
+    toggleLoader('hc-loader', false);
+    btn.disabled = false;
+    if (ok) Audio.success(); else Audio.error();
+  }
+
+  // ── img collage ──
+  let _clImgs = [], _clCols = 2, _clRows = 2, _clStyle = 'clean';
+  let _clStickers = []; // { img, fx, fy, fsize } — posición/tamaño como fracción del canvas (0..1), para que sobrevivan a cambios de grilla/tamaño sin desubicarse
+
+  function collageLoad() {
+    const files = [...document.getElementById('cl-file').files];
+    if (!files.length) return;
+    const wrap = document.getElementById('cl-previews');
+    wrap.innerHTML = '';
+    _clImgs = new Array(files.length);
+    let loaded = 0;
+    files.forEach((f, i) => {
+      const url = URL.createObjectURL(f);
+      const thumb = document.createElement('div');
+      thumb.style.cssText = 'position:relative;display:inline-block';
+      const thumbImg = document.createElement('img');
+      thumbImg.src = url;
+      thumbImg.style.cssText = 'width:56px;height:56px;object-fit:cover;border-radius:6px;border:1.5px solid var(--border)';
+      const num = document.createElement('span');
+      num.textContent = i + 1;
+      num.style.cssText = 'position:absolute;bottom:2px;right:4px;font-size:.6rem;font-family:var(--mono);color:#fff;text-shadow:0 0 3px #000';
+      thumb.appendChild(thumbImg); thumb.appendChild(num);
+      wrap.appendChild(thumb);
+
+      const im = new Image();
+      im.onload = () => {
+        _clImgs[i] = im;
+        loaded++;
+        if (loaded === files.length) collageDraw();
+      };
+      im.src = url;
+    });
+  }
+
+  function collageSetGrid(cols, rows, btn) {
+    _clCols = cols; _clRows = rows;
+    document.querySelectorAll('#cl-grid-group .pr-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    Audio.click();
+    collageDraw();
+  }
+
+  function collageSetStyle(style, btn) {
+    _clStyle = style;
+    document.querySelectorAll('#cl-style-group .pr-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    Audio.click();
+    collageDraw();
+  }
+
+  // nombre propio (_clDrawCover) para no pisar _drawCover() del generador de favicons —
+  // ambos vivían en el mismo scope de ToolFn con firmas distintas y la declaración de acá
+  // ganaba por hoisting, rompiendo favicon-gen en silencio (sin error de consola).
+  function _clDrawCover(ctx, img, x, y, w, h) {
+    const ir = img.width / img.height, cr = w / h;
+    let sw, sh, sx, sy;
+    if (ir > cr) { sh = img.height; sw = sh * cr; sx = (img.width - sw) / 2; sy = 0; }
+    else { sw = img.width; sh = sw / cr; sx = 0; sy = (img.height - sh) / 2; }
+    ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+  }
+
+  function _clRoundRectPath(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function collageAddSticker() {
+    const files = [...document.getElementById('cl-sticker-file').files];
+    if (!files.length) return;
+    let loaded = 0;
+    files.forEach((f, n) => {
+      const im = new Image();
+      im.onload = () => {
+        const stagger = (_clStickers.length % 4) * 0.06;
+        _clStickers.push({ img: im, fx: 0.5 + stagger, fy: 0.5 + stagger, fsize: 0.22 });
+        loaded++;
+        if (loaded === files.length) { _clRenderStickerList(); collageDraw(); }
+      };
+      im.src = URL.createObjectURL(f);
+    });
+  }
+
+  function _clRenderStickerList() {
+    const wrap = document.getElementById('cl-sticker-list');
+    wrap.innerHTML = _clStickers.map((s, i) => `
+      <div style="display:flex;align-items:center;gap:.5rem;padding:.4rem;border:1.5px solid var(--border);border-radius:6px">
+        <img src="${s.img.src}" style="width:36px;height:36px;object-fit:contain;border-radius:4px;background:var(--bg3)">
+        <input type="range" min="8" max="45" value="${Math.round(s.fsize * 100)}" oninput="ToolFn.collageStickerResize(${i},this.value)" style="flex:1">
+        <button class="btn btn--sec" style="padding:.3rem .5rem" onclick="ToolFn.collageRemoveSticker(${i})">✕</button>
+      </div>`).join('');
+  }
+
+  function collageStickerResize(i, val) {
+    if (!_clStickers[i]) return;
+    _clStickers[i].fsize = parseInt(val, 10) / 100;
+    collageDraw();
+  }
+
+  function collageRemoveSticker(i) {
+    _clStickers.splice(i, 1);
+    _clRenderStickerList();
+    collageDraw();
+    Audio.click();
+  }
+
+  function _clClientToCanvasXY(canvas, e) {
+    const rect = canvas.getBoundingClientRect();
+    const boxW = rect.width, boxH = rect.height;
+    const iw = canvas.width, ih = canvas.height;
+    const boxRatio = boxW / boxH, intrinsicRatio = iw / ih;
+    let contentW, contentH, offX = 0, offY = 0;
+    if (intrinsicRatio > boxRatio) { contentW = boxW; contentH = boxW / intrinsicRatio; offY = (boxH - contentH) / 2; }
+    else { contentH = boxH; contentW = boxH * intrinsicRatio; offX = (boxW - contentW) / 2; }
+    const scale = iw / contentW;
+    return { x: (e.clientX - rect.left - offX) * scale, y: (e.clientY - rect.top - offY) * scale };
+  }
+
+  function _clInitStickerDrag(canvas) {
+    if (canvas.dataset.stickerInit) return;
+    canvas.dataset.stickerInit = '1';
+    let dragIdx = -1, dragDX = 0, dragDY = 0;
+
+    canvas.addEventListener('pointerdown', e => {
+      const p = _clClientToCanvasXY(canvas, e);
+      for (let i = _clStickers.length - 1; i >= 0; i--) {
+        const s = _clStickers[i];
+        const cx = s.fx * canvas.width, cy = s.fy * canvas.height, half = s.fsize * canvas.width / 2;
+        if (p.x >= cx - half && p.x <= cx + half && p.y >= cy - half && p.y <= cy + half) {
+          dragIdx = i;
+          dragDX = p.x - cx; dragDY = p.y - cy;
+          canvas.setPointerCapture(e.pointerId);
+          canvas.style.cursor = 'grabbing';
+          break;
+        }
+      }
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (dragIdx < 0) return;
+      const p = _clClientToCanvasXY(canvas, e);
+      const s = _clStickers[dragIdx];
+      s.fx = Math.min(1, Math.max(0, (p.x - dragDX) / canvas.width));
+      s.fy = Math.min(1, Math.max(0, (p.y - dragDY) / canvas.height));
+      collageDraw();
+    });
+    const endDrag = () => { dragIdx = -1; canvas.style.cursor = 'grab'; };
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+  }
+
+  function collageDraw() {
+    if (!_clImgs.length) return;
+    const canvas = document.getElementById('cl-canvas');
+    _clInitStickerDrag(canvas);
+    const gap = parseInt(document.getElementById('cl-gap').value, 10);
+    const bg = document.getElementById('cl-bg').value;
+    const cell = parseInt(document.getElementById('cl-size').value, 10);
+    const style = _clStyle;
+
+    let cardW = cell, cardH = cell, border = 0, caption = 0, radius = 0;
+    if (style === 'rounded') {
+      radius = Math.round(cell * 0.1);
+    } else if (style === 'polaroid') {
+      border = Math.max(10, Math.round(cell * 0.06));
+      caption = Math.max(30, Math.round(cell * 0.18));
+      cardW = cell + border * 2;
+      cardH = cell + border + caption;
+    }
+
+    const w = _clCols * cardW + (_clCols + 1) * gap;
+    const h = _clRows * cardH + (_clRows + 1) * gap;
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    const total = _clCols * _clRows;
+    for (let i = 0; i < total; i++) {
+      const img = _clImgs[i];
+      const col = i % _clCols, row = (i / _clCols) | 0;
+      const cx = gap + col * (cardW + gap), cy = gap + row * (cardH + gap);
+
+      if (style === 'polaroid') {
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,.35)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetY = 4;
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(cx, cy, cardW, cardH);
+        ctx.restore();
+      }
+      if (!img) continue;
+
+      if (style === 'rounded') {
+        ctx.save();
+        _clRoundRectPath(ctx, cx, cy, cardW, cardH, radius);
+        ctx.clip();
+        _clDrawCover(ctx, img, cx, cy, cardW, cardH);
+        ctx.restore();
+      } else if (style === 'polaroid') {
+        _clDrawCover(ctx, img, cx + border, cy + border, cell, cell);
+      } else {
+        _clDrawCover(ctx, img, cx, cy, cardW, cardH);
+      }
+    }
+
+    _clStickers.forEach(s => {
+      const size = s.fsize * canvas.width;
+      const iar = s.img.width / s.img.height;
+      const dw = iar > 1 ? size : size * iar, dh = iar > 1 ? size / iar : size;
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,.4)';
+      ctx.shadowBlur = 6;
+      ctx.drawImage(s.img, s.fx * canvas.width - dw / 2, s.fy * canvas.height - dh / 2, dw, dh);
+      ctx.restore();
+    });
+
+    const hint = document.getElementById('cl-hint');
+    const n = _clImgs.filter(Boolean).length;
+    if (n < total) hint.textContent = `${total} celdas, subiste ${n} imagen${n === 1 ? '' : 'es'} — el resto queda con el color de fondo`;
+    else if (n > total) hint.textContent = `${total} celdas — se usan las primeras ${total} imágenes (subiste ${n})`;
+    else hint.textContent = `${total} celdas, ${n} imágenes — listo`;
+  }
+
+  function collageExport() {
+    if (!_clImgs.filter(Boolean).length) { UI.showToast('subí imágenes primero'); return; }
+    const canvas = document.getElementById('cl-canvas');
+    canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-collage.jpg';
+      a.click();
+      Audio.success();
+    }, 'image/jpeg', 0.92);
+  }
+
+  // ── pdf compare ──
+  let _pcmpA = null, _pcmpB = null, _pcmpMode = 'word';
+
+  function pcmpSetMode(mode, btn) {
+    _pcmpMode = mode;
+    document.querySelectorAll('#pcmp-mode-group .pr-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    Audio.click();
+  }
+
+  async function pcmpLoad(which) {
+    const f = document.getElementById(`pcmp-${which}-file`).files[0]; if (!f) return;
+    if (which === 'a') _pcmpA = f; else _pcmpB = f;
+    const info = document.getElementById(`pcmp-${which}-info`);
+    info.textContent = `⏳ leyendo ${f.name}...`;
+    try {
+      const pdfjs = await _loadPdfJs();
+      const pdf = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
+      info.textContent = `${f.name} · ${pdf.numPages} página${pdf.numPages === 1 ? '' : 's'}`;
+    } catch (e) {
+      info.textContent = `❌ No se pudo leer ${f.name}: ${e.message}`;
+    }
+  }
+
+  async function _pcmpExtractPages(file) {
+    const pdfjs = await _loadPdfJs();
+    const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+    const pages = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const pg = await pdf.getPage(i);
+      const ct = await pg.getTextContent();
+      pages.push(ct.items.map(s => s.str).join(' ').replace(/\s+/g, ' ').trim());
+    }
+    return pages;
+  }
+
+  async function pcmpRun() {
+    if (!_pcmpA || !_pcmpB) { UI.showToast('subí los dos PDFs primero'); return; }
+    const btn = document.getElementById('pcmp-btn');
+    btn.disabled = true;
+    toggleLoader('pcmp-loader', true);
+    document.getElementById('pcmp-stats').textContent = '';
+    try {
+      const [pagesA, pagesB] = await Promise.all([_pcmpExtractPages(_pcmpA), _pcmpExtractPages(_pcmpB)]);
+      let ops, html, added, removed;
+      if (_pcmpMode === 'page') {
+        ops = _diffTokens(pagesA, pagesB);
+        let aPage = 0, bPage = 0;
+        html = ops.map(([type, pageText]) => {
+          if (type === 'eq') {
+            aPage++; bPage++;
+            return `<div style="margin-bottom:.6rem;padding-bottom:.5rem;border-bottom:1px dashed var(--border);color:var(--fg3)"><b>Página ${aPage} — sin cambios</b></div>`;
+          }
+          if (type === 'del') {
+            aPage++;
+            return `<div style="margin-bottom:.6rem;padding-bottom:.5rem;border-bottom:1px dashed var(--border)"><b class="diff-del">Página ${aPage} de A — eliminada/modificada</b><br>${_escHtml(pageText || '(sin texto)')}</div>`;
+          }
+          bPage++;
+          return `<div style="margin-bottom:.6rem;padding-bottom:.5rem;border-bottom:1px dashed var(--border)"><b class="diff-ins">Página ${bPage} de B — agregada/modificada</b><br>${_escHtml(pageText || '(sin texto)')}</div>`;
+        }).join('');
+        added = ops.filter(o => o[0] === 'ins').length;
+        removed = ops.filter(o => o[0] === 'del').length;
+      } else {
+        const textA = pagesA.join('\n\n'), textB = pagesB.join('\n\n');
+        const tokA = textA.split(/(\s+)/), tokB = textB.split(/(\s+)/);
+        if (tokA.length * tokB.length > 1500000) {
+          showResult('pcmp-result', '⚠️ Los PDFs son demasiado largos para comparar palabra por palabra en el navegador. Probá con el modo "Por página".', true);
+          Audio.error();
+          toggleLoader('pcmp-loader', false);
+          btn.disabled = false;
+          return;
+        }
+        ops = _diffTokens(tokA, tokB);
+        html = ops.map(([type, tok]) => type === 'eq' ? _escHtml(tok) : `<span class="diff-${type}">${_escHtml(tok)}</span>`).join('');
+        added = ops.filter(o => o[0] === 'ins' && o[1].trim()).length;
+        removed = ops.filter(o => o[0] === 'del' && o[1].trim()).length;
+      }
+      showResult('pcmp-result', html || '<span style="color:var(--fg3)">Sin diferencias.</span>');
+      document.getElementById('pcmp-stats').textContent =
+        (added || removed)
+          ? (_pcmpMode === 'page'
+              ? `${added} página${added === 1 ? '' : 's'} agregada(s)/modificada(s) · ${removed} eliminada(s)/modificada(s)`
+              : `+${added} agregadas · -${removed} eliminadas`)
+          : 'Los PDFs tienen el mismo texto';
+      Audio.success();
+    } catch (e) {
+      showResult('pcmp-result', '❌ ' + e.message, true);
+      Audio.error();
+    }
+    toggleLoader('pcmp-loader', false);
+    btn.disabled = false;
+  }
+
+  // ── pdf crop ──
+  const PCROP_MIN_SIZE = 20, PCROP_HANDLE_R = 7, PCROP_HIT_R = 14;
+  let _pcropFile = null, _pcropDoc = null, _pcropPagesTotal = 0, _pcropCurrentPage = 1;
+  let _pcropPageCanvas = null, _pcropRect = null, _pcropScope = 'all';
+
+  async function pcropLoad() {
+    const f = document.getElementById('pcrop-file').files[0]; if (!f) return;
+    _pcropFile = f;
+    document.getElementById('pcrop-filename').textContent = f.name;
+    document.getElementById('pcrop-upload-screen').style.display = 'none';
+    document.getElementById('pcrop-editor').style.display = 'block';
+
+    const pdfjs = await _loadPdfJs();
+    _pcropDoc = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
+    _pcropPagesTotal = _pcropDoc.numPages;
+    document.getElementById('pcrop-pages-info').textContent = `${_pcropPagesTotal} página${_pcropPagesTotal === 1 ? '' : 's'} · ${fmtSize(f.size)}`;
+
+    const thumbsEl = document.getElementById('pcrop-thumbs');
+    thumbsEl.innerHTML = '';
+    for (let i = 1; i <= _pcropPagesTotal; i++) {
+      const page = await _pcropDoc.getPage(i);
+      const vp = page.getViewport({ scale: 0.3 });
+      const c = document.createElement('canvas');
+      c.width = vp.width; c.height = vp.height;
+      await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      const wrap = document.createElement('div');
+      wrap.className = 'pr-thumb pr-thumb--selectable' + (i === 1 ? ' pr-thumb--active' : '');
+      wrap.dataset.page = i;
+      wrap.innerHTML = `<div class="pr-thumb__canvas-wrap"><canvas width="${vp.width}" height="${vp.height}" style="width:100%;display:block"></canvas></div><p class="pr-thumb__num">${i}</p>`;
+      wrap.querySelector('canvas').getContext('2d').drawImage(c, 0, 0);
+      wrap.addEventListener('click', () => pcropShowPage(i));
+      thumbsEl.appendChild(wrap);
+    }
+    await pcropShowPage(1);
+  }
+
+  async function pcropShowPage(n) {
+    _pcropCurrentPage = n;
+    document.querySelectorAll('#pcrop-thumbs .pr-thumb').forEach(t => {
+      t.classList.toggle('pr-thumb--active', parseInt(t.dataset.page, 10) === n);
+    });
+    const page = await _pcropDoc.getPage(n);
+    const vp = page.getViewport({ scale: 1.4 });
+    const c = document.createElement('canvas');
+    c.width = vp.width; c.height = vp.height;
+    await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+    _pcropPageCanvas = c;
+    _pcropRect = null;
+
+    const canvas = document.getElementById('pcrop-canvas');
+    canvas.width = c.width; canvas.height = c.height;
+    _pcropInitDrag(canvas);
+    _pcropRedraw();
+    _pcropUpdateInfo();
+  }
+
+  function pcropReset() {
+    _pcropFile = null; _pcropDoc = null; _pcropPagesTotal = 0; _pcropPageCanvas = null; _pcropRect = null;
+    document.getElementById('pcrop-upload-screen').style.display = 'block';
+    document.getElementById('pcrop-editor').style.display = 'none';
+    document.getElementById('pcrop-file').value = '';
+    document.getElementById('pcrop-thumbs').innerHTML = '';
+  }
+
+  function pcropClear() {
+    _pcropRect = null;
+    _pcropRedraw();
+    _pcropUpdateInfo();
+    Audio.click();
+  }
+
+  function pcropSetScope(scope, btn) {
+    _pcropScope = scope;
+    document.querySelectorAll('#pcrop-scope-group .pr-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('pcrop-range-row').style.display = scope === 'range' ? 'block' : 'none';
+    Audio.click();
+  }
+
+  // 8 tiradores (4 esquinas + 4 bordes) para redimensionar sin tener que volver a dibujar.
+  function _pcropHandles(r) {
+    const { x, y, w, h } = r;
+    return [
+      { id: 'nw', cx: x,       cy: y       }, { id: 'n', cx: x + w / 2, cy: y       }, { id: 'ne', cx: x + w, cy: y       },
+      { id: 'w',  cx: x,       cy: y + h/2 },                                          { id: 'e',  cx: x + w, cy: y + h/2 },
+      { id: 'sw', cx: x,       cy: y + h   }, { id: 's', cx: x + w / 2, cy: y + h   }, { id: 'se', cx: x + w, cy: y + h   },
+    ];
+  }
+
+  function _pcropInitDrag(canvas) {
+    if (canvas.dataset.cropInit) return;
+    canvas.dataset.cropInit = '1';
+    let mode = null, handleId = null, startX = 0, startY = 0, moveDX = 0, moveDY = 0;
+
+    function toCanvasXY(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scale = canvas.width / rect.width;
+      return {
+        x: Math.max(0, Math.min(canvas.width, (e.clientX - rect.left) * scale)),
+        y: Math.max(0, Math.min(canvas.height, (e.clientY - rect.top) * scale)),
+        scale,
+      };
+    }
+
+    function resizeTo(id, p) {
+      const r = _pcropRect;
+      let { x, y, w, h } = r;
+      const x2 = x + w, y2 = y + h;
+      if (id.includes('w')) { const nx = Math.min(p.x, x2 - PCROP_MIN_SIZE); x = nx; w = x2 - nx; }
+      if (id.includes('e')) { const nx2 = Math.max(p.x, x + PCROP_MIN_SIZE); w = nx2 - x; }
+      if (id.includes('n')) { const ny = Math.min(p.y, y2 - PCROP_MIN_SIZE); y = ny; h = y2 - ny; }
+      if (id.includes('s')) { const ny2 = Math.max(p.y, y + PCROP_MIN_SIZE); h = ny2 - y; }
+      _pcropRect = { x, y, w, h };
+    }
+
+    canvas.addEventListener('pointerdown', e => {
+      const p = toCanvasXY(e);
+      const hitR = PCROP_HIT_R * p.scale;
+      if (_pcropRect) {
+        const hit = _pcropHandles(_pcropRect).find(h => Math.abs(h.cx - p.x) <= hitR && Math.abs(h.cy - p.y) <= hitR);
+        if (hit) {
+          mode = 'resize'; handleId = hit.id;
+          canvas.setPointerCapture(e.pointerId);
+          return;
+        }
+        if (p.x >= _pcropRect.x && p.x <= _pcropRect.x + _pcropRect.w && p.y >= _pcropRect.y && p.y <= _pcropRect.y + _pcropRect.h) {
+          mode = 'move';
+          moveDX = p.x - _pcropRect.x; moveDY = p.y - _pcropRect.y;
+          canvas.setPointerCapture(e.pointerId);
+          return;
+        }
+      }
+      mode = 'draw';
+      startX = p.x; startY = p.y;
+      _pcropRect = { x: startX, y: startY, w: 0, h: 0 };
+      canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (!mode) return;
+      const p = toCanvasXY(e);
+      if (mode === 'draw') {
+        const x = Math.min(startX, p.x), y = Math.min(startY, p.y);
+        const w = Math.abs(p.x - startX), h = Math.abs(p.y - startY);
+        _pcropRect = { x, y, w, h };
+      } else if (mode === 'move') {
+        const nx = Math.max(0, Math.min(canvas.width - _pcropRect.w, p.x - moveDX));
+        const ny = Math.max(0, Math.min(canvas.height - _pcropRect.h, p.y - moveDY));
+        _pcropRect.x = nx; _pcropRect.y = ny;
+      } else if (mode === 'resize') {
+        resizeTo(handleId, p);
+      }
+      _pcropRedraw();
+      _pcropUpdateInfo();
+    });
+    const endDrag = () => { mode = null; handleId = null; };
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+  }
+
+  function _pcropRedraw() {
+    const canvas = document.getElementById('pcrop-canvas');
+    if (!canvas || !_pcropPageCanvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(_pcropPageCanvas, 0, 0);
+    if (!_pcropRect || _pcropRect.w < 2 || _pcropRect.h < 2) return;
+    const { x, y, w, h } = _pcropRect;
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#9184d9';
+
+    ctx.fillStyle = 'rgba(0,0,0,.55)';
+    ctx.fillRect(0, 0, canvas.width, y);
+    ctx.fillRect(0, y + h, canvas.width, canvas.height - (y + h));
+    ctx.fillRect(0, y, x, h);
+    ctx.fillRect(x + w, y, canvas.width - (x + w), h);
+
+    // guía de tercios, estética de editor de recorte real
+    ctx.strokeStyle = 'rgba(255,255,255,.45)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i <= 2; i++) {
+      ctx.beginPath(); ctx.moveTo(x + w * i / 3, y); ctx.lineTo(x + w * i / 3, y + h); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, y + h * i / 3); ctx.lineTo(x + w, y + h * i / 3); ctx.stroke();
+    }
+
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+
+    _pcropHandles(_pcropRect).forEach(hd => {
+      ctx.beginPath();
+      ctx.arc(hd.cx, hd.cy, PCROP_HANDLE_R, 0, Math.PI * 2);
+      ctx.fillStyle = accent;
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
+    });
+  }
+
+  function pcropQuickMargin(pct) {
+    if (!_pcropPageCanvas) return;
+    const cw = _pcropPageCanvas.width, ch = _pcropPageCanvas.height;
+    const mx = cw * pct / 100, my = ch * pct / 100;
+    _pcropRect = { x: mx, y: my, w: cw - mx * 2, h: ch - my * 2 };
+    _pcropRedraw();
+    _pcropUpdateInfo();
+    Audio.click();
+  }
+
+  function _pcropUpdateInfo() {
+    const info = document.getElementById('pcrop-info');
+    if (!_pcropRect || _pcropRect.w < 2 || _pcropRect.h < 2) {
+      info.textContent = 'sin recorte — dibujá uno o usá un margen rápido';
+      return;
+    }
+    const cw = _pcropPageCanvas.width, ch = _pcropPageCanvas.height;
+    const { x, y, w, h } = _pcropRect;
+    const top = Math.round(y / ch * 100), left = Math.round(x / cw * 100);
+    const bottom = Math.round((ch - (y + h)) / ch * 100), right = Math.round((cw - (x + w)) / cw * 100);
+    info.textContent = `márgenes recortados — arriba ${top}% · abajo ${bottom}% · izq ${left}% · der ${right}%`;
+  }
+
+  async function pcropExport() {
+    if (!_pcropFile) return;
+    if (!_pcropRect || _pcropRect.w < 2 || _pcropRect.h < 2) {
+      UI.showToast('dibujá un recorte sobre la página primero');
+      return;
+    }
+    let targetPages;
+    if (_pcropScope === 'current') {
+      targetPages = new Set([_pcropCurrentPage]);
+    } else if (_pcropScope === 'range') {
+      const raw = document.getElementById('pcrop-range').value.trim();
+      if (!raw) { UI.showToast('escribí un rango de páginas, ej: 1, 3, 5-7'); return; }
+      targetPages = new Set(_parsePageRanges(raw, _pcropPagesTotal));
+      if (!targetPages.size) { UI.showToast('ese rango no tiene páginas válidas'); return; }
+    } else {
+      targetPages = null; // todas
+    }
+
+    toggleLoader('pcrop-loader', true);
+    try {
+      const cw = _pcropPageCanvas.width, ch = _pcropPageCanvas.height;
+      const fx0 = _pcropRect.x / cw, fy0 = _pcropRect.y / ch;
+      const fw = _pcropRect.w / cw, fh = _pcropRect.h / ch;
+
+      const { PDFDocument } = await _loadPdfLib();
+      const doc = await PDFDocument.load(await _pcropFile.arrayBuffer(), { ignoreEncryption: true });
+      let applied = 0;
+      doc.getPages().forEach((page, i) => {
+        const pageNum = i + 1;
+        if (targetPages && !targetPages.has(pageNum)) return;
+        const { width: W, height: H } = page.getSize();
+        const cropX = fx0 * W;
+        const cropWidth = fw * W;
+        const cropY = H * (1 - fy0 - fh);
+        const cropHeight = fh * H;
+        page.setCropBox(cropX, cropY, cropWidth, cropHeight);
+        applied++;
+      });
+      const bytes = await doc.save();
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-recortado.pdf';
+      a.click();
+      toggleLoader('pcrop-loader', false);
+      showResult('pcrop-result', `✅ Recorte aplicado a ${applied} página${applied === 1 ? '' : 's'} · ${fmtSize(blob.size)}`);
+      Audio.success();
+    } catch (e) {
+      toggleLoader('pcrop-loader', false);
+      showResult('pcrop-result', '❌ ' + e.message, true);
+      Audio.error();
+    }
+  }
+
+  // ── pdf redact ──
+  const PRED_MIN_SIZE = 8;
+  let _predFile = null, _predDoc = null, _predPagesTotal = 0, _predCurrentPage = 1;
+  let _predPageCanvas = null; // render de la página actual, para redibujar sin volver a pedirle a pdf.js
+  let _predBoxesByPage = new Map(); // pageNum -> [{fx,fy,fw,fh}, ...] en fracción (0..1) del canvas de esa página
+
+  async function predLoad() {
+    const f = document.getElementById('pred-file').files[0]; if (!f) return;
+    _predFile = f;
+    _predBoxesByPage = new Map();
+    document.getElementById('pred-filename').textContent = f.name;
+    document.getElementById('pred-upload-screen').style.display = 'none';
+    document.getElementById('pred-editor').style.display = 'block';
+
+    const pdfjs = await _loadPdfJs();
+    _predDoc = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
+    _predPagesTotal = _predDoc.numPages;
+    document.getElementById('pred-pages-info').textContent = `${_predPagesTotal} página${_predPagesTotal === 1 ? '' : 's'} · ${fmtSize(f.size)}`;
+
+    const thumbsEl = document.getElementById('pred-thumbs');
+    thumbsEl.innerHTML = '';
+    for (let i = 1; i <= _predPagesTotal; i++) {
+      const page = await _predDoc.getPage(i);
+      const vp = page.getViewport({ scale: 0.3 });
+      const c = document.createElement('canvas');
+      c.width = vp.width; c.height = vp.height;
+      await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      const wrap = document.createElement('div');
+      wrap.className = 'pr-thumb pr-thumb--selectable' + (i === 1 ? ' pr-thumb--active' : '');
+      wrap.dataset.page = i;
+      wrap.innerHTML = `<div class="pr-thumb__canvas-wrap"><canvas width="${vp.width}" height="${vp.height}" style="width:100%;display:block"></canvas><div class="pr-thumb__overlay"><span class="pr-thumb__rot-badge" id="pred-badge-${i}"></span></div></div><p class="pr-thumb__num">${i}</p>`;
+      wrap.querySelector('canvas').getContext('2d').drawImage(c, 0, 0);
+      wrap.addEventListener('click', () => predShowPage(i));
+      thumbsEl.appendChild(wrap);
+    }
+    await predShowPage(1);
+  }
+
+  async function predShowPage(n) {
+    _predCurrentPage = n;
+    document.querySelectorAll('#pred-thumbs .pr-thumb').forEach(t => {
+      t.classList.toggle('pr-thumb--active', parseInt(t.dataset.page, 10) === n);
+    });
+    const page = await _predDoc.getPage(n);
+    const vp = page.getViewport({ scale: 1.4 });
+    const c = document.createElement('canvas');
+    c.width = vp.width; c.height = vp.height;
+    await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+    _predPageCanvas = c;
+
+    const canvas = document.getElementById('pred-canvas');
+    canvas.width = c.width; canvas.height = c.height;
+    _predInitDrag(canvas);
+    _predRedraw();
+    _predUpdateInfo();
+  }
+
+  function predReset() {
+    _predFile = null; _predDoc = null; _predPagesTotal = 0; _predPageCanvas = null; _predBoxesByPage = new Map();
+    document.getElementById('pred-upload-screen').style.display = 'block';
+    document.getElementById('pred-editor').style.display = 'none';
+    document.getElementById('pred-file').value = '';
+    document.getElementById('pred-thumbs').innerHTML = '';
+  }
+
+  function _predBoxes() {
+    if (!_predBoxesByPage.has(_predCurrentPage)) _predBoxesByPage.set(_predCurrentPage, []);
+    return _predBoxesByPage.get(_predCurrentPage);
+  }
+
+  function predClearPage() {
+    _predBoxesByPage.set(_predCurrentPage, []);
+    _predRedraw();
+    _predUpdateInfo();
+    Audio.click();
+  }
+
+  function _predInitDrag(canvas) {
+    if (canvas.dataset.redactInit) return;
+    canvas.dataset.redactInit = '1';
+    let mode = null, startX = 0, startY = 0, curRect = null;
+
+    function toCanvasXY(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scale = canvas.width / rect.width;
+      return {
+        x: Math.max(0, Math.min(canvas.width, (e.clientX - rect.left) * scale)),
+        y: Math.max(0, Math.min(canvas.height, (e.clientY - rect.top) * scale)),
+      };
+    }
+
+    canvas.addEventListener('pointerdown', e => {
+      const p = toCanvasXY(e);
+      const boxes = _predBoxes();
+      const hitIdx = boxes.findIndex(b => {
+        const x = b.fx * canvas.width, y = b.fy * canvas.height, w = b.fw * canvas.width, h = b.fh * canvas.height;
+        return p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h;
+      });
+      if (hitIdx >= 0) {
+        mode = 'delete'; curRect = hitIdx;
+      } else {
+        mode = 'draw';
+        startX = p.x; startY = p.y;
+      }
+      canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (mode !== 'draw') return;
+      const p = toCanvasXY(e);
+      const x = Math.min(startX, p.x), y = Math.min(startY, p.y);
+      const w = Math.abs(p.x - startX), h = Math.abs(p.y - startY);
+      _predRedraw();
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'rgba(0,0,0,.65)';
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent2').trim() || '#ff6ef7';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+    });
+    canvas.addEventListener('pointerup', e => {
+      if (mode === 'draw') {
+        const p = toCanvasXY(e);
+        const x = Math.min(startX, p.x), y = Math.min(startY, p.y);
+        const w = Math.abs(p.x - startX), h = Math.abs(p.y - startY);
+        if (w >= PRED_MIN_SIZE && h >= PRED_MIN_SIZE) {
+          _predBoxes().push({ fx: x / canvas.width, fy: y / canvas.height, fw: w / canvas.width, fh: h / canvas.height });
+          Audio.click();
+        }
+      } else if (mode === 'delete') {
+        _predBoxes().splice(curRect, 1);
+        Audio.click();
+      }
+      mode = null; curRect = null;
+      _predRedraw();
+      _predUpdateInfo();
+    });
+    canvas.addEventListener('pointercancel', () => { mode = null; curRect = null; _predRedraw(); });
+  }
+
+  function _predRedraw() {
+    const canvas = document.getElementById('pred-canvas');
+    if (!canvas || !_predPageCanvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(_predPageCanvas, 0, 0);
+    ctx.fillStyle = '#000';
+    _predBoxes().forEach(b => {
+      ctx.fillRect(b.fx * canvas.width, b.fy * canvas.height, b.fw * canvas.width, b.fh * canvas.height);
+    });
+  }
+
+  function _predUpdateInfo() {
+    const n = _predBoxes().length;
+    document.getElementById('pred-info').textContent = n
+      ? `${n} área${n === 1 ? '' : 's'} tapada${n === 1 ? '' : 's'} en esta página`
+      : 'sin tapados en esta página';
+    const badge = document.getElementById(`pred-badge-${_predCurrentPage}`);
+    if (badge) badge.textContent = n ? String(n) : '';
+  }
+
+  async function predExport() {
+    if (!_predFile) return;
+    const totalBoxes = [..._predBoxesByPage.values()].reduce((s, arr) => s + arr.length, 0);
+    if (!totalBoxes) {
+      UI.showToast('tapá al menos un área en alguna página primero');
+      return;
+    }
+    toggleLoader('pred-loader', true);
+    try {
+      const { PDFDocument } = await _loadPdfLib();
+      const srcDoc = await PDFDocument.load(await _predFile.arrayBuffer(), { ignoreEncryption: true });
+      const outDoc = await PDFDocument.create();
+      let rasterized = 0;
+
+      for (let i = 1; i <= _predPagesTotal; i++) {
+        const boxes = _predBoxesByPage.get(i) || [];
+        if (!boxes.length) {
+          const [copied] = await outDoc.copyPages(srcDoc, [i - 1]);
+          outDoc.addPage(copied);
+          continue;
+        }
+        const page = await _predDoc.getPage(i);
+        const vpHi = page.getViewport({ scale: 2 });
+        const c = document.createElement('canvas');
+        c.width = vpHi.width; c.height = vpHi.height;
+        const ctx = c.getContext('2d');
+        await page.render({ canvasContext: ctx, viewport: vpHi }).promise;
+        ctx.fillStyle = '#000';
+        boxes.forEach(b => ctx.fillRect(b.fx * c.width, b.fy * c.height, b.fw * c.width, b.fh * c.height));
+
+        const pngBlob = await new Promise(res => c.toBlob(res, 'image/png'));
+        const pngBytes = new Uint8Array(await pngBlob.arrayBuffer());
+        const img = await outDoc.embedPng(pngBytes);
+        const vp1 = page.getViewport({ scale: 1 });
+        const newPage = outDoc.addPage([vp1.width, vp1.height]);
+        newPage.drawImage(img, { x: 0, y: 0, width: vp1.width, height: vp1.height });
+        rasterized++;
+      }
+
+      const bytes = await outDoc.save();
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-redactado.pdf';
+      a.click();
+      toggleLoader('pred-loader', false);
+      showResult('pred-result', `✅ ${rasterized} página${rasterized === 1 ? '' : 's'} con tapados (convertida${rasterized === 1 ? '' : 's'} a imagen) · ${_predPagesTotal - rasterized} sin tocar · ${fmtSize(blob.size)}`);
+      Audio.success();
+    } catch (e) {
+      toggleLoader('pred-loader', false);
+      showResult('pred-result', '❌ ' + e.message, true);
+      Audio.error();
+    }
+  }
+
+  // ── pdf repair ──
+  let _prepFile = null;
+
+  async function prepLoad() {
+    const f = document.getElementById('prep-file').files[0]; if (!f) return;
+    _prepFile = f;
+    document.getElementById('prep-info').style.display = 'block';
+    const status = document.getElementById('prep-status');
+    status.textContent = `${f.name} · ${fmtSize(f.size)} · ⏳ analizando...`;
+    try {
+      const { PDFDocument } = await _loadPdfLib();
+      const doc = await PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption: true, throwOnInvalidObject: false, updateMetadata: false });
+      const n = doc.getPageCount();
+      status.textContent = `${f.name} · ${n} página${n === 1 ? '' : 's'} · ${fmtSize(f.size)} — se pudo leer bien`;
+    } catch (e) {
+      status.textContent = `${f.name} · ${fmtSize(f.size)} · ⚠️ el archivo tiene problemas (${e.message}) — igual vamos a intentar repararlo`;
+    }
+  }
+
+  async function prepExport() {
+    if (!_prepFile) return;
+    const btn = document.getElementById('prep-btn');
+    btn.disabled = true;
+    toggleLoader('prep-loader', true);
+    try {
+      const { PDFDocument } = await _loadPdfLib();
+      let doc, rasterizedFallback = false;
+      try {
+        doc = await PDFDocument.load(await _prepFile.arrayBuffer(), { ignoreEncryption: true, throwOnInvalidObject: false, updateMetadata: false });
+      } catch (e1) {
+        let pjDoc;
+        try {
+          const pdfjs = await _loadPdfJs();
+          pjDoc = await pdfjs.getDocument({ data: await _prepFile.arrayBuffer() }).promise;
+        } catch (e2) {
+          throw new Error('el archivo está demasiado dañado — no se pudo leer ni con el método de respaldo');
+        }
+        rasterizedFallback = true;
+        const outDoc = await PDFDocument.create();
+        for (let i = 1; i <= pjDoc.numPages; i++) {
+          const page = await pjDoc.getPage(i);
+          const vpHi = page.getViewport({ scale: 2 });
+          const c = document.createElement('canvas');
+          c.width = vpHi.width; c.height = vpHi.height;
+          await page.render({ canvasContext: c.getContext('2d'), viewport: vpHi }).promise;
+          const pngBlob = await new Promise(res => c.toBlob(res, 'image/png'));
+          const pngBytes = new Uint8Array(await pngBlob.arrayBuffer());
+          const img = await outDoc.embedPng(pngBytes);
+          const vp1 = page.getViewport({ scale: 1 });
+          const newPage = outDoc.addPage([vp1.width, vp1.height]);
+          newPage.drawImage(img, { x: 0, y: 0, width: vp1.width, height: vp1.height });
+        }
+        doc = outDoc;
+      }
+      const n = doc.getPageCount();
+      const bytes = await doc.save();
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-reparado.pdf';
+      a.click();
+      toggleLoader('prep-loader', false);
+      showResult('prep-result', rasterizedFallback
+        ? `⚠️ El PDF estaba muy dañado para mantener el texto — se reparó convirtiendo cada página en imagen (${n} página${n === 1 ? '' : 's'}). El texto ya no es seleccionable. ${fmtSize(blob.size)}`
+        : `✅ Se pudo leer y reparar normalmente — ${n} página${n === 1 ? '' : 's'}, estructura reconstruida y archivo re-guardado limpio. ${fmtSize(blob.size)}`);
+      Audio.success();
+    } catch (e) {
+      toggleLoader('prep-loader', false);
+      showResult('prep-result', '❌ No se pudo reparar: ' + e.message, true);
+      Audio.error();
+    }
+    btn.disabled = false;
+  }
+
   // ── unit converter ──
   const UNIT_DATA = {
     longitud:   { units: { mm:0.001, cm:0.01, m:1, km:1000, in:0.0254, ft:0.3048, yd:0.9144, mi:1609.344 } },
@@ -4833,6 +6428,17 @@ const ToolFn = (() => {
     loremGenerate,
     slugifyLive,
     imgPaletteLoad, imgPaletteExtract,
+    cropLoad, cropSetRatio, cropExport,
+    rotLoad, rotStep, rotFlip, rotExport,
+    pnLoad, pnExport,
+    wmLoad, wmSetMode, wmDraw, wmExport,
+    heicPreview, heicConvert,
+    collageLoad, collageSetGrid, collageSetStyle, collageDraw, collageExport,
+    collageAddSticker, collageStickerResize, collageRemoveSticker,
+    pcmpLoad, pcmpSetMode, pcmpRun,
+    pcropLoad, pcropShowPage, pcropReset, pcropClear, pcropSetScope, pcropQuickMargin, pcropExport,
+    predLoad, predShowPage, predReset, predClearPage, predExport,
+    prepLoad, prepExport,
     unitCatChange, unitConvert, unitSwap,
     ctSetPreset, ctSetCustom, ctToggle, ctReset,
     paletteGenerate,
@@ -5069,8 +6675,10 @@ const Admin = (() => {
 ═══════════════════════════════════════════════ */
 I18n.set('es');
 
-/* ── PWA: cachea lo estático para que ande offline después de la primera visita ── */
-if ('serviceWorker' in navigator) {
+/* ── PWA: cachea lo estático para que ande offline después de la primera visita ──
+   (no aplica dentro de la extensión: ahí el origen es chrome-extension:// y los archivos
+   ya están empaquetados localmente, no hace falta un service worker para eso) ── */
+if ('serviceWorker' in navigator && !IS_EXTENSION) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
 }
 
@@ -5298,7 +6906,7 @@ const NowPlaying = (() => {
     titleEl.textContent = t.title;
     subEl.textContent = t.artist;
     if (idxEl) idxEl.textContent = `${idx + 1}/${TRACKS.length}`;
-    audio.src = t.src;
+    audio.src = SITE_BASE + '/' + t.src;
     if (autoplay) audio.play().catch(() => {});
   }
 
