@@ -162,6 +162,7 @@ const I18n = (() => {
     { id:'g7',  icon:'📑', cat:'pdf',        type:'pdf-compare',  isNew:true },
     { id:'g8',  icon:'📐', cat:'pdf',        type:'pdf-crop',     isNew:true },
     { id:'g9',  icon:'⬛', cat:'pdf',        type:'pdf-redact',   isNew:true },
+    { id:'g10', icon:'🩹', cat:'pdf',        type:'pdf-repair',   isNew:true },
   ];
 
   const STRINGS = {
@@ -203,7 +204,7 @@ const I18n = (() => {
         f4:'Paleta de una imagen',
         g1:'Recortar imagen', g2:'Rotar/espejar imagen', g3:'Numerar páginas de PDF', g4:'Marca de agua en imagen',
         g5:'Convertir HEIC a JPG/PNG', g6:'Collage de imágenes', g7:'Comparar dos PDFs',
-        g8:'Recortar márgenes de PDF', g9:'Redactar PDF',
+        g8:'Recortar márgenes de PDF', g9:'Redactar PDF', g10:'Reparar PDF dañado',
       },
       toolDescs:{
         b1:'Reducí el tamaño de JPG/PNG con preview y comparación antes/después.',
@@ -263,6 +264,7 @@ const I18n = (() => {
         g7:'Compará el texto de dos PDFs y mirá exactamente qué cambió, palabra por palabra o página por página. 100% local.',
         g8:'Recortá los márgenes de tu PDF dibujando el área que querés conservar sobre una vista previa. Se aplica a todas las páginas. 100% local.',
         g9:'Tapá texto o datos sensibles (DNI, direcciones) antes de compartir un PDF — dibujá rectángulos negros sobre cada página. El tapado es permanente, no se puede deshacer ni copiar el texto de abajo. 100% local.',
+        g10:'Intentá arreglar un PDF que no abre o da error. Mejor esfuerzo: relee el archivo de forma tolerante y lo re-guarda limpio; si está muy dañado, lo reconstruye como imagen. 100% local.',
       },
       langs:['Inglés','Español','Portugués','Francés','Alemán','Italiano','Japonés','Chino (simplificado)','Árabe','Ruso','Coreano','Hindi'],
     },
@@ -486,7 +488,7 @@ const Tools = (() => {
     'ai-correct','ai-expand','ai-summarize','ai-translate','aud-compress',
     'base64','case-conv','cobalt-dl','color-conv','hash-gen','img-compress',
     'img-convert','img-heic','img-palette','img-pdf','json-fmt','lorem-gen','meta-remove',
-    'my-ip','palette-gen','pdf-compare','pdf-pagenum','pdf-text','pwd-gen','regex-test','slugify',
+    'my-ip','palette-gen','pdf-compare','pdf-pagenum','pdf-repair','pdf-text','pwd-gen','regex-test','slugify',
     'text-diff','unit-conv','uuid-gen','vid-compress','word-count',
   ]);
   const _memory = new Map(); // toolId -> { html, values }
@@ -1951,6 +1953,17 @@ const ToolUI = (() => {
           </div>
         </div>`;
     },
+
+    /* ── PDF REPAIR ── */
+    'pdf-repair': () =>
+      infoBox('Mejor esfuerzo, no magia: releemos tu PDF de forma tolerante (ignorando partes corruptas) y lo re-guardamos limpio — funciona para la mayoría de los casos reales (metadata corrupta, referencias rotas, etc.). Si el archivo está TAN dañado que ni así se puede leer, como último recurso convertimos cada página en imagen para al menos recuperar el contenido visual (se pierde el texto seleccionable).') +
+      label('Archivo PDF') +
+      `${dropZone('prep-file','application/pdf','ToolFn.prepLoad()','Arrastrá un PDF acá')}` +
+      `<div id="prep-info" style="display:none">
+        <p id="prep-status" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>
+        <div class="btn-row" style="margin-top:.6rem"><button class="btn" id="prep-btn" onclick="ToolFn.prepExport()">🩹 Reparar y descargar</button></div>
+        <div id="prep-result" style="margin-top:.6rem"></div>
+      </div>`,
 
     /* ── PASSWORD GENERATOR ── */
     'pwd-gen': () =>
@@ -6130,6 +6143,80 @@ const ToolFn = (() => {
     }
   }
 
+  // ── pdf repair ──
+  let _prepFile = null;
+
+  async function prepLoad() {
+    const f = document.getElementById('prep-file').files[0]; if (!f) return;
+    _prepFile = f;
+    document.getElementById('prep-info').style.display = 'block';
+    const status = document.getElementById('prep-status');
+    status.textContent = `${f.name} · ${fmtSize(f.size)} · ⏳ analizando...`;
+    try {
+      const { PDFDocument } = await _loadPdfLib();
+      const doc = await PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption: true, throwOnInvalidObject: false, updateMetadata: false });
+      const n = doc.getPageCount();
+      status.textContent = `${f.name} · ${n} página${n === 1 ? '' : 's'} · ${fmtSize(f.size)} — se pudo leer bien`;
+    } catch (e) {
+      status.textContent = `${f.name} · ${fmtSize(f.size)} · ⚠️ el archivo tiene problemas (${e.message}) — igual vamos a intentar repararlo`;
+    }
+  }
+
+  async function prepExport() {
+    if (!_prepFile) return;
+    const btn = document.getElementById('prep-btn');
+    btn.disabled = true;
+    toggleLoader('prep-loader', true);
+    try {
+      const { PDFDocument } = await _loadPdfLib();
+      let doc, rasterizedFallback = false;
+      try {
+        doc = await PDFDocument.load(await _prepFile.arrayBuffer(), { ignoreEncryption: true, throwOnInvalidObject: false, updateMetadata: false });
+      } catch (e1) {
+        let pjDoc;
+        try {
+          const pdfjs = await _loadPdfJs();
+          pjDoc = await pdfjs.getDocument({ data: await _prepFile.arrayBuffer() }).promise;
+        } catch (e2) {
+          throw new Error('el archivo está demasiado dañado — no se pudo leer ni con el método de respaldo');
+        }
+        rasterizedFallback = true;
+        const outDoc = await PDFDocument.create();
+        for (let i = 1; i <= pjDoc.numPages; i++) {
+          const page = await pjDoc.getPage(i);
+          const vpHi = page.getViewport({ scale: 2 });
+          const c = document.createElement('canvas');
+          c.width = vpHi.width; c.height = vpHi.height;
+          await page.render({ canvasContext: c.getContext('2d'), viewport: vpHi }).promise;
+          const pngBlob = await new Promise(res => c.toBlob(res, 'image/png'));
+          const pngBytes = new Uint8Array(await pngBlob.arrayBuffer());
+          const img = await outDoc.embedPng(pngBytes);
+          const vp1 = page.getViewport({ scale: 1 });
+          const newPage = outDoc.addPage([vp1.width, vp1.height]);
+          newPage.drawImage(img, { x: 0, y: 0, width: vp1.width, height: vp1.height });
+        }
+        doc = outDoc;
+      }
+      const n = doc.getPageCount();
+      const bytes = await doc.save();
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-reparado.pdf';
+      a.click();
+      toggleLoader('prep-loader', false);
+      showResult('prep-result', rasterizedFallback
+        ? `⚠️ El PDF estaba muy dañado para mantener el texto — se reparó convirtiendo cada página en imagen (${n} página${n === 1 ? '' : 's'}). El texto ya no es seleccionable. ${fmtSize(blob.size)}`
+        : `✅ Se pudo leer y reparar normalmente — ${n} página${n === 1 ? '' : 's'}, estructura reconstruida y archivo re-guardado limpio. ${fmtSize(blob.size)}`);
+      Audio.success();
+    } catch (e) {
+      toggleLoader('prep-loader', false);
+      showResult('prep-result', '❌ No se pudo reparar: ' + e.message, true);
+      Audio.error();
+    }
+    btn.disabled = false;
+  }
+
   // ── unit converter ──
   const UNIT_DATA = {
     longitud:   { units: { mm:0.001, cm:0.01, m:1, km:1000, in:0.0254, ft:0.3048, yd:0.9144, mi:1609.344 } },
@@ -6351,6 +6438,7 @@ const ToolFn = (() => {
     pcmpLoad, pcmpSetMode, pcmpRun,
     pcropLoad, pcropShowPage, pcropReset, pcropClear, pcropSetScope, pcropQuickMargin, pcropExport,
     predLoad, predShowPage, predReset, predClearPage, predExport,
+    prepLoad, prepExport,
     unitCatChange, unitConvert, unitSwap,
     ctSetPreset, ctSetCustom, ctToggle, ctReset,
     paletteGenerate,
