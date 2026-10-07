@@ -161,6 +161,7 @@ const I18n = (() => {
     { id:'g6',  icon:'🧩', cat:'imagen',     type:'img-collage',  isNew:true },
     { id:'g7',  icon:'📑', cat:'pdf',        type:'pdf-compare',  isNew:true },
     { id:'g8',  icon:'📐', cat:'pdf',        type:'pdf-crop',     isNew:true },
+    { id:'g9',  icon:'⬛', cat:'pdf',        type:'pdf-redact',   isNew:true },
   ];
 
   const STRINGS = {
@@ -202,7 +203,7 @@ const I18n = (() => {
         f4:'Paleta de una imagen',
         g1:'Recortar imagen', g2:'Rotar/espejar imagen', g3:'Numerar páginas de PDF', g4:'Marca de agua en imagen',
         g5:'Convertir HEIC a JPG/PNG', g6:'Collage de imágenes', g7:'Comparar dos PDFs',
-        g8:'Recortar márgenes de PDF',
+        g8:'Recortar márgenes de PDF', g9:'Redactar PDF',
       },
       toolDescs:{
         b1:'Reducí el tamaño de JPG/PNG con preview y comparación antes/después.',
@@ -261,6 +262,7 @@ const I18n = (() => {
         g6:'Armá un collage con varias fotos en una grilla (2×2, 3×3 y más), con espaciado y color de fondo a tu gusto. 100% local.',
         g7:'Compará el texto de dos PDFs y mirá exactamente qué cambió, palabra por palabra o página por página. 100% local.',
         g8:'Recortá los márgenes de tu PDF dibujando el área que querés conservar sobre una vista previa. Se aplica a todas las páginas. 100% local.',
+        g9:'Tapá texto o datos sensibles (DNI, direcciones) antes de compartir un PDF — dibujá rectángulos negros sobre cada página. El tapado es permanente, no se puede deshacer ni copiar el texto de abajo. 100% local.',
       },
       langs:['Inglés','Español','Portugués','Francés','Alemán','Italiano','Japonés','Chino (simplificado)','Árabe','Ruso','Coreano','Hindi'],
     },
@@ -1898,6 +1900,51 @@ const ToolUI = (() => {
 
               <div class="btn-row" style="margin-top:.9rem">
                 <button class="btn" onclick="ToolFn.pcropExport()">📐 Recortar y descargar</button>
+              </div>
+              ${loaderHtml}${resultHtml}
+            </div>
+          </div>
+        </div>`;
+    },
+
+    /* ── PDF REDACT ── */
+    'pdf-redact': () => {
+      const loaderHtml = loader('pred-loader','⏳ redactando PDF...');
+      const resultHtml = result('pred-result');
+      return `<div id="pred-upload-screen">` +
+        infoBox('Dibujá rectángulos negros sobre las páginas para tapar texto o datos sensibles (DNI, direcciones, firmas). El tapado es permanente: las páginas con algo tapado se convierten en imagen, así que no hay forma de deshacerlo ni de copiar el texto de abajo. Las páginas sin nada tapado mantienen su texto normal.') +
+        `<input type="file" id="pred-file" accept="application/pdf" style="display:none" onchange="ToolFn.predLoad()">
+        <div class="file-drop" onclick="document.getElementById('pred-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pred-file').files=event.dataTransfer.files;ToolFn.predLoad()">
+          <div class="file-drop__icon">⬛</div>
+          <div class="file-drop__title">Arrastrá un PDF acá</div>
+          <div class="file-drop__sub">o hacé click para elegir</div>
+          <div class="file-drop__name" id="pred-name"></div>
+        </div>
+        </div>
+        <div id="pred-editor" style="display:none">
+          <div class="pr-topbar">
+            <div class="pr-topbar__info">
+              <span id="pred-filename" style="font-family:var(--mono);font-size:.78rem;color:var(--fg2)"></span>
+              <span id="pred-pages-info" style="font-family:var(--mono);font-size:.7rem;color:var(--fg3);margin-left:.6rem"></span>
+            </div>
+            <button class="btn btn--sec" onclick="ToolFn.predReset()" style="font-size:.7rem;padding:.25rem .6rem">✕ Cambiar PDF</button>
+          </div>
+          <div class="pr-workspace">
+            <div class="pr-sidebar" id="pred-sidebar">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Páginas</p>
+              <p style="font-size:.65rem;color:var(--accent2);font-family:var(--mono);margin-bottom:.4rem">Click = editar esta página</p>
+              <div id="pred-thumbs"></div>
+            </div>
+            <div class="pr-panel">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Tapar en esta página</p>
+              <p style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.5rem">arrastrá para tapar un área · click sobre un rectángulo para sacarlo</p>
+              <canvas id="pred-canvas" style="width:100%;max-width:520px;display:block;border-radius:8px;border:1.5px solid var(--border);touch-action:none;cursor:crosshair;background:var(--bg3)"></canvas>
+              <div class="btn-row" style="margin:.6rem 0">
+                <button class="btn btn--sec" onclick="ToolFn.predClearPage()">✕ Vaciar esta página</button>
+              </div>
+              <div id="pred-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.7rem">sin tapados en esta página</div>
+              <div class="btn-row">
+                <button class="btn" onclick="ToolFn.predExport()">⬛ Redactar y descargar</button>
               </div>
               ${loaderHtml}${resultHtml}
             </div>
@@ -5868,6 +5915,221 @@ const ToolFn = (() => {
     }
   }
 
+  // ── pdf redact ──
+  const PRED_MIN_SIZE = 8;
+  let _predFile = null, _predDoc = null, _predPagesTotal = 0, _predCurrentPage = 1;
+  let _predPageCanvas = null; // render de la página actual, para redibujar sin volver a pedirle a pdf.js
+  let _predBoxesByPage = new Map(); // pageNum -> [{fx,fy,fw,fh}, ...] en fracción (0..1) del canvas de esa página
+
+  async function predLoad() {
+    const f = document.getElementById('pred-file').files[0]; if (!f) return;
+    _predFile = f;
+    _predBoxesByPage = new Map();
+    document.getElementById('pred-filename').textContent = f.name;
+    document.getElementById('pred-upload-screen').style.display = 'none';
+    document.getElementById('pred-editor').style.display = 'block';
+
+    const pdfjs = await _loadPdfJs();
+    _predDoc = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
+    _predPagesTotal = _predDoc.numPages;
+    document.getElementById('pred-pages-info').textContent = `${_predPagesTotal} página${_predPagesTotal === 1 ? '' : 's'} · ${fmtSize(f.size)}`;
+
+    const thumbsEl = document.getElementById('pred-thumbs');
+    thumbsEl.innerHTML = '';
+    for (let i = 1; i <= _predPagesTotal; i++) {
+      const page = await _predDoc.getPage(i);
+      const vp = page.getViewport({ scale: 0.3 });
+      const c = document.createElement('canvas');
+      c.width = vp.width; c.height = vp.height;
+      await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      const wrap = document.createElement('div');
+      wrap.className = 'pr-thumb pr-thumb--selectable' + (i === 1 ? ' pr-thumb--active' : '');
+      wrap.dataset.page = i;
+      wrap.innerHTML = `<div class="pr-thumb__canvas-wrap"><canvas width="${vp.width}" height="${vp.height}" style="width:100%;display:block"></canvas><div class="pr-thumb__overlay"><span class="pr-thumb__rot-badge" id="pred-badge-${i}"></span></div></div><p class="pr-thumb__num">${i}</p>`;
+      wrap.querySelector('canvas').getContext('2d').drawImage(c, 0, 0);
+      wrap.addEventListener('click', () => predShowPage(i));
+      thumbsEl.appendChild(wrap);
+    }
+    await predShowPage(1);
+  }
+
+  async function predShowPage(n) {
+    _predCurrentPage = n;
+    document.querySelectorAll('#pred-thumbs .pr-thumb').forEach(t => {
+      t.classList.toggle('pr-thumb--active', parseInt(t.dataset.page, 10) === n);
+    });
+    const page = await _predDoc.getPage(n);
+    const vp = page.getViewport({ scale: 1.4 });
+    const c = document.createElement('canvas');
+    c.width = vp.width; c.height = vp.height;
+    await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+    _predPageCanvas = c;
+
+    const canvas = document.getElementById('pred-canvas');
+    canvas.width = c.width; canvas.height = c.height;
+    _predInitDrag(canvas);
+    _predRedraw();
+    _predUpdateInfo();
+  }
+
+  function predReset() {
+    _predFile = null; _predDoc = null; _predPagesTotal = 0; _predPageCanvas = null; _predBoxesByPage = new Map();
+    document.getElementById('pred-upload-screen').style.display = 'block';
+    document.getElementById('pred-editor').style.display = 'none';
+    document.getElementById('pred-file').value = '';
+    document.getElementById('pred-thumbs').innerHTML = '';
+  }
+
+  function _predBoxes() {
+    if (!_predBoxesByPage.has(_predCurrentPage)) _predBoxesByPage.set(_predCurrentPage, []);
+    return _predBoxesByPage.get(_predCurrentPage);
+  }
+
+  function predClearPage() {
+    _predBoxesByPage.set(_predCurrentPage, []);
+    _predRedraw();
+    _predUpdateInfo();
+    Audio.click();
+  }
+
+  function _predInitDrag(canvas) {
+    if (canvas.dataset.redactInit) return;
+    canvas.dataset.redactInit = '1';
+    let mode = null, startX = 0, startY = 0, curRect = null;
+
+    function toCanvasXY(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scale = canvas.width / rect.width;
+      return {
+        x: Math.max(0, Math.min(canvas.width, (e.clientX - rect.left) * scale)),
+        y: Math.max(0, Math.min(canvas.height, (e.clientY - rect.top) * scale)),
+      };
+    }
+
+    canvas.addEventListener('pointerdown', e => {
+      const p = toCanvasXY(e);
+      const boxes = _predBoxes();
+      const hitIdx = boxes.findIndex(b => {
+        const x = b.fx * canvas.width, y = b.fy * canvas.height, w = b.fw * canvas.width, h = b.fh * canvas.height;
+        return p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h;
+      });
+      if (hitIdx >= 0) {
+        mode = 'delete'; curRect = hitIdx;
+      } else {
+        mode = 'draw';
+        startX = p.x; startY = p.y;
+      }
+      canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (mode !== 'draw') return;
+      const p = toCanvasXY(e);
+      const x = Math.min(startX, p.x), y = Math.min(startY, p.y);
+      const w = Math.abs(p.x - startX), h = Math.abs(p.y - startY);
+      _predRedraw();
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'rgba(0,0,0,.65)';
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent2').trim() || '#ff6ef7';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+    });
+    canvas.addEventListener('pointerup', e => {
+      if (mode === 'draw') {
+        const p = toCanvasXY(e);
+        const x = Math.min(startX, p.x), y = Math.min(startY, p.y);
+        const w = Math.abs(p.x - startX), h = Math.abs(p.y - startY);
+        if (w >= PRED_MIN_SIZE && h >= PRED_MIN_SIZE) {
+          _predBoxes().push({ fx: x / canvas.width, fy: y / canvas.height, fw: w / canvas.width, fh: h / canvas.height });
+          Audio.click();
+        }
+      } else if (mode === 'delete') {
+        _predBoxes().splice(curRect, 1);
+        Audio.click();
+      }
+      mode = null; curRect = null;
+      _predRedraw();
+      _predUpdateInfo();
+    });
+    canvas.addEventListener('pointercancel', () => { mode = null; curRect = null; _predRedraw(); });
+  }
+
+  function _predRedraw() {
+    const canvas = document.getElementById('pred-canvas');
+    if (!canvas || !_predPageCanvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(_predPageCanvas, 0, 0);
+    ctx.fillStyle = '#000';
+    _predBoxes().forEach(b => {
+      ctx.fillRect(b.fx * canvas.width, b.fy * canvas.height, b.fw * canvas.width, b.fh * canvas.height);
+    });
+  }
+
+  function _predUpdateInfo() {
+    const n = _predBoxes().length;
+    document.getElementById('pred-info').textContent = n
+      ? `${n} área${n === 1 ? '' : 's'} tapada${n === 1 ? '' : 's'} en esta página`
+      : 'sin tapados en esta página';
+    const badge = document.getElementById(`pred-badge-${_predCurrentPage}`);
+    if (badge) badge.textContent = n ? String(n) : '';
+  }
+
+  async function predExport() {
+    if (!_predFile) return;
+    const totalBoxes = [..._predBoxesByPage.values()].reduce((s, arr) => s + arr.length, 0);
+    if (!totalBoxes) {
+      UI.showToast('tapá al menos un área en alguna página primero');
+      return;
+    }
+    toggleLoader('pred-loader', true);
+    try {
+      const { PDFDocument } = await _loadPdfLib();
+      const srcDoc = await PDFDocument.load(await _predFile.arrayBuffer(), { ignoreEncryption: true });
+      const outDoc = await PDFDocument.create();
+      let rasterized = 0;
+
+      for (let i = 1; i <= _predPagesTotal; i++) {
+        const boxes = _predBoxesByPage.get(i) || [];
+        if (!boxes.length) {
+          const [copied] = await outDoc.copyPages(srcDoc, [i - 1]);
+          outDoc.addPage(copied);
+          continue;
+        }
+        const page = await _predDoc.getPage(i);
+        const vpHi = page.getViewport({ scale: 2 });
+        const c = document.createElement('canvas');
+        c.width = vpHi.width; c.height = vpHi.height;
+        const ctx = c.getContext('2d');
+        await page.render({ canvasContext: ctx, viewport: vpHi }).promise;
+        ctx.fillStyle = '#000';
+        boxes.forEach(b => ctx.fillRect(b.fx * c.width, b.fy * c.height, b.fw * c.width, b.fh * c.height));
+
+        const pngBlob = await new Promise(res => c.toBlob(res, 'image/png'));
+        const pngBytes = new Uint8Array(await pngBlob.arrayBuffer());
+        const img = await outDoc.embedPng(pngBytes);
+        const vp1 = page.getViewport({ scale: 1 });
+        const newPage = outDoc.addPage([vp1.width, vp1.height]);
+        newPage.drawImage(img, { x: 0, y: 0, width: vp1.width, height: vp1.height });
+        rasterized++;
+      }
+
+      const bytes = await outDoc.save();
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-redactado.pdf';
+      a.click();
+      toggleLoader('pred-loader', false);
+      showResult('pred-result', `✅ ${rasterized} página${rasterized === 1 ? '' : 's'} con tapados (convertida${rasterized === 1 ? '' : 's'} a imagen) · ${_predPagesTotal - rasterized} sin tocar · ${fmtSize(blob.size)}`);
+      Audio.success();
+    } catch (e) {
+      toggleLoader('pred-loader', false);
+      showResult('pred-result', '❌ ' + e.message, true);
+      Audio.error();
+    }
+  }
+
   // ── unit converter ──
   const UNIT_DATA = {
     longitud:   { units: { mm:0.001, cm:0.01, m:1, km:1000, in:0.0254, ft:0.3048, yd:0.9144, mi:1609.344 } },
@@ -6088,6 +6350,7 @@ const ToolFn = (() => {
     collageAddSticker, collageStickerResize, collageRemoveSticker,
     pcmpLoad, pcmpSetMode, pcmpRun,
     pcropLoad, pcropShowPage, pcropReset, pcropClear, pcropSetScope, pcropQuickMargin, pcropExport,
+    predLoad, predShowPage, predReset, predClearPage, predExport,
     unitCatChange, unitConvert, unitSwap,
     ctSetPreset, ctSetCustom, ctToggle, ctReset,
     paletteGenerate,
