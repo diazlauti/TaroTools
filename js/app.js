@@ -1850,7 +1850,7 @@ const ToolUI = (() => {
       const loaderHtml = loader('pcrop-loader','⏳ recortando PDF...');
       const resultHtml = result('pcrop-result');
       return `<div id="pcrop-upload-screen">` +
-        infoBox('Dibujá sobre la vista previa el área que querés conservar. El mismo recorte (en la misma proporción) se aplica a todas las páginas del PDF.') +
+        infoBox('Dibujá sobre la vista previa el área que querés conservar — movela y cambiale el tamaño con los tiradores, como en cualquier editor de recorte. Elegí a qué páginas se aplica: todas, solo la que estás viendo, o un rango.') +
         `<input type="file" id="pcrop-file" accept="application/pdf" style="display:none" onchange="ToolFn.pcropLoad()">
         <div class="file-drop" onclick="document.getElementById('pcrop-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pcrop-file').files=event.dataTransfer.files;ToolFn.pcropLoad()">
           <div class="file-drop__icon">📐</div>
@@ -1875,15 +1875,28 @@ const ToolUI = (() => {
             </div>
             <div class="pr-panel">
               <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Área a conservar</p>
-              <p style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.5rem">arrastrá sobre la página para dibujar el recorte</p>
+              <p style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.5rem">arrastrá para dibujar, arrastrá adentro para mover, usá los círculos para cambiar el tamaño</p>
               <canvas id="pcrop-canvas" style="width:100%;max-width:520px;display:block;border-radius:8px;border:1.5px solid var(--border);touch-action:none;cursor:crosshair;background:var(--bg3)"></canvas>
-              <div class="pr-scope-group" style="margin:.6rem 0">
+              <div class="pr-scope-group" style="margin:.6rem 0;flex-wrap:wrap">
                 <button class="pr-scope-btn" onclick="ToolFn.pcropQuickMargin(5)">Margen 5%</button>
                 <button class="pr-scope-btn" onclick="ToolFn.pcropQuickMargin(10)">Margen 10%</button>
                 <button class="pr-scope-btn" onclick="ToolFn.pcropQuickMargin(15)">Margen 15%</button>
+                <button class="pr-scope-btn" onclick="ToolFn.pcropQuickMargin(20)">Margen 20%</button>
+                <button class="pr-scope-btn" onclick="ToolFn.pcropClear()" style="border-style:dashed">✕ Restablecer</button>
               </div>
-              <div id="pcrop-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.6rem">sin recorte — dibujá uno o usá un margen rápido</div>
-              <div class="btn-row">
+              <div id="pcrop-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.7rem">sin recorte — dibujá uno o usá un margen rápido</div>
+
+              <label>Aplicar a</label>
+              <div class="pr-scope-group" id="pcrop-scope-group">
+                <button class="pr-scope-btn active" onclick="ToolFn.pcropSetScope('all',this)">Todas las páginas</button>
+                <button class="pr-scope-btn" onclick="ToolFn.pcropSetScope('current',this)">Solo esta página</button>
+                <button class="pr-scope-btn" onclick="ToolFn.pcropSetScope('range',this)">Rango</button>
+              </div>
+              <div id="pcrop-range-row" style="display:none;margin-top:.5rem">
+                <input type="text" id="pcrop-range" placeholder="ej: 1, 3, 5-7">
+              </div>
+
+              <div class="btn-row" style="margin-top:.9rem">
                 <button class="btn" onclick="ToolFn.pcropExport()">📐 Recortar y descargar</button>
               </div>
               ${loaderHtml}${resultHtml}
@@ -5581,8 +5594,9 @@ const ToolFn = (() => {
   }
 
   // ── pdf crop ──
-  let _pcropFile = null, _pcropDoc = null, _pcropPagesTotal = 0;
-  let _pcropPageCanvas = null, _pcropRect = null;
+  const PCROP_MIN_SIZE = 20, PCROP_HANDLE_R = 7, PCROP_HIT_R = 14;
+  let _pcropFile = null, _pcropDoc = null, _pcropPagesTotal = 0, _pcropCurrentPage = 1;
+  let _pcropPageCanvas = null, _pcropRect = null, _pcropScope = 'all';
 
   async function pcropLoad() {
     const f = document.getElementById('pcrop-file').files[0]; if (!f) return;
@@ -5616,6 +5630,7 @@ const ToolFn = (() => {
   }
 
   async function pcropShowPage(n) {
+    _pcropCurrentPage = n;
     document.querySelectorAll('#pcrop-thumbs .pr-thumb').forEach(t => {
       t.classList.toggle('pr-thumb--active', parseInt(t.dataset.page, 10) === n);
     });
@@ -5642,10 +5657,35 @@ const ToolFn = (() => {
     document.getElementById('pcrop-thumbs').innerHTML = '';
   }
 
+  function pcropClear() {
+    _pcropRect = null;
+    _pcropRedraw();
+    _pcropUpdateInfo();
+    Audio.click();
+  }
+
+  function pcropSetScope(scope, btn) {
+    _pcropScope = scope;
+    document.querySelectorAll('#pcrop-scope-group .pr-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('pcrop-range-row').style.display = scope === 'range' ? 'block' : 'none';
+    Audio.click();
+  }
+
+  // 8 tiradores (4 esquinas + 4 bordes) para redimensionar sin tener que volver a dibujar.
+  function _pcropHandles(r) {
+    const { x, y, w, h } = r;
+    return [
+      { id: 'nw', cx: x,       cy: y       }, { id: 'n', cx: x + w / 2, cy: y       }, { id: 'ne', cx: x + w, cy: y       },
+      { id: 'w',  cx: x,       cy: y + h/2 },                                          { id: 'e',  cx: x + w, cy: y + h/2 },
+      { id: 'sw', cx: x,       cy: y + h   }, { id: 's', cx: x + w / 2, cy: y + h   }, { id: 'se', cx: x + w, cy: y + h   },
+    ];
+  }
+
   function _pcropInitDrag(canvas) {
     if (canvas.dataset.cropInit) return;
     canvas.dataset.cropInit = '1';
-    let dragging = false, startX = 0, startY = 0;
+    let mode = null, handleId = null, startX = 0, startY = 0, moveDX = 0, moveDY = 0;
 
     function toCanvasXY(e) {
       const rect = canvas.getBoundingClientRect();
@@ -5653,26 +5693,63 @@ const ToolFn = (() => {
       return {
         x: Math.max(0, Math.min(canvas.width, (e.clientX - rect.left) * scale)),
         y: Math.max(0, Math.min(canvas.height, (e.clientY - rect.top) * scale)),
+        scale,
       };
     }
 
+    function resizeTo(id, p) {
+      const r = _pcropRect;
+      let { x, y, w, h } = r;
+      const x2 = x + w, y2 = y + h;
+      if (id.includes('w')) { const nx = Math.min(p.x, x2 - PCROP_MIN_SIZE); x = nx; w = x2 - nx; }
+      if (id.includes('e')) { const nx2 = Math.max(p.x, x + PCROP_MIN_SIZE); w = nx2 - x; }
+      if (id.includes('n')) { const ny = Math.min(p.y, y2 - PCROP_MIN_SIZE); y = ny; h = y2 - ny; }
+      if (id.includes('s')) { const ny2 = Math.max(p.y, y + PCROP_MIN_SIZE); h = ny2 - y; }
+      _pcropRect = { x, y, w, h };
+    }
+
     canvas.addEventListener('pointerdown', e => {
-      dragging = true;
       const p = toCanvasXY(e);
+      const hitR = PCROP_HIT_R * p.scale;
+      if (_pcropRect) {
+        const hit = _pcropHandles(_pcropRect).find(h => Math.abs(h.cx - p.x) <= hitR && Math.abs(h.cy - p.y) <= hitR);
+        if (hit) {
+          mode = 'resize'; handleId = hit.id;
+          canvas.setPointerCapture(e.pointerId);
+          return;
+        }
+        if (p.x >= _pcropRect.x && p.x <= _pcropRect.x + _pcropRect.w && p.y >= _pcropRect.y && p.y <= _pcropRect.y + _pcropRect.h) {
+          mode = 'move';
+          moveDX = p.x - _pcropRect.x; moveDY = p.y - _pcropRect.y;
+          canvas.setPointerCapture(e.pointerId);
+          return;
+        }
+      }
+      mode = 'draw';
       startX = p.x; startY = p.y;
+      _pcropRect = { x: startX, y: startY, w: 0, h: 0 };
       canvas.setPointerCapture(e.pointerId);
     });
     canvas.addEventListener('pointermove', e => {
-      if (!dragging) return;
+      if (!mode) return;
       const p = toCanvasXY(e);
-      const x = Math.min(startX, p.x), y = Math.min(startY, p.y);
-      const w = Math.abs(p.x - startX), h = Math.abs(p.y - startY);
-      _pcropRect = { x, y, w, h };
+      if (mode === 'draw') {
+        const x = Math.min(startX, p.x), y = Math.min(startY, p.y);
+        const w = Math.abs(p.x - startX), h = Math.abs(p.y - startY);
+        _pcropRect = { x, y, w, h };
+      } else if (mode === 'move') {
+        const nx = Math.max(0, Math.min(canvas.width - _pcropRect.w, p.x - moveDX));
+        const ny = Math.max(0, Math.min(canvas.height - _pcropRect.h, p.y - moveDY));
+        _pcropRect.x = nx; _pcropRect.y = ny;
+      } else if (mode === 'resize') {
+        resizeTo(handleId, p);
+      }
       _pcropRedraw();
       _pcropUpdateInfo();
     });
-    canvas.addEventListener('pointerup', () => { dragging = false; });
-    canvas.addEventListener('pointercancel', () => { dragging = false; });
+    const endDrag = () => { mode = null; handleId = null; };
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
   }
 
   function _pcropRedraw() {
@@ -5683,14 +5760,35 @@ const ToolFn = (() => {
     ctx.drawImage(_pcropPageCanvas, 0, 0);
     if (!_pcropRect || _pcropRect.w < 2 || _pcropRect.h < 2) return;
     const { x, y, w, h } = _pcropRect;
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#9184d9';
+
     ctx.fillStyle = 'rgba(0,0,0,.55)';
     ctx.fillRect(0, 0, canvas.width, y);
     ctx.fillRect(0, y + h, canvas.width, canvas.height - (y + h));
     ctx.fillRect(0, y, x, h);
     ctx.fillRect(x + w, y, canvas.width - (x + w), h);
-    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#9184d9';
+
+    // guía de tercios, estética de editor de recorte real
+    ctx.strokeStyle = 'rgba(255,255,255,.45)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i <= 2; i++) {
+      ctx.beginPath(); ctx.moveTo(x + w * i / 3, y); ctx.lineTo(x + w * i / 3, y + h); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, y + h * i / 3); ctx.lineTo(x + w, y + h * i / 3); ctx.stroke();
+    }
+
+    ctx.strokeStyle = accent;
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, w, h);
+
+    _pcropHandles(_pcropRect).forEach(hd => {
+      ctx.beginPath();
+      ctx.arc(hd.cx, hd.cy, PCROP_HANDLE_R, 0, Math.PI * 2);
+      ctx.fillStyle = accent;
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
+    });
   }
 
   function pcropQuickMargin(pct) {
@@ -5722,6 +5820,18 @@ const ToolFn = (() => {
       UI.showToast('dibujá un recorte sobre la página primero');
       return;
     }
+    let targetPages;
+    if (_pcropScope === 'current') {
+      targetPages = new Set([_pcropCurrentPage]);
+    } else if (_pcropScope === 'range') {
+      const raw = document.getElementById('pcrop-range').value.trim();
+      if (!raw) { UI.showToast('escribí un rango de páginas, ej: 1, 3, 5-7'); return; }
+      targetPages = new Set(_parsePageRanges(raw, _pcropPagesTotal));
+      if (!targetPages.size) { UI.showToast('ese rango no tiene páginas válidas'); return; }
+    } else {
+      targetPages = null; // todas
+    }
+
     toggleLoader('pcrop-loader', true);
     try {
       const cw = _pcropPageCanvas.width, ch = _pcropPageCanvas.height;
@@ -5730,13 +5840,17 @@ const ToolFn = (() => {
 
       const { PDFDocument } = await _loadPdfLib();
       const doc = await PDFDocument.load(await _pcropFile.arrayBuffer(), { ignoreEncryption: true });
-      doc.getPages().forEach(page => {
+      let applied = 0;
+      doc.getPages().forEach((page, i) => {
+        const pageNum = i + 1;
+        if (targetPages && !targetPages.has(pageNum)) return;
         const { width: W, height: H } = page.getSize();
         const cropX = fx0 * W;
         const cropWidth = fw * W;
         const cropY = H * (1 - fy0 - fh);
         const cropHeight = fh * H;
         page.setCropBox(cropX, cropY, cropWidth, cropHeight);
+        applied++;
       });
       const bytes = await doc.save();
       const blob = new Blob([bytes], { type: 'application/pdf' });
@@ -5745,7 +5859,7 @@ const ToolFn = (() => {
       a.download = 'taro-recortado.pdf';
       a.click();
       toggleLoader('pcrop-loader', false);
-      showResult('pcrop-result', `✅ Recorte aplicado a las ${_pcropPagesTotal} páginas · ${fmtSize(blob.size)}`);
+      showResult('pcrop-result', `✅ Recorte aplicado a ${applied} página${applied === 1 ? '' : 's'} · ${fmtSize(blob.size)}`);
       Audio.success();
     } catch (e) {
       toggleLoader('pcrop-loader', false);
@@ -5973,7 +6087,7 @@ const ToolFn = (() => {
     collageLoad, collageSetGrid, collageSetStyle, collageDraw, collageExport,
     collageAddSticker, collageStickerResize, collageRemoveSticker,
     pcmpLoad, pcmpSetMode, pcmpRun,
-    pcropLoad, pcropShowPage, pcropReset, pcropQuickMargin, pcropExport,
+    pcropLoad, pcropShowPage, pcropReset, pcropClear, pcropSetScope, pcropQuickMargin, pcropExport,
     unitCatChange, unitConvert, unitSwap,
     ctSetPreset, ctSetCustom, ctToggle, ctReset,
     paletteGenerate,
