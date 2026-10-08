@@ -6775,7 +6775,7 @@ const Guestbook = (() => {
 
   function clear() {
     const w = wrapEl();
-    if (w) w.querySelectorAll('.gb__entry, .gb__empty').forEach(el => el.remove());
+    if (w) w.innerHTML = '';
     return w;
   }
 
@@ -6785,7 +6785,45 @@ const Guestbook = (() => {
     const p = document.createElement('p');
     p.className = 'gb__empty';
     p.textContent = msg;
-    w.insertBefore(p, w.firstChild);
+    w.appendChild(p);
+  }
+
+  function renderSkeleton() {
+    const w = clear();
+    if (!w) return;
+    const skel = document.createElement('div');
+    skel.className = 'gb__skel';
+    skel.setAttribute('aria-hidden', 'true');
+    for (let i = 0; i < 3; i++) {
+      const row = document.createElement('div');
+      const meta = document.createElement('div');
+      meta.className = 'gb__skel-line gb__skel-line--meta';
+      const msg = document.createElement('div');
+      msg.className = 'gb__skel-line gb__skel-line--msg';
+      msg.style.marginTop = '.25rem';
+      row.appendChild(meta);
+      row.appendChild(msg);
+      skel.appendChild(row);
+    }
+    w.appendChild(skel);
+  }
+
+  function renderError() {
+    const w = clear();
+    if (!w) return;
+    const box = document.createElement('div');
+    box.className = 'gb__error';
+    const p = document.createElement('p');
+    p.className = 'gb__empty';
+    p.textContent = 'no se pudo cargar el libro de visitas';
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'gb__retry';
+    retry.textContent = 'reintentar';
+    retry.addEventListener('click', load);
+    box.appendChild(p);
+    box.appendChild(retry);
+    w.appendChild(box);
   }
 
   function renderEntries(entries) {
@@ -6809,15 +6847,15 @@ const Guestbook = (() => {
       p.appendChild(document.createTextNode('> ' + entry.msg));
       frag.appendChild(p);
     });
-    w.insertBefore(frag, w.firstChild);
+    w.appendChild(frag);
   }
 
   function load() {
-    renderMessage('cargando…');
+    renderSkeleton();
     fetch(CONFIG.GUESTBOOK_API)
       .then(r => r.ok ? r.json() : Promise.reject(r))
       .then(data => renderEntries(data.entries || []))
-      .catch(() => renderMessage('no se pudo cargar el libro de visitas'));
+      .catch(renderError);
   }
 
   function sign() {
