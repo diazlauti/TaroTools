@@ -163,6 +163,7 @@ const I18n = (() => {
     { id:'g8',  icon:'📐', cat:'pdf',        type:'pdf-crop',     isNew:true },
     { id:'g9',  icon:'⬛', cat:'pdf',        type:'pdf-redact',   isNew:true },
     { id:'g10', icon:'🩹', cat:'pdf',        type:'pdf-repair',   isNew:true },
+    { id:'g11', icon:'✍️', cat:'pdf',        type:'pdf-fill-sign',isNew:true },
   ];
 
   const STRINGS = {
@@ -205,6 +206,7 @@ const I18n = (() => {
         g1:'Recortar imagen', g2:'Rotar/espejar imagen', g3:'Numerar páginas de PDF', g4:'Marca de agua en imagen',
         g5:'Convertir HEIC a JPG/PNG', g6:'Collage de imágenes', g7:'Comparar dos PDFs',
         g8:'Recortar márgenes de PDF', g9:'Redactar PDF', g10:'Reparar PDF dañado',
+        g11:'Rellenar y firmar PDF',
       },
       toolDescs:{
         b1:'Reducí el tamaño de JPG/PNG con preview y comparación antes/después.',
@@ -265,6 +267,7 @@ const I18n = (() => {
         g8:'Recortá los márgenes de tu PDF dibujando el área que querés conservar sobre una vista previa. Se aplica a todas las páginas. 100% local.',
         g9:'Tapá texto o datos sensibles (DNI, direcciones) antes de compartir un PDF — dibujá rectángulos negros sobre cada página. El tapado es permanente, no se puede deshacer ni copiar el texto de abajo. 100% local.',
         g10:'Intentá arreglar un PDF que no abre o da error. Mejor esfuerzo: relee el archivo de forma tolerante y lo re-guarda limpio; si está muy dañado, lo reconstruye como imagen. 100% local.',
+        g11:'Agregá texto y tu firma dibujada a mano sobre un PDF — arrastralos a donde quieras. 100% local.',
       },
       langs:['Inglés','Español','Portugués','Francés','Alemán','Italiano','Japonés','Chino (simplificado)','Árabe','Ruso','Coreano','Hindi'],
     },
@@ -1964,6 +1967,65 @@ const ToolUI = (() => {
         <div class="btn-row" style="margin-top:.6rem"><button class="btn" id="prep-btn" onclick="ToolFn.prepExport()">🩹 Reparar y descargar</button></div>
         <div id="prep-result" style="margin-top:.6rem"></div>
       </div>`,
+
+    /* ── PDF FILL & SIGN ── */
+    'pdf-fill-sign': () => {
+      const loaderHtml = loader('pfs-loader','⏳ generando PDF...');
+      const resultHtml = result('pfs-result');
+      return `<div id="pfs-upload-screen">` +
+        infoBox('Agregá texto y tu firma dibujada a mano sobre el PDF. Arrastrá cada elemento a donde quieras, ajustá tamaño, y al descargar queda aplanado — ya no se puede editar ni deshacer.') +
+        `<input type="file" id="pfs-file" accept="application/pdf" style="display:none" onchange="ToolFn.pfsLoad()">
+        <div class="file-drop" onclick="document.getElementById('pfs-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pfs-file').files=event.dataTransfer.files;ToolFn.pfsLoad()">
+          <div class="file-drop__icon">✍️</div>
+          <div class="file-drop__title">Arrastrá un PDF acá</div>
+          <div class="file-drop__sub">o hacé click para elegir</div>
+          <div class="file-drop__name" id="pfs-name"></div>
+        </div>
+        </div>
+        <div id="pfs-editor" style="display:none">
+          <div class="pr-topbar">
+            <div class="pr-topbar__info">
+              <span id="pfs-filename" style="font-family:var(--mono);font-size:.78rem;color:var(--fg2)"></span>
+              <span id="pfs-pages-info" style="font-family:var(--mono);font-size:.7rem;color:var(--fg3);margin-left:.6rem"></span>
+            </div>
+            <button class="btn btn--sec" onclick="ToolFn.pfsReset()" style="font-size:.7rem;padding:.25rem .6rem">✕ Cambiar PDF</button>
+          </div>
+          <div class="pr-workspace">
+            <div class="pr-sidebar" id="pfs-sidebar">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Páginas</p>
+              <div id="pfs-thumbs"></div>
+            </div>
+            <div class="pr-panel">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Arrastrá para mover cada elemento</p>
+              <canvas id="pfs-canvas" style="width:100%;max-width:520px;display:block;border-radius:8px;border:1.5px solid var(--border);touch-action:none;cursor:default;background:var(--bg3)"></canvas>
+              <div class="btn-row" style="margin:.6rem 0">
+                <button class="btn btn--sec" onclick="ToolFn.pfsAddText()">📝 Agregar texto</button>
+                <button class="btn btn--sec" onclick="ToolFn.pfsOpenSigPad()">✍️ Agregar firma</button>
+              </div>
+
+              <div id="pfs-sigpad-wrap" style="display:none;margin-bottom:.7rem;padding:.6rem;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+                <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.4rem">Dibujá tu firma</p>
+                <canvas id="pfs-sigpad" width="500" height="160" style="width:100%;max-width:400px;display:block;border-radius:6px;border:1.5px solid var(--border);background:#fff;touch-action:none;cursor:crosshair"></canvas>
+                <div class="btn-row" style="margin-top:.5rem">
+                  <button class="btn btn--sec" onclick="ToolFn.pfsSigClear()">✕ Borrar</button>
+                  <button class="btn" onclick="ToolFn.pfsSigUse()">✓ Usar esta firma</button>
+                  <button class="btn btn--sec" onclick="ToolFn.pfsSigCancel()">Cancelar</button>
+                </div>
+              </div>
+
+              <div id="pfs-elements-list" style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:.7rem"></div>
+              <div class="btn-row">
+                <button class="btn btn--sec" onclick="ToolFn.pfsClearPage()">✕ Vaciar esta página</button>
+              </div>
+
+              <div class="btn-row" style="margin-top:.9rem">
+                <button class="btn" onclick="ToolFn.pfsExport()">✍️ Aplanar y descargar</button>
+              </div>
+              ${loaderHtml}${resultHtml}
+            </div>
+          </div>
+        </div>`;
+    },
 
     /* ── PASSWORD GENERATOR ── */
     'pwd-gen': () =>
@@ -6217,6 +6279,397 @@ const ToolFn = (() => {
     btn.disabled = false;
   }
 
+  // ── pdf fill & sign ──
+  let _pfsFile = null, _pfsDoc = null, _pfsPagesTotal = 0, _pfsCurrentPage = 1;
+  let _pfsPageCanvas = null, _pfsSelectedIdx = -1;
+  let _pfsElementsByPage = new Map(); // pageNum -> [{type:'text',fx,fy,fsize,text} | {type:'sig',fx,fy,fw,img,pngBytes}]
+
+  function _pfsElements() {
+    if (!_pfsElementsByPage.has(_pfsCurrentPage)) _pfsElementsByPage.set(_pfsCurrentPage, []);
+    return _pfsElementsByPage.get(_pfsCurrentPage);
+  }
+
+  async function pfsLoad() {
+    const f = document.getElementById('pfs-file').files[0]; if (!f) return;
+    _pfsFile = f;
+    _pfsElementsByPage = new Map();
+    document.getElementById('pfs-filename').textContent = f.name;
+    document.getElementById('pfs-upload-screen').style.display = 'none';
+    document.getElementById('pfs-editor').style.display = 'block';
+
+    const pdfjs = await _loadPdfJs();
+    _pfsDoc = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
+    _pfsPagesTotal = _pfsDoc.numPages;
+    document.getElementById('pfs-pages-info').textContent = `${_pfsPagesTotal} página${_pfsPagesTotal === 1 ? '' : 's'} · ${fmtSize(f.size)}`;
+
+    const thumbsEl = document.getElementById('pfs-thumbs');
+    thumbsEl.innerHTML = '';
+    for (let i = 1; i <= _pfsPagesTotal; i++) {
+      const page = await _pfsDoc.getPage(i);
+      const vp = page.getViewport({ scale: 0.3 });
+      const c = document.createElement('canvas');
+      c.width = vp.width; c.height = vp.height;
+      await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      const wrap = document.createElement('div');
+      wrap.className = 'pr-thumb pr-thumb--selectable' + (i === 1 ? ' pr-thumb--active' : '');
+      wrap.dataset.page = i;
+      wrap.innerHTML = `<div class="pr-thumb__canvas-wrap"><canvas width="${vp.width}" height="${vp.height}" style="width:100%;display:block"></canvas></div><p class="pr-thumb__num">${i}</p>`;
+      wrap.querySelector('canvas').getContext('2d').drawImage(c, 0, 0);
+      wrap.addEventListener('click', () => pfsShowPage(i));
+      thumbsEl.appendChild(wrap);
+    }
+    await pfsShowPage(1);
+  }
+
+  async function pfsShowPage(n) {
+    _pfsCurrentPage = n;
+    _pfsSelectedIdx = -1;
+    document.querySelectorAll('#pfs-thumbs .pr-thumb').forEach(t => {
+      t.classList.toggle('pr-thumb--active', parseInt(t.dataset.page, 10) === n);
+    });
+    const page = await _pfsDoc.getPage(n);
+    const vp = page.getViewport({ scale: 1.4 });
+    const c = document.createElement('canvas');
+    c.width = vp.width; c.height = vp.height;
+    await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+    _pfsPageCanvas = c;
+
+    const canvas = document.getElementById('pfs-canvas');
+    canvas.width = c.width; canvas.height = c.height;
+    _pfsInitDrag(canvas);
+    _pfsRenderElementsList();
+    _pfsRedraw();
+  }
+
+  function pfsReset() {
+    _pfsFile = null; _pfsDoc = null; _pfsPagesTotal = 0; _pfsPageCanvas = null;
+    _pfsElementsByPage = new Map(); _pfsSelectedIdx = -1;
+    document.getElementById('pfs-upload-screen').style.display = 'block';
+    document.getElementById('pfs-editor').style.display = 'none';
+    document.getElementById('pfs-file').value = '';
+    document.getElementById('pfs-thumbs').innerHTML = '';
+    document.getElementById('pfs-sigpad-wrap').style.display = 'none';
+  }
+
+  function pfsAddText() {
+    if (!_pfsPageCanvas) return;
+    const els = _pfsElements();
+    els.push({ type: 'text', fx: 0.4, fy: 0.5, fsize: 0.035, text: 'Texto' });
+    _pfsSelectedIdx = els.length - 1;
+    _pfsRenderElementsList();
+    _pfsRedraw();
+    Audio.click();
+  }
+
+  function pfsClearPage() {
+    _pfsElementsByPage.set(_pfsCurrentPage, []);
+    _pfsSelectedIdx = -1;
+    _pfsRenderElementsList();
+    _pfsRedraw();
+    Audio.click();
+  }
+
+  function pfsUpdateText(i, val) {
+    const el = _pfsElements()[i]; if (!el) return;
+    el.text = val;
+    _pfsRedraw();
+  }
+
+  function pfsUpdateFontSize(i, val) {
+    const el = _pfsElements()[i]; if (!el) return;
+    el.fsize = parseFloat(val) / 100;
+    _pfsRedraw();
+  }
+
+  function pfsUpdateSigSize(i, val) {
+    const el = _pfsElements()[i]; if (!el) return;
+    el.fw = parseInt(val, 10) / 100;
+    _pfsRedraw();
+  }
+
+  function pfsRemoveElement(i) {
+    _pfsElements().splice(i, 1);
+    _pfsSelectedIdx = -1;
+    _pfsRenderElementsList();
+    _pfsRedraw();
+    Audio.click();
+  }
+
+  function _pfsRenderElementsList() {
+    const wrap = document.getElementById('pfs-elements-list');
+    const els = _pfsElements();
+    wrap.innerHTML = els.map((el, i) => {
+      const sel = i === _pfsSelectedIdx ? ';border-color:var(--accent)' : '';
+      if (el.type === 'text') {
+        return `<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem;border:1.5px solid var(--border);border-radius:6px${sel}">
+          <span style="font-size:.9rem">📝</span>
+          <input type="text" value="${_escHtml(el.text)}" oninput="ToolFn.pfsUpdateText(${i},this.value)" style="flex:1">
+          <input type="range" min="1.5" max="8" step="0.1" value="${(el.fsize * 100).toFixed(1)}" oninput="ToolFn.pfsUpdateFontSize(${i},this.value)" style="width:70px" title="Tamaño">
+          <button class="btn btn--sec" style="padding:.3rem .5rem" onclick="ToolFn.pfsRemoveElement(${i})">✕</button>
+        </div>`;
+      }
+      return `<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem;border:1.5px solid var(--border);border-radius:6px${sel}">
+        <span style="font-size:.9rem">✍️</span>
+        <img src="${el.img.src}" style="width:48px;height:28px;object-fit:contain;background:var(--bg3);border-radius:4px">
+        <input type="range" min="10" max="60" value="${Math.round(el.fw * 100)}" oninput="ToolFn.pfsUpdateSigSize(${i},this.value)" style="flex:1" title="Tamaño">
+        <button class="btn btn--sec" style="padding:.3rem .5rem" onclick="ToolFn.pfsRemoveElement(${i})">✕</button>
+      </div>`;
+    }).join('');
+  }
+
+  function _pfsInitDrag(canvas) {
+    if (canvas.dataset.fillsignInit) return;
+    canvas.dataset.fillsignInit = '1';
+    let dragIdx = -1, dragDX = 0, dragDY = 0;
+
+    function toCanvasXY(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scale = canvas.width / rect.width;
+      return { x: (e.clientX - rect.left) * scale, y: (e.clientY - rect.top) * scale };
+    }
+
+    function hitTest(p) {
+      const els = _pfsElements();
+      const ctx = canvas.getContext('2d');
+      for (let i = els.length - 1; i >= 0; i--) {
+        const el = els[i];
+        if (el.type === 'text') {
+          const fontSize = el.fsize * canvas.width;
+          ctx.font = `${fontSize}px Helvetica, Arial, sans-serif`;
+          const w = ctx.measureText(el.text).width;
+          const x = el.fx * canvas.width, y = el.fy * canvas.height;
+          if (p.x >= x - 3 && p.x <= x + w + 3 && p.y >= y - fontSize * 0.85 && p.y <= y + fontSize * 0.3) return i;
+        } else {
+          const w = el.fw * canvas.width;
+          const iar = el.img.width / el.img.height;
+          const h = w / iar;
+          const x = el.fx * canvas.width - w / 2, y = el.fy * canvas.height - h / 2;
+          if (p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h) return i;
+        }
+      }
+      return -1;
+    }
+
+    canvas.addEventListener('pointerdown', e => {
+      const p = toCanvasXY(e);
+      const idx = hitTest(p);
+      _pfsSelectedIdx = idx;
+      _pfsRenderElementsList();
+      if (idx >= 0) {
+        const el = _pfsElements()[idx];
+        dragIdx = idx;
+        dragDX = p.x - el.fx * canvas.width;
+        dragDY = p.y - el.fy * canvas.height;
+        canvas.setPointerCapture(e.pointerId);
+      }
+      _pfsRedraw();
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (dragIdx < 0) return;
+      const p = toCanvasXY(e);
+      const el = _pfsElements()[dragIdx];
+      el.fx = Math.min(1, Math.max(0, (p.x - dragDX) / canvas.width));
+      el.fy = Math.min(1, Math.max(0, (p.y - dragDY) / canvas.height));
+      _pfsRedraw();
+    });
+    const endDrag = () => { dragIdx = -1; };
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+  }
+
+  function _pfsRedraw() {
+    const canvas = document.getElementById('pfs-canvas');
+    if (!canvas || !_pfsPageCanvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(_pfsPageCanvas, 0, 0);
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#9184d9';
+    const els = _pfsElements();
+    els.forEach((el, i) => {
+      if (el.type === 'text') {
+        const fontSize = el.fsize * canvas.width;
+        ctx.font = `${fontSize}px Helvetica, Arial, sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillStyle = '#1a1a1a';
+        const x = el.fx * canvas.width, y = el.fy * canvas.height;
+        ctx.fillText(el.text, x, y);
+        if (i === _pfsSelectedIdx) {
+          const w = ctx.measureText(el.text).width;
+          ctx.strokeStyle = accent;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 3]);
+          ctx.strokeRect(x - 3, y - fontSize * 0.85, w + 6, fontSize * 1.15);
+          ctx.setLineDash([]);
+        }
+      } else {
+        const w = el.fw * canvas.width;
+        const iar = el.img.width / el.img.height;
+        const h = w / iar;
+        const x = el.fx * canvas.width - w / 2, y = el.fy * canvas.height - h / 2;
+        ctx.drawImage(el.img, x, y, w, h);
+        if (i === _pfsSelectedIdx) {
+          ctx.strokeStyle = accent;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 3]);
+          ctx.strokeRect(x - 3, y - 3, w + 6, h + 6);
+          ctx.setLineDash([]);
+        }
+      }
+    });
+  }
+
+  // ── signature pad ──
+  function pfsOpenSigPad() {
+    document.getElementById('pfs-sigpad-wrap').style.display = 'block';
+    pfsSigClear();
+    _pfsInitSigPad();
+  }
+
+  function _pfsInitSigPad() {
+    const canvas = document.getElementById('pfs-sigpad');
+    if (canvas.dataset.sigInit) return;
+    canvas.dataset.sigInit = '1';
+    const ctx = canvas.getContext('2d');
+    let drawing = false, lastX = 0, lastY = 0;
+
+    function toXY(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scale = canvas.width / rect.width;
+      return { x: (e.clientX - rect.left) * scale, y: (e.clientY - rect.top) * scale };
+    }
+
+    canvas.addEventListener('pointerdown', e => {
+      drawing = true;
+      const p = toXY(e); lastX = p.x; lastY = p.y;
+      canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (!drawing) return;
+      const p = toXY(e);
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      lastX = p.x; lastY = p.y;
+    });
+    const end = () => { drawing = false; };
+    canvas.addEventListener('pointerup', end);
+    canvas.addEventListener('pointercancel', end);
+  }
+
+  function pfsSigClear() {
+    const canvas = document.getElementById('pfs-sigpad');
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  function pfsSigCancel() {
+    document.getElementById('pfs-sigpad-wrap').style.display = 'none';
+  }
+
+  function pfsSigUse() {
+    const canvas = document.getElementById('pfs-sigpad');
+    const ctx = canvas.getContext('2d');
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0, found = false;
+    for (let y = 0; y < canvas.height; y++) {
+      for (let x = 0; x < canvas.width; x++) {
+        const i = (y * canvas.width + x) * 4;
+        if (data[i] < 250 || data[i + 1] < 250 || data[i + 2] < 250) {
+          found = true;
+          if (x < minX) minX = x; if (x > maxX) maxX = x;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (!found) { UI.showToast('dibujá algo primero'); return; }
+    const pad = 6;
+    minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+    maxX = Math.min(canvas.width, maxX + pad); maxY = Math.min(canvas.height, maxY + pad);
+    const w = maxX - minX, h = maxY - minY;
+    const trimmed = document.createElement('canvas');
+    trimmed.width = w; trimmed.height = h;
+    const tctx = trimmed.getContext('2d');
+    tctx.drawImage(canvas, minX, minY, w, h, 0, 0, w, h);
+    const timg = tctx.getImageData(0, 0, w, h);
+    const td = timg.data;
+    for (let i = 0; i < td.length; i += 4) {
+      if (td[i] > 245 && td[i + 1] > 245 && td[i + 2] > 245) td[i + 3] = 0;
+    }
+    tctx.putImageData(timg, 0, 0);
+
+    trimmed.toBlob(blob => {
+      blob.arrayBuffer().then(buf => {
+        const img = new Image();
+        img.onload = () => {
+          const els = _pfsElements();
+          els.push({ type: 'sig', fx: 0.5, fy: 0.5, fw: 0.3, img, pngBytes: new Uint8Array(buf) });
+          _pfsSelectedIdx = els.length - 1;
+          document.getElementById('pfs-sigpad-wrap').style.display = 'none';
+          _pfsRenderElementsList();
+          _pfsRedraw();
+          Audio.success();
+        };
+        img.src = URL.createObjectURL(blob);
+      });
+    }, 'image/png');
+  }
+
+  async function pfsExport() {
+    if (!_pfsFile) return;
+    const totalEls = [..._pfsElementsByPage.values()].reduce((s, arr) => s + arr.length, 0);
+    if (!totalEls) { UI.showToast('agregá texto o una firma primero'); return; }
+    toggleLoader('pfs-loader', true);
+    try {
+      const { PDFDocument, StandardFonts, rgb } = await _loadPdfLib();
+      const doc = await PDFDocument.load(await _pfsFile.arrayBuffer(), { ignoreEncryption: true });
+      const font = await doc.embedFont(StandardFonts.Helvetica);
+      const pages = doc.getPages();
+
+      for (let i = 1; i <= _pfsPagesTotal; i++) {
+        const els = _pfsElementsByPage.get(i);
+        if (!els || !els.length) continue;
+        const page = pages[i - 1];
+        const { width: W, height: H } = page.getSize();
+        for (const el of els) {
+          if (el.type === 'text') {
+            const size = el.fsize * W;
+            const x = el.fx * W;
+            const y = H * (1 - el.fy);
+            page.drawText(el.text, { x, y, size, font, color: rgb(0.1, 0.1, 0.1) });
+          } else {
+            const w = el.fw * W;
+            const iar = el.img.width / el.img.height;
+            const h = w / iar;
+            const x = el.fx * W - w / 2;
+            const y = H * (1 - el.fy) - h / 2;
+            const pngImg = await doc.embedPng(el.pngBytes);
+            page.drawImage(pngImg, { x, y, width: w, height: h });
+          }
+        }
+      }
+
+      const bytes = await doc.save();
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-firmado.pdf';
+      a.click();
+      toggleLoader('pfs-loader', false);
+      showResult('pfs-result', `✅ ${totalEls} elemento${totalEls === 1 ? '' : 's'} aplanado${totalEls === 1 ? '' : 's'} · ${fmtSize(blob.size)}`);
+      Audio.success();
+    } catch (e) {
+      toggleLoader('pfs-loader', false);
+      showResult('pfs-result', '❌ ' + e.message, true);
+      Audio.error();
+    }
+  }
+
   // ── unit converter ──
   const UNIT_DATA = {
     longitud:   { units: { mm:0.001, cm:0.01, m:1, km:1000, in:0.0254, ft:0.3048, yd:0.9144, mi:1609.344 } },
@@ -6439,6 +6892,9 @@ const ToolFn = (() => {
     pcropLoad, pcropShowPage, pcropReset, pcropClear, pcropSetScope, pcropQuickMargin, pcropExport,
     predLoad, predShowPage, predReset, predClearPage, predExport,
     prepLoad, prepExport,
+    pfsLoad, pfsShowPage, pfsReset, pfsAddText, pfsClearPage,
+    pfsUpdateText, pfsUpdateFontSize, pfsUpdateSigSize, pfsRemoveElement,
+    pfsOpenSigPad, pfsSigClear, pfsSigCancel, pfsSigUse, pfsExport,
     unitCatChange, unitConvert, unitSwap,
     ctSetPreset, ctSetCustom, ctToggle, ctReset,
     paletteGenerate,
