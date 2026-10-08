@@ -681,7 +681,7 @@ const ToolUI = (() => {
   }
   const infoBox = html => `<div class="info-box">${html}</div>`;
   const label   = txt  => `<label>${txt}</label>`;
-  const sel     = (id, opts) => `<select id="${id}">${opts.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>`;
+  const sel     = (id, opts, attrs='') => `<select id="${id}" ${attrs}>${opts.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>`;
   const ta      = (id, ph, h='') => `<textarea id="${id}" placeholder="${ph}" ${h}></textarea>`;
   const loader  = (id, txt) => `<div class="loader" id="${id}">${txt}</div>`;
   const result  = id => `<div class="result-area" id="${id}" style="display:none"></div>`;
@@ -720,6 +720,12 @@ const ToolUI = (() => {
       label('Calidad: <span id="ic-ql">75</span>%') +
       `<input type="range" min="5" max="99" value="75" id="ic-q" oninput="ToolFn.onQualityChange()" style="width:100%;margin:.25rem 0 .1rem">` +
       `<div id="ic-reduction" style="font-size:.75rem;color:var(--fg3);font-family:var(--mono);min-height:1.2rem;margin:.3rem 0"></div>` +
+      label('Tamaño objetivo (opcional, una sola imagen)') +
+      `<div style="display:flex;gap:.5rem;align-items:center">
+        <input type="number" id="ic-target-kb" placeholder="ej: 200" min="0" step="1" oninput="ToolFn.icApplyTarget()" style="flex:1">
+        <span style="color:var(--fg3);font-family:var(--mono);font-size:.75rem">KB</span>
+      </div>` +
+      `<p id="ic-target-note" style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);margin:.25rem 0 0">Buscamos automáticamente la calidad que más se acerque a ese tamaño.</p>` +
       `<div class="btn-row"><button class="btn" id="ic-go-btn" onclick="ToolFn.compressImg()">⬇️ Comprimir y descargar</button></div>` +
       loader('ic-batch-loader','⏳ comprimiendo imágenes...') +
       result('ic-result') +
@@ -771,9 +777,16 @@ const ToolUI = (() => {
         <p id="vc-orig-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin-top:.3rem"></p>
       </div>` +
       label('Escala de resolución') +
-      sel('vc-scale',[['1','100% (original)'],['0.75','75%'],['0.5','50%'],['0.25','25%']]) +
+      sel('vc-scale',[['1','100% (original)'],['0.75','75%'],['0.5','50%'],['0.25','25%']],'onchange="ToolFn.vcUpdateEstimate()"') +
       label('Bitrate de video') +
-      sel('vc-bps',[['3000000','3 Mbps (alta calidad)'],['1500000','1.5 Mbps (media)'],['800000','800 kbps (baja)'],['400000','400 kbps (muy baja)']]) +
+      sel('vc-bps',[['3000000','3 Mbps (alta calidad)'],['1500000','1.5 Mbps (media)'],['800000','800 kbps (baja)'],['400000','400 kbps (muy baja)']],'onchange="ToolFn.vcBpsChanged()"') +
+      `<div id="vc-estimate" style="font-size:.75rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0;min-height:1.2rem"></div>` +
+      label('Tamaño objetivo (opcional)') +
+      `<div style="display:flex;gap:.5rem;align-items:center">
+        <input type="number" id="vc-target-mb" placeholder="ej: 10" min="0" step="0.1" oninput="ToolFn.vcApplyTarget()" style="flex:1">
+        <span style="color:var(--fg3);font-family:var(--mono);font-size:.75rem">MB</span>
+      </div>` +
+      `<p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);margin:.25rem 0 0">Si lo completás, calculamos el bitrate necesario para acercarnos a ese tamaño (no es exacto, depende del contenido del video). El video resultante no incluye audio.</p>` +
       `<div class="btn-row"><button class="btn" id="vc-btn" onclick="ToolFn.compressVid()">🎬 Comprimir</button></div>` +
       `<div id="vc-progress-wrap" style="display:none;margin-top:.7rem">
         <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.3rem">
@@ -797,10 +810,16 @@ const ToolUI = (() => {
         <p id="ac-orig-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono)"></p>
       </div>` +
       label('Canales de salida') +
-      sel('ac-ch',[['2','Estéreo (2 canales)'],['1','Mono (más liviano, ideal para voz)']]) +
+      sel('ac-ch',[['2','Estéreo (2 canales)'],['1','Mono (más liviano, ideal para voz)']],'onchange="ToolFn.acOptionsChanged()"') +
       label('Sample rate de salida') +
-      sel('ac-sr',[['44100','44100 Hz (calidad CD, estándar)'],['22050','22050 Hz (más liviano)'],['16000','16000 Hz (voz, muy liviano)'],['8000','8000 Hz (mínimo, solo voz)']]) +
+      sel('ac-sr',[['44100','44100 Hz (calidad CD, estándar)'],['22050','22050 Hz (más liviano)'],['16000','16000 Hz (voz, muy liviano)'],['8000','8000 Hz (mínimo, solo voz)']],'onchange="ToolFn.acOptionsChanged()"') +
       `<div id="ac-estimate" style="font-size:.75rem;color:var(--fg3);font-family:var(--mono);margin:.5rem 0;min-height:1.2rem"></div>` +
+      label('Tamaño objetivo (opcional)') +
+      `<div style="display:flex;gap:.5rem;align-items:center">
+        <input type="number" id="ac-target-mb" placeholder="ej: 5" min="0" step="0.1" oninput="ToolFn.acApplyTarget()" style="flex:1">
+        <span style="color:var(--fg3);font-family:var(--mono);font-size:.75rem">MB</span>
+      </div>` +
+      `<p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);margin:.25rem 0 0">Ajustamos el sample rate al más cercano disponible para acercarnos a ese tamaño.</p>` +
       `<div class="btn-row"><button class="btn" onclick="ToolFn.compressAudio()">🎵 Procesar audio</button></div>` +
       loader('ac-loader','⏳ procesando audio...') +
       `<div id="ac-result" style="margin-top:.7rem"></div>`,
@@ -1063,6 +1082,12 @@ const ToolUI = (() => {
               <label>Calidad de imagen (modo agresivo): <span id="pc-ql" style="color:var(--accent);font-family:var(--mono)">80</span>%</label>
               <input type="range" min="10" max="99" value="80" id="pc-q" oninput="ToolFn.pcUpdateEst()" style="width:100%;margin:.25rem 0 .4rem;accent-color:var(--accent)">
               <p style="font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.6rem">Sin modo agresivo, solo se eliminan metadatos (título, autor, etc.) y el archivo se reduce apenas.</p>
+              <label>Tamaño objetivo (opcional, solo en modo agresivo)</label>
+              <div style="display:flex;gap:.5rem;align-items:center;margin:.25rem 0">
+                <input type="number" id="pc-target-mb" placeholder="ej: 1" min="0" step="0.1" oninput="ToolFn.pcApplyTarget()" style="flex:1">
+                <span style="color:var(--fg3);font-family:var(--mono);font-size:.75rem">MB</span>
+              </div>
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.6rem">Activa el modo agresivo y calcula la calidad de imagen necesaria para acercarse a ese tamaño (estimación aproximada).</p>
               <div class="btn-row">
                 <button class="btn" onclick="ToolFn.pcCompress()">🗜️ Comprimir y descargar</button>
               </div>
@@ -2266,6 +2291,10 @@ const ToolFn = (() => {
     const files = document.getElementById('ic-file').files;
     if (!files.length) return;
     document.getElementById('ic-result').style.display = 'none';
+    const targetInput = document.getElementById('ic-target-kb');
+    if (targetInput) targetInput.value = '';
+    const note = document.getElementById('ic-target-note');
+    if (note) note.textContent = 'Buscamos automáticamente la calidad que más se acerque a ese tamaño.';
     if (files.length > 1) {
       _origFile = null;
       _icFiles = Array.from(files);
@@ -2308,6 +2337,45 @@ const ToolFn = (() => {
   function onQualityChange() {
     document.getElementById('ic-ql').textContent = document.getElementById('ic-q').value;
     if (_icFiles) return; // en modo lote no hay preview en vivo (sería muy pesado)
+    _doLiveCompress();
+  }
+
+  let _icTargetDebounce = null;
+  function icApplyTarget() {
+    clearTimeout(_icTargetDebounce);
+    _icTargetDebounce = setTimeout(_icRunTargetSearch, 350);
+  }
+
+  async function _icRunTargetSearch() {
+    const note = document.getElementById('ic-target-note');
+    if (_icFiles) { if (note) note.textContent = 'El tamaño objetivo solo funciona con una sola imagen a la vez.'; return; }
+    if (!_origFile) return;
+    const targetKB = parseFloat(document.getElementById('ic-target-kb').value);
+    if (!targetKB) { if (note) note.textContent = 'Buscamos automáticamente la calidad que más se acerque a ese tamaño.'; return; }
+    const targetBytes = targetKB * 1024;
+    let img;
+    try {
+      img = await new Promise((resolve, reject) => {
+        const im = new Image();
+        im.onload = () => resolve(im);
+        im.onerror = () => reject(new Error('no se pudo leer la imagen'));
+        im.src = URL.createObjectURL(_origFile);
+      });
+    } catch (e) {
+      if (note) note.textContent = 'No se pudo calcular el tamaño objetivo para esta imagen.';
+      return;
+    }
+    const c = _drawOpaque(img);
+    const encodeAt = q => new Promise(resolve => c.toBlob(resolve, 'image/jpeg', q));
+    let lo = 5, hi = 99, best = 5; // si ni la calidad mínima alcanza el objetivo, al menos mostramos la más chica posible
+    for (let i = 0; i < 7; i++) {
+      const mid = Math.round((lo + hi) / 2);
+      const blob = await encodeAt(mid / 100);
+      if (blob.size > targetBytes) hi = mid - 1; else { best = mid; lo = mid + 1; }
+    }
+    document.getElementById('ic-q').value = best;
+    document.getElementById('ic-ql').textContent = best;
+    if (note) note.textContent = `Calidad ajustada a ${best}% para acercarse a ~${fmtSize(targetBytes)}.`;
     _doLiveCompress();
   }
 
@@ -2520,15 +2588,47 @@ const ToolFn = (() => {
   }
 
   // ── video preview & compress ──
+  let _vcDuration = 0, _vcCustomBps = null;
+
   function previewVideo() {
     const f = document.getElementById('vc-file').files[0]; if (!f) return;
+    _vcCustomBps = null;
+    const targetInput = document.getElementById('vc-target-mb');
+    if (targetInput) targetInput.value = '';
     const video = document.getElementById('vc-orig-video');
     video.src = URL.createObjectURL(f);
     document.getElementById('vc-video-preview').style.display = 'block';
     video.onloadedmetadata = () => {
+      _vcDuration = video.duration;
       document.getElementById('vc-orig-info').textContent =
         `${fmtSize(f.size)} · ${video.videoWidth}×${video.videoHeight} · ${fmtDur(video.duration)}`;
+      vcUpdateEstimate();
     };
+  }
+
+  function vcUpdateEstimate() {
+    const el = document.getElementById('vc-estimate'); if (!el) return;
+    if (!_vcDuration) { el.textContent = ''; return; }
+    const bps = _vcCustomBps != null ? _vcCustomBps : parseInt(document.getElementById('vc-bps').value);
+    const estimatedBytes = (bps * _vcDuration) / 8;
+    el.textContent = `Tamaño estimado: ~${fmtSize(estimatedBytes)}`;
+  }
+
+  function vcBpsChanged() {
+    _vcCustomBps = null; // el usuario eligió un bitrate manual, descarta el tamaño objetivo
+    const targetInput = document.getElementById('vc-target-mb');
+    if (targetInput) targetInput.value = '';
+    vcUpdateEstimate();
+  }
+
+  function vcApplyTarget() {
+    const val = parseFloat(document.getElementById('vc-target-mb').value);
+    if (!val || !_vcDuration) { _vcCustomBps = null; vcUpdateEstimate(); return; }
+    const targetBytes = val * 1024 * 1024;
+    let bps = Math.round((targetBytes * 8) / _vcDuration);
+    bps = Math.max(100000, Math.min(8000000, bps)); // rango razonable de bitrate de video
+    _vcCustomBps = bps;
+    vcUpdateEstimate();
   }
 
   async function compressVid() {
@@ -2547,7 +2647,7 @@ const ToolFn = (() => {
 
     try {
       const scale = parseFloat(document.getElementById('vc-scale').value);
-      const bps   = parseInt(document.getElementById('vc-bps').value);
+      const bps   = _vcCustomBps != null ? _vcCustomBps : parseInt(document.getElementById('vc-bps').value);
       const video = document.createElement('video');
       video.src = URL.createObjectURL(f); video.muted = true;
       await new Promise(r => { video.onloadedmetadata = r; });
@@ -2607,23 +2707,43 @@ const ToolFn = (() => {
   }
 
   // ── audio preview & compress ──
+  let _acFile = null;
+  const AC_SR_OPTIONS = [44100, 22050, 16000, 8000];
+
   function previewAudio() {
     const f = document.getElementById('ac-file').files[0]; if (!f) return;
+    _acFile = f;
+    const targetInput = document.getElementById('ac-target-mb');
+    if (targetInput) targetInput.value = '';
     const audio = document.getElementById('ac-orig-audio');
     audio.src = URL.createObjectURL(f);
     document.getElementById('ac-audio-preview').style.display = 'block';
     audio.onloadedmetadata = () => {
       document.getElementById('ac-orig-info').textContent =
         `${fmtSize(f.size)} · ${fmtDur(audio.duration)}`;
-      _updateAudioEstimate(f);
+      _updateAudioEstimate();
     };
-    // update estimate on setting changes
-    ['ac-ch','ac-sr'].forEach(id => {
-      document.getElementById(id).addEventListener('change', () => _updateAudioEstimate(f));
-    });
   }
 
-  function _updateAudioEstimate(origFile) {
+  function acOptionsChanged() {
+    const targetInput = document.getElementById('ac-target-mb');
+    if (targetInput) targetInput.value = ''; // el usuario ajustó manualmente, descarta el tamaño objetivo
+    _updateAudioEstimate();
+  }
+
+  function acApplyTarget() {
+    const audio = document.getElementById('ac-orig-audio');
+    const val = parseFloat(document.getElementById('ac-target-mb').value);
+    if (!val || !audio.duration) { _updateAudioEstimate(); return; }
+    const ch = parseInt(document.getElementById('ac-ch').value);
+    const targetBytes = val * 1024 * 1024;
+    const idealSr = targetBytes / (audio.duration * ch * 2);
+    const closest = AC_SR_OPTIONS.reduce((a, b) => Math.abs(b - idealSr) < Math.abs(a - idealSr) ? b : a);
+    document.getElementById('ac-sr').value = closest;
+    _updateAudioEstimate();
+  }
+
+  function _updateAudioEstimate() {
     const audio = document.getElementById('ac-orig-audio');
     if (!audio.duration) return;
     const ch = parseInt(document.getElementById('ac-ch').value);
@@ -3992,6 +4112,8 @@ const ToolFn = (() => {
     document.getElementById('pc-upload-screen').style.display = 'none';
     document.getElementById('pc-editor').style.display = 'block';
     document.getElementById('pc-orig-size').textContent = fmtSize(f.size);
+    const targetInput = document.getElementById('pc-target-mb');
+    if (targetInput) targetInput.value = '';
     pcUpdateEst();
 
     const pdfjs = await _loadPdfJs();
@@ -4020,6 +4142,8 @@ const ToolFn = (() => {
     document.getElementById('pc-editor').style.display = 'none';
     document.getElementById('pc-file').value = '';
     document.getElementById('pc-thumbs').innerHTML = '';
+    const targetInput = document.getElementById('pc-target-mb');
+    if (targetInput) targetInput.value = '';
   }
 
   function pcUpdateEst() {
@@ -4034,6 +4158,20 @@ const ToolFn = (() => {
       : Math.round(_pcOrigSize * 0.97);
     document.getElementById('pc-est-size').textContent =
       fmtSize(est) + ` (${Math.max(0, Math.round((1 - est / _pcOrigSize) * 100))}% menos)`;
+  }
+
+  function pcApplyTarget() {
+    if (!_pcOrigSize) return;
+    const val = parseFloat(document.getElementById('pc-target-mb').value);
+    if (!val) return;
+    document.getElementById('pc-aggressive').checked = true;
+    const targetBytes = val * 1024 * 1024;
+    const targetRatio = targetBytes / _pcOrigSize;
+    // inversa de la fórmula de estimación: est = orig*(0.15 + q*0.6)
+    let q = Math.round(((targetRatio - 0.15) / 0.6) * 100);
+    q = Math.max(10, Math.min(99, q));
+    document.getElementById('pc-q').value = q;
+    pcUpdateEst();
   }
 
   async function pcCompress() {
@@ -6848,11 +6986,11 @@ const ToolFn = (() => {
   }
 
   return {
-    previewImg, onQualityChange, compressImg,
+    previewImg, onQualityChange, compressImg, icApplyTarget,
     previewConvertFiles, convertImg,
     previewPdfFiles, imgToPdf,
-    previewVideo, compressVid,
-    previewAudio, compressAudio,
+    previewVideo, compressVid, vcUpdateEstimate, vcBpsChanged, vcApplyTarget,
+    previewAudio, compressAudio, acOptionsChanged, acApplyTarget,
     pdfToText, cobaltDl,
     liveQR, downloadQR, shareQR,
     liveColor, convertColor, pickScreenColor,
@@ -6863,7 +7001,7 @@ const ToolFn = (() => {
     genUUIDs, fetchIP,
     pmLoad, pmRemove, pmMerge, pmRenderList, pmDragStart, pmDrop,
     psLoad, psReset, psSetScope, psToggleSelect, psHighlightRange, psSplit,
-    pcLoad, pcReset, pcUpdateEst, pcCompress,
+    pcLoad, pcReset, pcUpdateEst, pcCompress, pcApplyTarget,
     pjLoad, pjReset, pjUpdateScaleLabel, pjUpdateQLLabel, pjConvert,
     puLoad, puReset, puUnlock,
     prLoad, prReset, prSetMode, prOnSlider, prSnapDeg, prSetDeg, prSetScope, prToggleSelect, prUpdatePreview, prRotate,
