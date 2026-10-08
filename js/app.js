@@ -3814,10 +3814,24 @@ const ToolFn = (() => {
   function bgAutoDetect() {
     if (!_bgImg) return;
     const w = _bgImg.width, h = _bgImg.height;
-    const corners = [[0,0],[w-1,0],[0,h-1],[w-1,h-1]];
-    let r=0, g=0, b=0;
-    corners.forEach(([x,y]) => { const s = _bgSampleAt(x,y); r+=s.r; g+=s.g; b+=s.b; });
-    _bgColor = { r: Math.round(r/4), g: Math.round(g/4), b: Math.round(b/4) };
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(_bgImg, 0, 0);
+    const full = ctx.getImageData(0, 0, w, h).data;
+    const idxAt = (x, y) => (y * w + x) * 4;
+    // muestreamos todo el perímetro (no solo las 4 esquinas) para que un
+    // ruido puntual o un borde con jpeg artifacts no arruine la detección
+    const step = Math.max(1, Math.floor(Math.min(w, h) / 100));
+    const idxs = [];
+    for (let x = 0; x < w; x += step) { idxs.push(idxAt(x, 0)); idxs.push(idxAt(x, h - 1)); }
+    for (let y = 0; y < h; y += step) { idxs.push(idxAt(0, y)); idxs.push(idxAt(w - 1, y)); }
+    const median = arr => { const s = arr.slice().sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
+    _bgColor = {
+      r: median(idxs.map(i => full[i])),
+      g: median(idxs.map(i => full[i + 1])),
+      b: median(idxs.map(i => full[i + 2])),
+    };
     _bgUpdateSwatch();
     bgApply();
   }
@@ -3836,14 +3850,45 @@ const ToolFn = (() => {
     ctx.drawImage(_bgImg, 0, 0);
     const tol = parseInt(document.getElementById('bg-tol').value);
     const feather = 24; // banda de transición suave para que el borde no quede dentado
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const w = canvas.width, h = canvas.height;
+    const imgData = ctx.getImageData(0, 0, w, h);
     const data = imgData.data;
     const { r: br, g: bg, b: bb } = _bgColor;
-    for (let i = 0; i < data.length; i += 4) {
+    const n = w * h;
+    const dist = new Float32Array(n);
+    for (let p = 0, i = 0; p < n; p++, i += 4) {
       const dr = data[i] - br, dg = data[i+1] - bg, db = data[i+2] - bb;
-      const dist = Math.sqrt(dr*dr + dg*dg + db*db);
-      if (dist < tol) data[i+3] = 0;
-      else if (dist < tol + feather) data[i+3] = Math.round(data[i+3] * (dist - tol) / feather);
+      dist[p] = Math.sqrt(dr*dr + dg*dg + db*db);
+    }
+    // En vez de recortar por color en toda la imagen, recortamos solo el fondo
+    // que está "conectado" al borde (flood fill). Así, si el sujeto tiene una
+    // zona con un color parecido al del fondo (ej. piel + fondo beige), esa
+    // zona no se agujerea porque no está pegada al borde.
+    const maxDist = tol + feather;
+    const bgMask = new Uint8Array(n);
+    const stack = [];
+    const pushIfBg = p => { if (!bgMask[p] && dist[p] < maxDist) { bgMask[p] = 1; stack.push(p); } };
+    for (let x = 0; x < w; x++) { pushIfBg(x); pushIfBg((h - 1) * w + x); }
+    for (let y = 0; y < h; y++) { pushIfBg(y * w); pushIfBg(y * w + w - 1); }
+    while (stack.length) {
+      const p = stack.pop();
+      const x = p % w, y = (p - x) / w;
+      if (x > 0) pushIfBg(p - 1);
+      if (x < w - 1) pushIfBg(p + 1);
+      if (y > 0) pushIfBg(p - w);
+      if (y < h - 1) pushIfBg(p + w);
+    }
+    for (let p = 0, i = 0; p < n; p++, i += 4) {
+      if (!bgMask[p]) continue;
+      const d = dist[p];
+      if (d < tol) { data[i+3] = 0; continue; }
+      const af = (d - tol) / feather; // fracción de "sujeto" visible en el borde (0..1)
+      // despill: el pixel de borde es una mezcla de sujeto y fondo; la revertimos
+      // para sacar el tinte del color de fondo que se filtra en el contorno
+      data[i]   = Math.max(0, Math.min(255, Math.round((data[i]   - (1 - af) * br) / af)));
+      data[i+1] = Math.max(0, Math.min(255, Math.round((data[i+1] - (1 - af) * bg) / af)));
+      data[i+2] = Math.max(0, Math.min(255, Math.round((data[i+2] - (1 - af) * bb) / af)));
+      data[i+3] = Math.round(data[i+3] * af);
     }
     ctx.putImageData(imgData, 0, 0);
   }
