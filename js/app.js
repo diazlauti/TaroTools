@@ -1381,7 +1381,7 @@ const ToolUI = (() => {
           <label id="bg-shape-label">Forma de selección</label>
           <div class="pr-scope-group" role="group" aria-labelledby="bg-shape-label">
             <button id="bg-shape-rect-btn" class="pr-scope-btn bg-shape-btn active" onclick="ToolFn.bgSetShape('rect',this)">▭ Rectángulo</button>
-            <button class="pr-scope-btn bg-shape-btn" onclick="ToolFn.bgSetShape('lasso',this)">✏️ Dibujar a mano</button>
+            <button id="bg-shape-lasso-btn" class="pr-scope-btn bg-shape-btn" onclick="ToolFn.bgSetShape('lasso',this)">✏️ Dibujar a mano</button>
           </div>
           <p id="bg-sel-hint" aria-live="polite" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.6rem 0">rectángulo: arrastrá para dibujar, adentro para mover, los círculos cambian el tamaño · a mano: arrastrá el contorno de la figura (se ve en vivo cómo queda sin fondo)</p>
           <div class="btn-row">
@@ -4009,11 +4009,15 @@ const ToolFn = (() => {
 
     function toCanvasXY(e) {
       const rect = canvas.getBoundingClientRect();
-      const scale = canvas.width / rect.width;
+      // escalas separadas: el canvas se estira distinto en X e Y cuando la imagen
+      // es vertical (ancho al 100% + alto limitado por max-height), así que usar
+      // una sola escala para los dos ejes desalineaba el click con el mouse
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
       return {
-        x: Math.max(0, Math.min(canvas.width, (e.clientX - rect.left) * scale)),
-        y: Math.max(0, Math.min(canvas.height, (e.clientY - rect.top) * scale)),
-        scale,
+        x: Math.max(0, Math.min(canvas.width, (e.clientX - rect.left) * scaleX)),
+        y: Math.max(0, Math.min(canvas.height, (e.clientY - rect.top) * scaleY)),
+        scale: Math.min(scaleX, scaleY),
       };
     }
 
@@ -4150,6 +4154,85 @@ const ToolFn = (() => {
     _bgSelRedrawFinal();
   }
 
+  // de todas las regiones que no son fondo, nos quedamos con la más grande
+  // (así una mota de ruido o un agujero chico en el flood-fill no arruina nada)
+  function _bgLargestForegroundMask(bgMask, w, h) {
+    const n = w * h;
+    const visited = new Uint8Array(n);
+    const queue = new Int32Array(n);
+    let bestStart = -1, bestSize = 0, bestQueueCopy = null;
+    for (let start = 0; start < n; start++) {
+      if (bgMask[start] || visited[start]) continue;
+      let qh = 0, qt = 0;
+      queue[qt++] = start; visited[start] = 1;
+      while (qh < qt) {
+        const p = queue[qh++];
+        const x = p % w, y = (p - x) / w;
+        if (x > 0 && !bgMask[p-1] && !visited[p-1]) { visited[p-1] = 1; queue[qt++] = p-1; }
+        if (x < w-1 && !bgMask[p+1] && !visited[p+1]) { visited[p+1] = 1; queue[qt++] = p+1; }
+        if (y > 0 && !bgMask[p-w] && !visited[p-w]) { visited[p-w] = 1; queue[qt++] = p-w; }
+        if (y < h-1 && !bgMask[p+w] && !visited[p+w]) { visited[p+w] = 1; queue[qt++] = p+w; }
+      }
+      if (qt > bestSize) { bestSize = qt; bestStart = start; bestQueueCopy = queue.slice(0, qt); }
+    }
+    if (bestStart === -1) return null;
+    const mask = new Uint8Array(n);
+    for (let i = 0; i < bestQueueCopy.length; i++) mask[bestQueueCopy[i]] = 1;
+    return mask;
+  }
+
+  // expande la máscara unos pixeles (multi-source BFS limitado) para compensar el
+  // borde que el flood-fill de color descarta como "zona de transición"
+  function _bgDilate(mask, w, h, radius) {
+    const n = w * h;
+    const dist = new Int16Array(n).fill(-1);
+    const queue = [];
+    for (let p = 0; p < n; p++) if (mask[p]) { dist[p] = 0; queue.push(p); }
+    let qi = 0;
+    while (qi < queue.length) {
+      const p = queue[qi++];
+      const d = dist[p];
+      if (d >= radius) continue;
+      const x = p % w, y = (p - x) / w;
+      if (x > 0 && dist[p-1] === -1) { dist[p-1] = d+1; queue.push(p-1); }
+      if (x < w-1 && dist[p+1] === -1) { dist[p+1] = d+1; queue.push(p+1); }
+      if (y > 0 && dist[p-w] === -1) { dist[p-w] = d+1; queue.push(p-w); }
+      if (y < h-1 && dist[p+w] === -1) { dist[p+w] = d+1; queue.push(p+w); }
+    }
+    const out = new Uint8Array(n);
+    for (let p = 0; p < n; p++) if (dist[p] !== -1) out[p] = 1;
+    return out;
+  }
+
+  // traza el contorno de una máscara binaria (Moore-neighbor tracing), devuelve
+  // una lista ordenada de puntos {x,y} que rodean la región, o null si no hay nada
+  function _bgTraceContour(mask, w, h) {
+    const inside = (x, y) => x >= 0 && x < w && y >= 0 && y < h && mask[y * w + x] === 1;
+    let sx = -1, sy = -1;
+    for (let y = 0; y < h && sx === -1; y++) {
+      for (let x = 0; x < w; x++) { if (inside(x, y)) { sx = x; sy = y; break; } }
+    }
+    if (sx === -1) return null;
+    const dirs = [[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1]];
+    const boundary = [{ x: sx, y: sy }];
+    let cx = sx, cy = sy, fromDir = 6; // llegamos "desde el oeste" (es el primer pixel de su fila)
+    const maxSteps = w * h;
+    for (let steps = 0; steps < maxSteps; steps++) {
+      let found = null;
+      for (let i = 0; i < 8; i++) {
+        const d = (fromDir + 1 + i) % 8;
+        const nx = cx + dirs[d][0], ny = cy + dirs[d][1];
+        if (inside(nx, ny)) { found = { d, nx, ny }; break; }
+      }
+      if (!found) break; // pixel aislado
+      cx = found.nx; cy = found.ny;
+      fromDir = (found.d + 4) % 8;
+      if (cx === sx && cy === sy) break; // volvimos al inicio: contorno cerrado
+      boundary.push({ x: cx, y: cy });
+    }
+    return boundary.length >= 3 ? boundary : null;
+  }
+
   function bgAutoDetectFigure() {
     if (!_bgImg) return;
     const w = _bgImg.width, h = _bgImg.height;
@@ -4170,25 +4253,24 @@ const ToolFn = (() => {
       b: median(idxs.map(i => data[i + 2])),
     };
     const { bgMask } = _bgFloodFromBorder(data, w, h, borderColor, 40, 24);
-    let minX = w, minY = h, maxX = -1, maxY = -1;
-    for (let p = 0, y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++, p++) {
-        if (bgMask[p]) continue;
-        if (x < minX) minX = x; if (x > maxX) maxX = x;
-        if (y < minY) minY = y; if (y > maxY) maxY = y;
-      }
-    }
-    if (maxX < minX || maxY < minY) {
-      // no se encontró un fondo claro conectado al borde: por defecto, un
-      // margen del 10% alrededor de toda la imagen
+    const figMask = _bgLargestForegroundMask(bgMask, w, h);
+    const contour = figMask && _bgTraceContour(_bgDilate(figMask, w, h, 12), w, h);
+
+    if (!contour) {
+      // no se encontró una figura clara: por defecto, un margen del 10%
+      // alrededor de toda la imagen, como rectángulo para seguir editando
       _bgSelRect = { x: w * 0.1, y: h * 0.1, w: w * 0.8, h: h * 0.8 };
+      _bgSelShape = 'rect'; _bgSelPath = null;
+      document.querySelectorAll('.bg-shape-btn').forEach(b => b.classList.toggle('active', b.id === 'bg-shape-rect-btn'));
     } else {
-      const padX = Math.round(w * 0.02), padY = Math.round(h * 0.02);
-      const x = Math.max(0, minX - padX), y = Math.max(0, minY - padY);
-      _bgSelRect = { x, y, w: Math.min(w, maxX + padX) - x, h: Math.min(h, maxY + padY) - y };
+      // de-cimamos el contorno para no arrastrar miles de puntos pixel a pixel
+      const maxPoints = 400;
+      const stepP = Math.max(1, Math.floor(contour.length / maxPoints));
+      _bgSelPath = contour.filter((_, i) => i % stepP === 0);
+      _bgSelRect = null;
+      _bgSelShape = 'lasso';
+      document.querySelectorAll('.bg-shape-btn').forEach(b => b.classList.toggle('active', b.id === 'bg-shape-lasso-btn'));
     }
-    _bgSelShape = 'rect'; _bgSelPath = null;
-    document.querySelectorAll('.bg-shape-btn').forEach(b => b.classList.toggle('active', b.id === 'bg-shape-rect-btn'));
     _bgSelRedrawFinal();
     Audio.click();
   }
