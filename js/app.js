@@ -1346,9 +1346,9 @@ const ToolUI = (() => {
       `<div class="result-area" id="po-result" style="display:none;max-height:260px;overflow-y:auto"></div>` +
       copyRow('po-result'),
 
-    /* ── BACKGROUND REMOVE (chroma-key local) ── */
+    /* ── BACKGROUND REMOVE (chroma-key local + selección manual) ── */
     'bg-remove': () =>
-      infoBox('Quitá el fondo de una imagen <b>por color</b> — sin IA, sin subir nada a ningún servidor. Funciona mejor con fondos lisos (fotos de producto, logos). Hacé click sobre el fondo en la imagen para elegir el color a quitar.') +
+      infoBox('Quitá el fondo de una imagen — sin IA, sin subir nada a ningún servidor. <b>Por color</b>: hacé click sobre el fondo para elegirlo (ideal con fondos lisos). <b>Por selección</b>: dibujá un rectángulo alrededor de la figura (o auto-detectala) y se borra todo lo que queda afuera.') +
       `<input type="file" id="bg-file" accept="image/*" style="display:none" onchange="ToolFn.bgLoad()">` +
       `<div class="file-drop" id="bg-drop" onclick="document.getElementById('bg-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('bg-file').files=event.dataTransfer.files;ToolFn.bgLoad()">
         <div class="file-drop__icon">✂️</div>
@@ -1357,19 +1357,35 @@ const ToolUI = (() => {
         <div class="file-drop__name" id="bg-name"></div>
       </div>` +
       `<div id="bg-info" style="display:none">
-        <div class="bg-canvas-wrap">
+        <label id="bg-mode-label">Modo</label>
+        <div class="pr-scope-group" role="group" aria-labelledby="bg-mode-label">
+          <button class="pr-mode-btn active" onclick="ToolFn.bgSetMode('color',this)">🎨 Por color</button>
+          <button class="pr-mode-btn" onclick="ToolFn.bgSetMode('select',this)">✂️ Por selección</button>
+        </div>
+        <div class="bg-canvas-wrap" style="margin-top:.6rem">
           <canvas id="bg-canvas"></canvas>
         </div>
-        <div style="display:flex;align-items:center;gap:.6rem;margin:.6rem 0">
-          <span style="font-size:.72rem;color:var(--fg3);font-family:var(--mono)">Color de fondo</span>
-          <span id="bg-color-swatch" style="width:22px;height:22px;border-radius:6px;border:1.5px solid var(--border);display:inline-block"></span>
-          <span id="bg-color-hex" style="font-family:var(--mono);font-size:.75rem;color:var(--fg2)"></span>
+        <div id="bg-color-controls">
+          <div style="display:flex;align-items:center;gap:.6rem;margin:.6rem 0">
+            <span style="font-size:.72rem;color:var(--fg3);font-family:var(--mono)">Color de fondo</span>
+            <span id="bg-color-swatch" style="width:22px;height:22px;border-radius:6px;border:1.5px solid var(--border);display:inline-block"></span>
+            <span id="bg-color-hex" style="font-family:var(--mono);font-size:.75rem;color:var(--fg2)"></span>
+          </div>
+          <label for="bg-tol">Tolerancia: <span id="bg-tol-val">40</span></label>
+          <input type="range" min="0" max="120" value="40" id="bg-tol" oninput="document.getElementById('bg-tol-val').textContent=this.value;ToolFn.bgApply()" style="width:100%">
+          <div class="btn-row">
+            <button class="btn btn--sec" onclick="ToolFn.bgAutoDetect()">🎯 Auto-detectar (esquinas)</button>
+          </div>
         </div>
-        <label>Tolerancia: <span id="bg-tol-val">40</span></label>
-        <input type="range" min="0" max="120" value="40" id="bg-tol" oninput="document.getElementById('bg-tol-val').textContent=this.value;ToolFn.bgApply()" style="width:100%">
-        <div class="btn-row">
+        <div id="bg-select-controls" style="display:none">
+          <p id="bg-sel-hint" aria-live="polite" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.6rem 0">dibujá un rectángulo alrededor de la figura (arrastrá adentro para moverlo, los círculos cambian el tamaño)</p>
+          <div class="btn-row">
+            <button class="btn btn--sec" onclick="ToolFn.bgAutoDetectFigure()">🎯 Auto-detectar figura</button>
+            <button class="btn btn--sec" onclick="ToolFn.bgSelClear()">✕ Limpiar selección</button>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:.6rem">
           <button class="btn" onclick="ToolFn.bgDownload()">⬇️ Descargar PNG</button>
-          <button class="btn btn--sec" onclick="ToolFn.bgAutoDetect()">🎯 Auto-detectar (esquinas)</button>
         </div>
       </div>`,
 
@@ -3772,8 +3788,9 @@ const ToolFn = (() => {
     if (nameEl && file) nameEl.textContent = file.name;
   }
 
-  // ── background remove (chroma-key local) ──
-  let _bgImg = null, _bgColor = null;
+  // ── background remove (chroma-key local + selección manual) ──
+  const BG_SEL_MIN_SIZE = 20, BG_SEL_HANDLE_R = 7, BG_SEL_HIT_R = 14, BG_SEL_FEATHER = 6;
+  let _bgImg = null, _bgColor = null, _bgMode = 'color', _bgSelRect = null;
 
   function bgLoad() {
     const f = document.getElementById('bg-file').files[0]; if (!f) return;
@@ -3781,14 +3798,30 @@ const ToolFn = (() => {
     const img = new Image();
     img.onload = () => {
       _bgImg = img;
+      _bgMode = 'color'; _bgSelRect = null;
       const canvas = document.getElementById('bg-canvas');
       canvas.width = img.width; canvas.height = img.height;
       canvas.getContext('2d').drawImage(img, 0, 0);
       canvas.onclick = _bgPickColor;
+      _bgInitSelectDrag(canvas);
+      document.querySelectorAll('.pr-mode-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
+      document.getElementById('bg-color-controls').style.display = 'block';
+      document.getElementById('bg-select-controls').style.display = 'none';
       document.getElementById('bg-info').style.display = 'block';
       bgAutoDetect();
     };
     img.src = URL.createObjectURL(f);
+  }
+
+  function bgSetMode(mode, btn) {
+    if (!_bgImg) return;
+    _bgMode = mode;
+    document.querySelectorAll('.pr-mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('bg-color-controls').style.display = mode === 'color' ? 'block' : 'none';
+    document.getElementById('bg-select-controls').style.display = mode === 'select' ? 'block' : 'none';
+    if (mode === 'color') bgApply();
+    else _bgSelRedraw();
   }
 
   function _bgSampleAt(x, y) {
@@ -3801,6 +3834,7 @@ const ToolFn = (() => {
   }
 
   function _bgPickColor(e) {
+    if (_bgMode !== 'color') return;
     const canvas = document.getElementById('bg-canvas');
     const rect = canvas.getBoundingClientRect();
     const x = Math.min(canvas.width - 1, Math.max(0, Math.floor((e.clientX - rect.left) * (canvas.width / rect.width))));
@@ -3843,27 +3877,18 @@ const ToolFn = (() => {
     document.getElementById('bg-color-hex').textContent = hex;
   }
 
-  function bgApply() {
-    if (!_bgImg || !_bgColor) return;
-    const canvas = document.getElementById('bg-canvas');
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(_bgImg, 0, 0);
-    const tol = parseInt(document.getElementById('bg-tol').value);
-    const feather = 24; // banda de transición suave para que el borde no quede dentado
-    const w = canvas.width, h = canvas.height;
-    const imgData = ctx.getImageData(0, 0, w, h);
-    const data = imgData.data;
-    const { r: br, g: bg, b: bb } = _bgColor;
+  // flood fill desde los bordes de la imagen: marca como "fondo" solo lo que está
+  // conectado al borde, dentro de tol+feather de distancia al color dado. Así, si el
+  // sujeto tiene una zona con un color parecido (ej. piel + fondo beige), esa zona
+  // no se agujerea/detecta como fondo porque no está pegada al borde.
+  function _bgFloodFromBorder(data, w, h, color, tol, feather) {
+    const { r: br, g: bg, b: bb } = color;
     const n = w * h;
     const dist = new Float32Array(n);
     for (let p = 0, i = 0; p < n; p++, i += 4) {
       const dr = data[i] - br, dg = data[i+1] - bg, db = data[i+2] - bb;
       dist[p] = Math.sqrt(dr*dr + dg*dg + db*db);
     }
-    // En vez de recortar por color en toda la imagen, recortamos solo el fondo
-    // que está "conectado" al borde (flood fill). Así, si el sujeto tiene una
-    // zona con un color parecido al del fondo (ej. piel + fondo beige), esa
-    // zona no se agujerea porque no está pegada al borde.
     const maxDist = tol + feather;
     const bgMask = new Uint8Array(n);
     const stack = [];
@@ -3878,7 +3903,22 @@ const ToolFn = (() => {
       if (y > 0) pushIfBg(p - w);
       if (y < h - 1) pushIfBg(p + w);
     }
-    for (let p = 0, i = 0; p < n; p++, i += 4) {
+    return { dist, bgMask };
+  }
+
+  function bgApply() {
+    if (!_bgImg || !_bgColor) return;
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(_bgImg, 0, 0);
+    const tol = parseInt(document.getElementById('bg-tol').value);
+    const feather = 24; // banda de transición suave para que el borde no quede dentado
+    const w = canvas.width, h = canvas.height;
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+    const { r: br, g: bg, b: bb } = _bgColor;
+    const { dist, bgMask } = _bgFloodFromBorder(data, w, h, _bgColor, tol, feather);
+    for (let p = 0, i = 0; p < w * h; p++, i += 4) {
       if (!bgMask[p]) continue;
       const d = dist[p];
       if (d < tol) { data[i+3] = 0; continue; }
@@ -3893,8 +3933,194 @@ const ToolFn = (() => {
     ctx.putImageData(imgData, 0, 0);
   }
 
+  // ── selección manual (rectángulo arrastrable, estilo pdf-crop) ──
+  function _bgSelHandles(r) {
+    const { x, y, w, h } = r;
+    return [
+      { id: 'nw', cx: x,       cy: y       }, { id: 'n', cx: x + w / 2, cy: y       }, { id: 'ne', cx: x + w, cy: y       },
+      { id: 'w',  cx: x,       cy: y + h/2 },                                          { id: 'e',  cx: x + w, cy: y + h/2 },
+      { id: 'sw', cx: x,       cy: y + h   }, { id: 's', cx: x + w / 2, cy: y + h   }, { id: 'se', cx: x + w, cy: y + h   },
+    ];
+  }
+
+  function _bgInitSelectDrag(canvas) {
+    if (canvas.dataset.selInit) return;
+    canvas.dataset.selInit = '1';
+    let mode = null, handleId = null, startX = 0, startY = 0, moveDX = 0, moveDY = 0;
+
+    function toCanvasXY(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scale = canvas.width / rect.width;
+      return {
+        x: Math.max(0, Math.min(canvas.width, (e.clientX - rect.left) * scale)),
+        y: Math.max(0, Math.min(canvas.height, (e.clientY - rect.top) * scale)),
+        scale,
+      };
+    }
+
+    function resizeTo(id, p) {
+      const r = _bgSelRect;
+      let { x, y, w, h } = r;
+      const x2 = x + w, y2 = y + h;
+      if (id.includes('w')) { const nx = Math.min(p.x, x2 - BG_SEL_MIN_SIZE); x = nx; w = x2 - nx; }
+      if (id.includes('e')) { const nx2 = Math.max(p.x, x + BG_SEL_MIN_SIZE); w = nx2 - x; }
+      if (id.includes('n')) { const ny = Math.min(p.y, y2 - BG_SEL_MIN_SIZE); y = ny; h = y2 - ny; }
+      if (id.includes('s')) { const ny2 = Math.max(p.y, y + BG_SEL_MIN_SIZE); h = ny2 - y; }
+      _bgSelRect = { x, y, w, h };
+    }
+
+    canvas.addEventListener('pointerdown', e => {
+      if (_bgMode !== 'select') return;
+      const p = toCanvasXY(e);
+      const hitR = BG_SEL_HIT_R * p.scale;
+      if (_bgSelRect) {
+        const hit = _bgSelHandles(_bgSelRect).find(h => Math.abs(h.cx - p.x) <= hitR && Math.abs(h.cy - p.y) <= hitR);
+        if (hit) {
+          mode = 'resize'; handleId = hit.id;
+          canvas.setPointerCapture(e.pointerId);
+          return;
+        }
+        if (p.x >= _bgSelRect.x && p.x <= _bgSelRect.x + _bgSelRect.w && p.y >= _bgSelRect.y && p.y <= _bgSelRect.y + _bgSelRect.h) {
+          mode = 'move';
+          moveDX = p.x - _bgSelRect.x; moveDY = p.y - _bgSelRect.y;
+          canvas.setPointerCapture(e.pointerId);
+          return;
+        }
+      }
+      mode = 'draw';
+      startX = p.x; startY = p.y;
+      _bgSelRect = { x: startX, y: startY, w: 0, h: 0 };
+      canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (_bgMode !== 'select' || !mode) return;
+      const p = toCanvasXY(e);
+      if (mode === 'draw') {
+        const x = Math.min(startX, p.x), y = Math.min(startY, p.y);
+        const w = Math.abs(p.x - startX), h = Math.abs(p.y - startY);
+        _bgSelRect = { x, y, w, h };
+      } else if (mode === 'move') {
+        const nx = Math.max(0, Math.min(canvas.width - _bgSelRect.w, p.x - moveDX));
+        const ny = Math.max(0, Math.min(canvas.height - _bgSelRect.h, p.y - moveDY));
+        _bgSelRect.x = nx; _bgSelRect.y = ny;
+      } else if (mode === 'resize') {
+        resizeTo(handleId, p);
+      }
+      _bgSelRedraw();
+    });
+    const endDrag = () => { mode = null; handleId = null; };
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+  }
+
+  function _bgSelRedraw() {
+    const canvas = document.getElementById('bg-canvas');
+    if (!canvas || !_bgImg) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(_bgImg, 0, 0);
+    if (!_bgSelRect || _bgSelRect.w < 2 || _bgSelRect.h < 2) return;
+    const { x, y, w, h } = _bgSelRect;
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#9184d9';
+
+    ctx.fillStyle = 'rgba(0,0,0,.55)';
+    ctx.fillRect(0, 0, canvas.width, y);
+    ctx.fillRect(0, y + h, canvas.width, canvas.height - (y + h));
+    ctx.fillRect(0, y, x, h);
+    ctx.fillRect(x + w, y, canvas.width - (x + w), h);
+
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+
+    _bgSelHandles(_bgSelRect).forEach(hd => {
+      ctx.beginPath();
+      ctx.arc(hd.cx, hd.cy, BG_SEL_HANDLE_R, 0, Math.PI * 2);
+      ctx.fillStyle = accent;
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
+    });
+  }
+
+  function bgSelClear() {
+    _bgSelRect = null;
+    _bgSelRedraw();
+  }
+
+  function bgAutoDetectFigure() {
+    if (!_bgImg) return;
+    const w = _bgImg.width, h = _bgImg.height;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(_bgImg, 0, 0);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const idxAt = (x, y) => (y * w + x) * 4;
+    const step = Math.max(1, Math.floor(Math.min(w, h) / 100));
+    const idxs = [];
+    for (let x = 0; x < w; x += step) { idxs.push(idxAt(x, 0)); idxs.push(idxAt(x, h - 1)); }
+    for (let y = 0; y < h; y += step) { idxs.push(idxAt(0, y)); idxs.push(idxAt(w - 1, y)); }
+    const median = arr => { const s = arr.slice().sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
+    const borderColor = {
+      r: median(idxs.map(i => data[i])),
+      g: median(idxs.map(i => data[i + 1])),
+      b: median(idxs.map(i => data[i + 2])),
+    };
+    const { bgMask } = _bgFloodFromBorder(data, w, h, borderColor, 40, 24);
+    let minX = w, minY = h, maxX = -1, maxY = -1;
+    for (let p = 0, y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++, p++) {
+        if (bgMask[p]) continue;
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
+    }
+    if (maxX < minX || maxY < minY) {
+      // no se encontró un fondo claro conectado al borde: por defecto, un
+      // margen del 10% alrededor de toda la imagen
+      _bgSelRect = { x: w * 0.1, y: h * 0.1, w: w * 0.8, h: h * 0.8 };
+    } else {
+      const padX = Math.round(w * 0.02), padY = Math.round(h * 0.02);
+      const x = Math.max(0, minX - padX), y = Math.max(0, minY - padY);
+      _bgSelRect = { x, y, w: Math.min(w, maxX + padX) - x, h: Math.min(h, maxY + padY) - y };
+    }
+    _bgSelRedraw();
+    Audio.click();
+  }
+
   function bgDownload() {
     if (!_bgImg) return;
+    if (_bgMode === 'select') {
+      const w = _bgImg.width, h = _bgImg.height;
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(_bgImg, 0, 0);
+      if (_bgSelRect && _bgSelRect.w >= 2 && _bgSelRect.h >= 2) {
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+        const { x: rx, y: ry, w: rw, h: rh } = _bgSelRect;
+        for (let p = 0, i = 0, y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++, p++, i += 4) {
+            const dx = Math.max(rx - x, 0, x - (rx + rw));
+            const dy = Math.max(ry - y, 0, y - (ry + rh));
+            const d = Math.sqrt(dx * dx + dy * dy);
+            if (d > 0) data[i+3] = Math.round(data[i+3] * Math.max(0, 1 - d / BG_SEL_FEATHER));
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+      }
+      c.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'taro-sin-fondo.png';
+        a.click();
+        Audio.success();
+      }, 'image/png');
+      return;
+    }
     document.getElementById('bg-canvas').toBlob(blob => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -7056,7 +7282,7 @@ const ToolFn = (() => {
     irLoad, irSetMode, irToggleCompress, irSyncAR, irPreset, irPreviewLive, irDownload,
     mrLoad, mrProcess,
     fvLoad, fvDownloadPng, fvDownloadIco, fvShare,
-    bgLoad, bgAutoDetect, bgApply, bgDownload,
+    bgLoad, bgAutoDetect, bgApply, bgDownload, bgSetMode, bgSelClear, bgAutoDetectFigure,
     pwdGenerate,
     jsonFormat,
     textDiffRun, diffSetMode,
