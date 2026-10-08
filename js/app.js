@@ -163,6 +163,7 @@ const I18n = (() => {
     { id:'g8',  icon:'📐', cat:'pdf',        type:'pdf-crop',     isNew:true },
     { id:'g9',  icon:'⬛', cat:'pdf',        type:'pdf-redact',   isNew:true },
     { id:'g10', icon:'🩹', cat:'pdf',        type:'pdf-repair',   isNew:true },
+    { id:'g11', icon:'✍️', cat:'pdf',        type:'pdf-fill-sign', isNew:true },
   ];
 
   const STRINGS = {
@@ -205,6 +206,7 @@ const I18n = (() => {
         g1:'Recortar imagen', g2:'Rotar/espejar imagen', g3:'Numerar páginas de PDF', g4:'Marca de agua en imagen',
         g5:'Convertir HEIC a JPG/PNG', g6:'Collage de imágenes', g7:'Comparar dos PDFs',
         g8:'Recortar márgenes de PDF', g9:'Redactar PDF', g10:'Reparar PDF dañado',
+        g11:'Rellenar y firmar PDF',
       },
       toolDescs:{
         b1:'Reducí el tamaño de JPG/PNG con preview y comparación antes/después.',
@@ -265,6 +267,7 @@ const I18n = (() => {
         g8:'Recortá los márgenes de tu PDF dibujando el área que querés conservar sobre una vista previa. Se aplica a todas las páginas. 100% local.',
         g9:'Tapá texto o datos sensibles (DNI, direcciones) antes de compartir un PDF — dibujá rectángulos negros sobre cada página. El tapado es permanente, no se puede deshacer ni copiar el texto de abajo. 100% local.',
         g10:'Intentá arreglar un PDF que no abre o da error. Mejor esfuerzo: relee el archivo de forma tolerante y lo re-guarda limpio; si está muy dañado, lo reconstruye como imagen. 100% local.',
+        g11:'Agregá texto y tu firma dibujada a mano sobre cualquier PDF — arrastrá cada campo a donde quieras, página por página. El texto queda seleccionable, no es una imagen. 100% local.',
       },
       langs:['Inglés','Español','Portugués','Francés','Alemán','Italiano','Japonés','Chino (simplificado)','Árabe','Ruso','Coreano','Hindi'],
     },
@@ -1964,6 +1967,84 @@ const ToolUI = (() => {
         <div class="btn-row" style="margin-top:.6rem"><button class="btn" id="prep-btn" onclick="ToolFn.prepExport()">🩹 Reparar y descargar</button></div>
         <div id="prep-result" style="margin-top:.6rem"></div>
       </div>`,
+
+    /* ── PDF FILL & SIGN ── */
+    'pdf-fill-sign': () => {
+      const loaderHtml = loader('pfs-loader','⏳ generando PDF...');
+      const resultHtml = result('pfs-result');
+      return `<div id="pfs-upload-screen">` +
+        infoBox('Agregá texto y tu firma dibujada a mano sobre el PDF. Elegí "+ Texto" o "+ Firma", arrastrá el campo a donde quieras sobre la vista previa, y tocalo para editar su texto/tamaño/color o borrarlo. El texto queda seleccionable en el PDF final — no se convierte en imagen.') +
+        `<input type="file" id="pfs-file" accept="application/pdf" style="display:none" onchange="ToolFn.pfsLoad()">
+        <div class="file-drop" onclick="document.getElementById('pfs-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pfs-file').files=event.dataTransfer.files;ToolFn.pfsLoad()">
+          <div class="file-drop__icon">✍️</div>
+          <div class="file-drop__title">Arrastrá un PDF acá</div>
+          <div class="file-drop__sub">o hacé click para elegir</div>
+          <div class="file-drop__name" id="pfs-name"></div>
+        </div>
+        </div>
+        <div id="pfs-editor" style="display:none">
+          <div class="pr-topbar">
+            <div class="pr-topbar__info">
+              <span id="pfs-filename" style="font-family:var(--mono);font-size:.78rem;color:var(--fg2)"></span>
+              <span id="pfs-pages-info" style="font-family:var(--mono);font-size:.7rem;color:var(--fg3);margin-left:.6rem"></span>
+            </div>
+            <button class="btn btn--sec" onclick="ToolFn.pfsReset()" style="font-size:.7rem;padding:.25rem .6rem">✕ Cambiar PDF</button>
+          </div>
+          <div class="pr-workspace">
+            <div class="pr-sidebar" id="pfs-sidebar">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Páginas</p>
+              <p style="font-size:.65rem;color:var(--accent2);font-family:var(--mono);margin-bottom:.4rem">Click = editar esta página</p>
+              <div id="pfs-thumbs"></div>
+            </div>
+            <div class="pr-panel">
+              <p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:.5rem">Campos en esta página</p>
+              <div class="pr-scope-group" style="margin-bottom:.5rem">
+                <button class="pr-scope-btn" onclick="ToolFn.pfsAddText()">+ Texto</button>
+                <button class="pr-scope-btn" onclick="ToolFn.pfsOpenSigPad()">+ Firma</button>
+              </div>
+              <p style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.5rem" id="pfs-hint">el campo nuevo aparece en el medio de la página — arrastralo a donde quieras, tocalo para editarlo o borrarlo</p>
+              <canvas id="pfs-canvas" style="width:100%;max-width:520px;display:block;border-radius:8px;border:1.5px solid var(--border);touch-action:none;cursor:crosshair;background:var(--bg3)"></canvas>
+
+              <div id="pfs-field-toolbar" style="display:none;margin-top:.6rem;padding:.6rem;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2)">
+                <div id="pfs-text-row">
+                  <label>Texto</label>
+                  <input type="text" id="pfs-field-text" maxlength="200" oninput="ToolFn.pfsUpdateSelectedText(this.value)">
+                  <label>Tamaño: <span id="pfs-field-size-val"></span></label>
+                  <input type="range" min="8" max="64" id="pfs-field-size" oninput="document.getElementById('pfs-field-size-val').textContent=this.value;ToolFn.pfsUpdateSelectedSize(this.value)" style="width:100%">
+                  <label>Color</label>
+                  <div class="pr-scope-group" id="pfs-color-group">
+                    <button class="pr-scope-btn active" onclick="ToolFn.pfsSetColor('#1a1a1a',this)">Negro</button>
+                    <button class="pr-scope-btn" onclick="ToolFn.pfsSetColor('#1d4ed8',this)">Azul</button>
+                    <button class="pr-scope-btn" onclick="ToolFn.pfsSetColor('#dc2626',this)">Rojo</button>
+                  </div>
+                </div>
+                <div id="pfs-sig-row" style="display:none">
+                  <label>Tamaño: <span id="pfs-sig-size-val"></span>%</label>
+                  <input type="range" min="8" max="60" id="pfs-sig-size" oninput="document.getElementById('pfs-sig-size-val').textContent=this.value;ToolFn.pfsUpdateSelectedSigSize(this.value)" style="width:100%">
+                </div>
+                <div class="btn-row" style="margin-top:.5rem">
+                  <button class="btn btn--sec" onclick="ToolFn.pfsDeleteSelected()">🗑 Borrar este campo</button>
+                </div>
+              </div>
+
+              <div id="pfs-sigpad" style="display:none;margin-top:.6rem;padding:.6rem;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2)">
+                <label>Dibujá tu firma</label>
+                <canvas id="pfs-sigpad-canvas" width="480" height="160" style="width:100%;max-width:480px;aspect-ratio:3/1;display:block;border-radius:8px;border:1.5px solid var(--border);touch-action:none;cursor:crosshair;background:#fff"></canvas>
+                <div class="btn-row" style="margin-top:.5rem">
+                  <button class="btn btn--sec" onclick="ToolFn.pfsSigClear()">✕ Limpiar</button>
+                  <button class="btn btn--sec" onclick="ToolFn.pfsSigCancel()">Cancelar</button>
+                  <button class="btn" onclick="ToolFn.pfsSigUse()">✍️ Usar esta firma</button>
+                </div>
+              </div>
+
+              <div class="btn-row" style="margin-top:.9rem">
+                <button class="btn" onclick="ToolFn.pfsExport()">✍️ Generar y descargar</button>
+              </div>
+              ${loaderHtml}${resultHtml}
+            </div>
+          </div>
+        </div>`;
+    },
 
     /* ── PASSWORD GENERATOR ── */
     'pwd-gen': () =>
@@ -6217,6 +6298,377 @@ const ToolFn = (() => {
     btn.disabled = false;
   }
 
+  // ── pdf fill & sign ──
+  const PFS_SCALE = 1.4;
+  let _pfsFile = null, _pfsDoc = null, _pfsPagesTotal = 0, _pfsCurrentPage = 1;
+  let _pfsPageCanvas = null; // render de la página actual, para redibujar sin volver a pedirle a pdf.js
+  let _pfsFieldsByPage = new Map(); // pageNum -> [field, ...]
+  let _pfsSelected = null; // referencia directa al field seleccionado
+  let _pfsNextId = 1;
+  const _pfsImgCache = new Map(); // dataUrl -> HTMLImageElement ya cargada
+
+  async function pfsLoad() {
+    const f = document.getElementById('pfs-file').files[0]; if (!f) return;
+    _pfsFile = f;
+    _pfsFieldsByPage = new Map();
+    _pfsSelected = null;
+    document.getElementById('pfs-filename').textContent = f.name;
+    document.getElementById('pfs-upload-screen').style.display = 'none';
+    document.getElementById('pfs-editor').style.display = 'block';
+
+    const pdfjs = await _loadPdfJs();
+    _pfsDoc = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
+    _pfsPagesTotal = _pfsDoc.numPages;
+    document.getElementById('pfs-pages-info').textContent = `${_pfsPagesTotal} página${_pfsPagesTotal === 1 ? '' : 's'} · ${fmtSize(f.size)}`;
+
+    const thumbsEl = document.getElementById('pfs-thumbs');
+    thumbsEl.innerHTML = '';
+    for (let i = 1; i <= _pfsPagesTotal; i++) {
+      const page = await _pfsDoc.getPage(i);
+      const vp = page.getViewport({ scale: 0.3 });
+      const c = document.createElement('canvas');
+      c.width = vp.width; c.height = vp.height;
+      await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      const wrap = document.createElement('div');
+      wrap.className = 'pr-thumb pr-thumb--selectable' + (i === 1 ? ' pr-thumb--active' : '');
+      wrap.dataset.page = i;
+      wrap.innerHTML = `<div class="pr-thumb__canvas-wrap"><canvas width="${vp.width}" height="${vp.height}" style="width:100%;display:block"></canvas><div class="pr-thumb__overlay"><span class="pr-thumb__rot-badge" id="pfs-badge-${i}"></span></div></div><p class="pr-thumb__num">${i}</p>`;
+      wrap.querySelector('canvas').getContext('2d').drawImage(c, 0, 0);
+      wrap.addEventListener('click', () => pfsShowPage(i));
+      thumbsEl.appendChild(wrap);
+    }
+    await pfsShowPage(1);
+  }
+
+  async function pfsShowPage(n) {
+    _pfsCurrentPage = n;
+    _pfsSelectField(null);
+    document.querySelectorAll('#pfs-thumbs .pr-thumb').forEach(t => {
+      t.classList.toggle('pr-thumb--active', parseInt(t.dataset.page, 10) === n);
+    });
+    const page = await _pfsDoc.getPage(n);
+    const vp = page.getViewport({ scale: PFS_SCALE });
+    const c = document.createElement('canvas');
+    c.width = vp.width; c.height = vp.height;
+    await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+    _pfsPageCanvas = c;
+
+    const canvas = document.getElementById('pfs-canvas');
+    canvas.width = c.width; canvas.height = c.height;
+    _pfsInitDrag(canvas);
+    _pfsRedraw();
+  }
+
+  function pfsReset() {
+    _pfsFile = null; _pfsDoc = null; _pfsPagesTotal = 0; _pfsPageCanvas = null;
+    _pfsFieldsByPage = new Map(); _pfsSelected = null;
+    document.getElementById('pfs-upload-screen').style.display = 'block';
+    document.getElementById('pfs-editor').style.display = 'none';
+    document.getElementById('pfs-file').value = '';
+    document.getElementById('pfs-thumbs').innerHTML = '';
+    document.getElementById('pfs-sigpad').style.display = 'none';
+  }
+
+  function _pfsFields() {
+    if (!_pfsFieldsByPage.has(_pfsCurrentPage)) _pfsFieldsByPage.set(_pfsCurrentPage, []);
+    return _pfsFieldsByPage.get(_pfsCurrentPage);
+  }
+
+  function _pfsTextBox(ctx, field) {
+    const sizePx = field.sizeFrac * ctx.canvas.height;
+    ctx.font = `${sizePx}px sans-serif`;
+    const w = Math.max(ctx.measureText(field.text || ' ').width, sizePx * 0.6);
+    return { x: field.fx * ctx.canvas.width, y: field.fy * ctx.canvas.height, w, h: sizePx * 1.25, sizePx };
+  }
+
+  function pfsAddText() {
+    if (!_pfsPageCanvas) return;
+    const canvas = document.getElementById('pfs-canvas');
+    const field = {
+      id: _pfsNextId++, type: 'text',
+      fx: 0.38, fy: 0.46 + (_pfsFields().length % 4) * 0.02,
+      text: 'Texto', sizeFrac: 22 / canvas.height, color: '#1a1a1a',
+    };
+    _pfsFields().push(field);
+    _pfsRedraw();
+    _pfsSelectField(field);
+    Audio.click();
+  }
+
+  function pfsOpenSigPad() {
+    document.getElementById('pfs-sigpad').style.display = 'block';
+    document.getElementById('pfs-field-toolbar').style.display = 'none';
+    _pfsSigPadInit();
+  }
+
+  function pfsSigCancel() {
+    document.getElementById('pfs-sigpad').style.display = 'none';
+  }
+
+  function pfsSigClear() {
+    const c = document.getElementById('pfs-sigpad-canvas');
+    c.getContext('2d').clearRect(0, 0, c.width, c.height);
+    c.dataset.drawn = '';
+  }
+
+  function _pfsSigPadInit() {
+    const c = document.getElementById('pfs-sigpad-canvas');
+    if (c.dataset.init) { pfsSigClear(); return; }
+    c.dataset.init = '1';
+    const ctx = c.getContext('2d');
+    ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#1a1a1a';
+    let drawing = false, last = null;
+    function toXY(e) {
+      const rect = c.getBoundingClientRect();
+      return { x: (e.clientX - rect.left) * (c.width / rect.width), y: (e.clientY - rect.top) * (c.height / rect.height) };
+    }
+    c.addEventListener('pointerdown', e => {
+      drawing = true; last = toXY(e); c.setPointerCapture(e.pointerId); c.dataset.drawn = '1';
+    });
+    c.addEventListener('pointermove', e => {
+      if (!drawing) return;
+      const p = toXY(e);
+      ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+      last = p;
+    });
+    c.addEventListener('pointerup', () => { drawing = false; });
+    c.addEventListener('pointercancel', () => { drawing = false; });
+  }
+
+  async function pfsSigUse() {
+    const c = document.getElementById('pfs-sigpad-canvas');
+    if (!c.dataset.drawn) { UI.showToast('dibujá tu firma primero'); return; }
+    const dataUrl = c.toDataURL('image/png');
+    const img = await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.src = dataUrl; });
+    _pfsImgCache.set(dataUrl, img);
+    const canvas = document.getElementById('pfs-canvas');
+    const fw = 0.32;
+    const fh = (fw * canvas.width) * (img.height / img.width) / canvas.height;
+    const field = { id: _pfsNextId++, type: 'sig', fx: 0.34, fy: 0.42, fw, fh, dataUrl };
+    _pfsFields().push(field);
+    document.getElementById('pfs-sigpad').style.display = 'none';
+    _pfsRedraw();
+    _pfsSelectField(field);
+    Audio.click();
+  }
+
+  function _pfsSelectField(field) {
+    _pfsSelected = field;
+    const toolbar = document.getElementById('pfs-field-toolbar');
+    if (!field) { toolbar.style.display = 'none'; return; }
+    toolbar.style.display = 'block';
+    const isText = field.type === 'text';
+    document.getElementById('pfs-text-row').style.display = isText ? 'block' : 'none';
+    document.getElementById('pfs-sig-row').style.display = isText ? 'none' : 'block';
+    if (isText) {
+      document.getElementById('pfs-field-text').value = field.text;
+      const canvas = document.getElementById('pfs-canvas');
+      const sizePx = Math.round(field.sizeFrac * canvas.height);
+      document.getElementById('pfs-field-size').value = sizePx;
+      document.getElementById('pfs-field-size-val').textContent = sizePx;
+      document.querySelectorAll('#pfs-color-group .pr-scope-btn').forEach(b => b.classList.remove('active'));
+      const idx = ['#1a1a1a', '#1d4ed8', '#dc2626'].indexOf(field.color);
+      const btns = document.querySelectorAll('#pfs-color-group .pr-scope-btn');
+      if (idx >= 0 && btns[idx]) btns[idx].classList.add('active');
+    } else {
+      const pct = Math.round(field.fw * 100);
+      document.getElementById('pfs-sig-size').value = pct;
+      document.getElementById('pfs-sig-size-val').textContent = pct;
+    }
+  }
+
+  function pfsUpdateSelectedText(val) {
+    if (!_pfsSelected || _pfsSelected.type !== 'text') return;
+    _pfsSelected.text = val;
+    _pfsRedraw();
+  }
+
+  function pfsUpdateSelectedSize(px) {
+    if (!_pfsSelected || _pfsSelected.type !== 'text') return;
+    const canvas = document.getElementById('pfs-canvas');
+    _pfsSelected.sizeFrac = parseFloat(px) / canvas.height;
+    _pfsRedraw();
+  }
+
+  function pfsSetColor(hex, btn) {
+    if (!_pfsSelected || _pfsSelected.type !== 'text') return;
+    _pfsSelected.color = hex;
+    document.querySelectorAll('#pfs-color-group .pr-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    _pfsRedraw();
+  }
+
+  function pfsUpdateSelectedSigSize(pct) {
+    if (!_pfsSelected || _pfsSelected.type !== 'sig') return;
+    const img = _pfsImgCache.get(_pfsSelected.dataUrl);
+    const canvas = document.getElementById('pfs-canvas');
+    const fw = parseFloat(pct) / 100;
+    _pfsSelected.fw = fw;
+    if (img) _pfsSelected.fh = (fw * canvas.width) * (img.height / img.width) / canvas.height;
+    _pfsRedraw();
+  }
+
+  function pfsDeleteSelected() {
+    if (!_pfsSelected) return;
+    const arr = _pfsFields();
+    const idx = arr.indexOf(_pfsSelected);
+    if (idx >= 0) arr.splice(idx, 1);
+    _pfsSelectField(null);
+    _pfsRedraw();
+    Audio.click();
+  }
+
+  function _pfsHitTest(canvas, x, y) {
+    const ctx = canvas.getContext('2d');
+    const arr = _pfsFields();
+    for (let i = arr.length - 1; i >= 0; i--) {
+      const f = arr[i];
+      if (f.type === 'text') {
+        const box = _pfsTextBox(ctx, f);
+        if (x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h) return f;
+      } else {
+        const bx = f.fx * canvas.width, by = f.fy * canvas.height, bw = f.fw * canvas.width, bh = f.fh * canvas.height;
+        if (x >= bx && x <= bx + bw && y >= by && y <= by + bh) return f;
+      }
+    }
+    return null;
+  }
+
+  function _pfsInitDrag(canvas) {
+    if (canvas.dataset.fsInit) return;
+    canvas.dataset.fsInit = '1';
+    let dragging = null, offX = 0, offY = 0;
+
+    function toCanvasXY(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scale = canvas.width / rect.width;
+      return {
+        x: Math.max(0, Math.min(canvas.width, (e.clientX - rect.left) * scale)),
+        y: Math.max(0, Math.min(canvas.height, (e.clientY - rect.top) * scale)),
+      };
+    }
+
+    canvas.addEventListener('pointerdown', e => {
+      const p = toCanvasXY(e);
+      const hit = _pfsHitTest(canvas, p.x, p.y);
+      _pfsSelectField(hit);
+      _pfsRedraw();
+      if (hit) {
+        dragging = hit;
+        offX = p.x - hit.fx * canvas.width;
+        offY = p.y - hit.fy * canvas.height;
+        canvas.setPointerCapture(e.pointerId);
+      }
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      const p = toCanvasXY(e);
+      dragging.fx = Math.max(0, Math.min(1, (p.x - offX) / canvas.width));
+      dragging.fy = Math.max(0, Math.min(1, (p.y - offY) / canvas.height));
+      _pfsRedraw();
+    });
+    canvas.addEventListener('pointerup', () => { dragging = null; });
+    canvas.addEventListener('pointercancel', () => { dragging = null; });
+  }
+
+  function _pfsRedraw() {
+    const canvas = document.getElementById('pfs-canvas');
+    if (!canvas || !_pfsPageCanvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(_pfsPageCanvas, 0, 0);
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent2').trim() || '#ff6ef7';
+    _pfsFields().forEach(f => {
+      if (f.type === 'text') {
+        const box = _pfsTextBox(ctx, f);
+        ctx.font = `${box.sizePx}px sans-serif`;
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = f.color;
+        ctx.fillText(f.text, box.x, box.y);
+        if (f === _pfsSelected) {
+          ctx.strokeStyle = accent; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+          ctx.strokeRect(box.x - 3, box.y - 3, box.w + 6, box.h + 6);
+          ctx.setLineDash([]);
+        }
+      } else {
+        const img = _pfsImgCache.get(f.dataUrl);
+        const x = f.fx * canvas.width, y = f.fy * canvas.height, w = f.fw * canvas.width, h = f.fh * canvas.height;
+        if (img) ctx.drawImage(img, x, y, w, h);
+        if (f === _pfsSelected) {
+          ctx.strokeStyle = accent; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+          ctx.strokeRect(x - 3, y - 3, w + 6, h + 6);
+          ctx.setLineDash([]);
+        }
+      }
+    });
+  }
+
+  async function pfsExport() {
+    if (!_pfsFile) return;
+    const totalFields = [..._pfsFieldsByPage.values()].reduce((s, arr) => s + arr.length, 0);
+    if (!totalFields) {
+      UI.showToast('agregá al menos un texto o una firma primero');
+      return;
+    }
+    toggleLoader('pfs-loader', true);
+    try {
+      const { PDFDocument, rgb, StandardFonts } = await _loadPdfLib();
+      const srcDoc = await PDFDocument.load(await _pfsFile.arrayBuffer(), { ignoreEncryption: true });
+      const font = await srcDoc.embedFont(StandardFonts.Helvetica);
+      const embeddedImgs = new Map(); // dataUrl -> imagen embebida en srcDoc
+
+      function hexToRgb(hex) {
+        const n = parseInt(hex.replace('#', ''), 16);
+        return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
+      }
+
+      for (const [pageNum, fields] of _pfsFieldsByPage.entries()) {
+        if (!fields.length) continue;
+        const page = srcDoc.getPage(pageNum - 1);
+        const { width: pw, height: ph } = page.getSize();
+        for (const f of fields) {
+          if (f.type === 'text') {
+            if (!f.text) continue;
+            const sizePt = f.sizeFrac * ph;
+            page.drawText(f.text, {
+              x: f.fx * pw,
+              y: ph - f.fy * ph - sizePt, // pdf-lib ancla el texto por su base, no por el tope
+              size: sizePt,
+              font,
+              color: hexToRgb(f.color),
+            });
+          } else {
+            let img = embeddedImgs.get(f.dataUrl);
+            if (!img) {
+              const base64 = f.dataUrl.split(',')[1];
+              const bin = atob(base64);
+              const bytes = new Uint8Array(bin.length);
+              for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+              img = await srcDoc.embedPng(bytes);
+              embeddedImgs.set(f.dataUrl, img);
+            }
+            const w = f.fw * pw, h = f.fh * ph;
+            page.drawImage(img, { x: f.fx * pw, y: ph - f.fy * ph - h, width: w, height: h });
+          }
+        }
+      }
+
+      const bytes = await srcDoc.save();
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taro-firmado.pdf';
+      a.click();
+      toggleLoader('pfs-loader', false);
+      showResult('pfs-result', `✅ PDF generado con ${totalFields} campo${totalFields === 1 ? '' : 's'} · ${fmtSize(blob.size)}`);
+      Audio.success();
+    } catch (e) {
+      toggleLoader('pfs-loader', false);
+      showResult('pfs-result', '❌ ' + e.message, true);
+      Audio.error();
+    }
+  }
+
   // ── unit converter ──
   const UNIT_DATA = {
     longitud:   { units: { mm:0.001, cm:0.01, m:1, km:1000, in:0.0254, ft:0.3048, yd:0.9144, mi:1609.344 } },
@@ -6439,6 +6891,8 @@ const ToolFn = (() => {
     pcropLoad, pcropShowPage, pcropReset, pcropClear, pcropSetScope, pcropQuickMargin, pcropExport,
     predLoad, predShowPage, predReset, predClearPage, predExport,
     prepLoad, prepExport,
+    pfsLoad, pfsShowPage, pfsReset, pfsAddText, pfsOpenSigPad, pfsSigCancel, pfsSigClear, pfsSigUse,
+    pfsUpdateSelectedText, pfsUpdateSelectedSize, pfsSetColor, pfsUpdateSelectedSigSize, pfsDeleteSelected, pfsExport,
     unitCatChange, unitConvert, unitSwap,
     ctSetPreset, ctSetCustom, ctToggle, ctReset,
     paletteGenerate,
