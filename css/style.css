@@ -587,7 +587,7 @@ header {
     repeating-conic-gradient(#8888 0% 25%, transparent 0% 50%) 0 0/16px 16px,
     var(--bg3);
 }
-.bg-canvas-wrap canvas { width:100%; display:block; max-height:340px; cursor:crosshair; }
+.bg-canvas-wrap canvas { width:100%; display:block; max-height:340px; cursor:crosshair; touch-action:none; }
 
 .fv-preview-row { display:flex; gap:.7rem; align-items:flex-end; margin:.8rem 0; flex-wrap:wrap; }
 .fv-thumb {

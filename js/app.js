@@ -1378,7 +1378,12 @@ const ToolUI = (() => {
           </div>
         </div>
         <div id="bg-select-controls" style="display:none">
-          <p id="bg-sel-hint" aria-live="polite" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.6rem 0">dibujá un rectángulo alrededor de la figura (arrastrá adentro para moverlo, los círculos cambian el tamaño)</p>
+          <label id="bg-shape-label">Forma de selección</label>
+          <div class="pr-scope-group" role="group" aria-labelledby="bg-shape-label">
+            <button id="bg-shape-rect-btn" class="pr-scope-btn bg-shape-btn active" onclick="ToolFn.bgSetShape('rect',this)">▭ Rectángulo</button>
+            <button class="pr-scope-btn bg-shape-btn" onclick="ToolFn.bgSetShape('lasso',this)">✏️ Dibujar a mano</button>
+          </div>
+          <p id="bg-sel-hint" aria-live="polite" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.6rem 0">rectángulo: arrastrá para dibujar, adentro para mover, los círculos cambian el tamaño · a mano: arrastrá el contorno de la figura (se ve en vivo cómo queda sin fondo)</p>
           <div class="btn-row">
             <button class="btn btn--sec" onclick="ToolFn.bgAutoDetectFigure()">🎯 Auto-detectar figura</button>
             <button class="btn btn--sec" onclick="ToolFn.bgSelClear()">✕ Limpiar selección</button>
@@ -3791,6 +3796,7 @@ const ToolFn = (() => {
   // ── background remove (chroma-key local + selección manual) ──
   const BG_SEL_MIN_SIZE = 20, BG_SEL_HANDLE_R = 7, BG_SEL_HIT_R = 14, BG_SEL_FEATHER = 6;
   let _bgImg = null, _bgColor = null, _bgMode = 'color', _bgSelRect = null;
+  let _bgSelShape = 'rect', _bgSelPath = null, _bgFinalPreview = null;
 
   function bgLoad() {
     const f = document.getElementById('bg-file').files[0]; if (!f) return;
@@ -3798,13 +3804,14 @@ const ToolFn = (() => {
     const img = new Image();
     img.onload = () => {
       _bgImg = img;
-      _bgMode = 'color'; _bgSelRect = null;
+      _bgMode = 'color'; _bgSelRect = null; _bgSelShape = 'rect'; _bgSelPath = null; _bgFinalPreview = null;
       const canvas = document.getElementById('bg-canvas');
       canvas.width = img.width; canvas.height = img.height;
       canvas.getContext('2d').drawImage(img, 0, 0);
       canvas.onclick = _bgPickColor;
       _bgInitSelectDrag(canvas);
       document.querySelectorAll('.pr-mode-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
+      document.querySelectorAll('.bg-shape-btn').forEach(b => b.classList.toggle('active', b.id === 'bg-shape-rect-btn'));
       document.getElementById('bg-color-controls').style.display = 'block';
       document.getElementById('bg-select-controls').style.display = 'none';
       document.getElementById('bg-info').style.display = 'block';
@@ -3821,7 +3828,16 @@ const ToolFn = (() => {
     document.getElementById('bg-color-controls').style.display = mode === 'color' ? 'block' : 'none';
     document.getElementById('bg-select-controls').style.display = mode === 'select' ? 'block' : 'none';
     if (mode === 'color') bgApply();
-    else _bgSelRedraw();
+    else _bgSelRedrawFinal();
+  }
+
+  function bgSetShape(shape, btn) {
+    if (!_bgImg) return;
+    _bgSelShape = shape;
+    document.querySelectorAll('.bg-shape-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    _bgSelRect = null; _bgSelPath = null; _bgFinalPreview = null;
+    _bgSelRedrawFinal();
   }
 
   function _bgSampleAt(x, y) {
@@ -3933,7 +3949,7 @@ const ToolFn = (() => {
     ctx.putImageData(imgData, 0, 0);
   }
 
-  // ── selección manual (rectángulo arrastrable, estilo pdf-crop) ──
+  // ── selección manual (rectángulo arrastrable o dibujo libre, estilo pdf-crop) ──
   function _bgSelHandles(r) {
     const { x, y, w, h } = r;
     return [
@@ -3941,6 +3957,49 @@ const ToolFn = (() => {
       { id: 'w',  cx: x,       cy: y + h/2 },                                          { id: 'e',  cx: x + w, cy: y + h/2 },
       { id: 'sw', cx: x,       cy: y + h   }, { id: 's', cx: x + w / 2, cy: y + h   }, { id: 'se', cx: x + w, cy: y + h   },
     ];
+  }
+
+  // true si hay una selección válida con la forma actual (rectángulo o path a mano)
+  function _bgShapeValid() {
+    if (_bgSelShape === 'rect') return !!(_bgSelRect && _bgSelRect.w >= 2 && _bgSelRect.h >= 2);
+    return !!(_bgSelPath && _bgSelPath.length >= 3);
+  }
+
+  // agrega la forma actual al path ya abierto de ctx (sin hacer beginPath, para poder
+  // combinarla con otros subpaths, ej. para el recorte "todo menos la selección")
+  function _bgAddShapeSubpath(ctx) {
+    if (!_bgShapeValid()) return false;
+    if (_bgSelShape === 'rect') {
+      const { x, y, w, h } = _bgSelRect;
+      ctx.rect(x, y, w, h);
+    } else {
+      ctx.moveTo(_bgSelPath[0].x, _bgSelPath[0].y);
+      for (let i = 1; i < _bgSelPath.length; i++) ctx.lineTo(_bgSelPath[i].x, _bgSelPath[i].y);
+      ctx.closePath();
+    }
+    return true;
+  }
+
+  function _bgStrokeShape(ctx) {
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#9184d9';
+    ctx.beginPath();
+    _bgAddShapeSubpath(ctx);
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  function _bgDrawHandles(ctx) {
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#9184d9';
+    _bgSelHandles(_bgSelRect).forEach(hd => {
+      ctx.beginPath();
+      ctx.arc(hd.cx, hd.cy, BG_SEL_HANDLE_R, 0, Math.PI * 2);
+      ctx.fillStyle = accent;
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
+    });
   }
 
   function _bgInitSelectDrag(canvas) {
@@ -3972,6 +4031,13 @@ const ToolFn = (() => {
     canvas.addEventListener('pointerdown', e => {
       if (_bgMode !== 'select') return;
       const p = toCanvasXY(e);
+      if (_bgSelShape === 'lasso') {
+        mode = 'lasso';
+        _bgSelPath = [{ x: p.x, y: p.y }];
+        canvas.setPointerCapture(e.pointerId);
+        _bgSelRedrawDim();
+        return;
+      }
       const hitR = BG_SEL_HIT_R * p.scale;
       if (_bgSelRect) {
         const hit = _bgSelHandles(_bgSelRect).find(h => Math.abs(h.cx - p.x) <= hitR && Math.abs(h.cy - p.y) <= hitR);
@@ -3995,6 +4061,12 @@ const ToolFn = (() => {
     canvas.addEventListener('pointermove', e => {
       if (_bgMode !== 'select' || !mode) return;
       const p = toCanvasXY(e);
+      if (mode === 'lasso') {
+        const last = _bgSelPath[_bgSelPath.length - 1];
+        if (Math.hypot(p.x - last.x, p.y - last.y) >= 2) _bgSelPath.push({ x: p.x, y: p.y });
+        _bgSelRedrawDim();
+        return;
+      }
       if (mode === 'draw') {
         const x = Math.min(startX, p.x), y = Math.min(startY, p.y);
         const w = Math.abs(p.x - startX), h = Math.abs(p.y - startY);
@@ -4006,47 +4078,76 @@ const ToolFn = (() => {
       } else if (mode === 'resize') {
         resizeTo(handleId, p);
       }
-      _bgSelRedraw();
+      _bgSelRedrawDim();
     });
-    const endDrag = () => { mode = null; handleId = null; };
+    const endDrag = () => {
+      if (mode) _bgSelRedrawFinal(); // al soltar, calculamos la vista previa real (con feather)
+      mode = null; handleId = null;
+    };
     canvas.addEventListener('pointerup', endDrag);
     canvas.addEventListener('pointercancel', endDrag);
   }
 
-  function _bgSelRedraw() {
+  // vista rápida mientras se arrastra/dibuja: solo oscurece lo de afuera, sin
+  // recalcular el recorte real (que es más costoso por el blur de feather)
+  function _bgSelRedrawDim() {
     const canvas = document.getElementById('bg-canvas');
     if (!canvas || !_bgImg) return;
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
     ctx.drawImage(_bgImg, 0, 0);
-    if (!_bgSelRect || _bgSelRect.w < 2 || _bgSelRect.h < 2) return;
-    const { x, y, w, h } = _bgSelRect;
-    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#9184d9';
-
+    if (!_bgShapeValid()) return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    _bgAddShapeSubpath(ctx);
+    ctx.clip('evenodd'); // todo menos la selección
     ctx.fillStyle = 'rgba(0,0,0,.55)';
-    ctx.fillRect(0, 0, canvas.width, y);
-    ctx.fillRect(0, y + h, canvas.width, canvas.height - (y + h));
-    ctx.fillRect(0, y, x, h);
-    ctx.fillRect(x + w, y, canvas.width - (x + w), h);
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+    _bgStrokeShape(ctx);
+    if (_bgSelShape === 'rect') _bgDrawHandles(ctx);
+  }
 
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, h);
+  // vista previa real: compone el recorte final (con feather) para que se vea
+  // exactamente cómo queda sin fondo, y lo deja cacheado para la descarga
+  function _bgSelRedrawFinal() {
+    const canvas = document.getElementById('bg-canvas');
+    if (!canvas || !_bgImg) return;
+    const w = canvas.width, h = canvas.height;
+    const ctx = canvas.getContext('2d');
+    if (!_bgShapeValid()) {
+      _bgFinalPreview = null;
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(_bgImg, 0, 0);
+      return;
+    }
+    const prev = document.createElement('canvas');
+    prev.width = w; prev.height = h;
+    const pctx = prev.getContext('2d');
+    pctx.drawImage(_bgImg, 0, 0);
+    // recortamos con destination-in: lo blanco relleno queda, el resto se hace
+    // transparente. El blur del relleno da un borde suave sin tocar pixel a pixel.
+    pctx.globalCompositeOperation = 'destination-in';
+    pctx.filter = `blur(${BG_SEL_FEATHER}px)`;
+    pctx.fillStyle = '#fff';
+    pctx.beginPath();
+    _bgAddShapeSubpath(pctx);
+    pctx.fill();
+    pctx.filter = 'none';
+    pctx.globalCompositeOperation = 'source-over';
+    _bgFinalPreview = prev;
 
-    _bgSelHandles(_bgSelRect).forEach(hd => {
-      ctx.beginPath();
-      ctx.arc(hd.cx, hd.cy, BG_SEL_HANDLE_R, 0, Math.PI * 2);
-      ctx.fillStyle = accent;
-      ctx.fill();
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = '#fff';
-      ctx.stroke();
-    });
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(prev, 0, 0);
+    _bgStrokeShape(ctx);
+    if (_bgSelShape === 'rect') _bgDrawHandles(ctx);
   }
 
   function bgSelClear() {
-    _bgSelRect = null;
-    _bgSelRedraw();
+    _bgSelRect = null; _bgSelPath = null; _bgFinalPreview = null;
+    _bgSelRedrawFinal();
   }
 
   function bgAutoDetectFigure() {
@@ -4086,31 +4187,20 @@ const ToolFn = (() => {
       const x = Math.max(0, minX - padX), y = Math.max(0, minY - padY);
       _bgSelRect = { x, y, w: Math.min(w, maxX + padX) - x, h: Math.min(h, maxY + padY) - y };
     }
-    _bgSelRedraw();
+    _bgSelShape = 'rect'; _bgSelPath = null;
+    document.querySelectorAll('.bg-shape-btn').forEach(b => b.classList.toggle('active', b.id === 'bg-shape-rect-btn'));
+    _bgSelRedrawFinal();
     Audio.click();
   }
 
   function bgDownload() {
     if (!_bgImg) return;
     if (_bgMode === 'select') {
-      const w = _bgImg.width, h = _bgImg.height;
-      const c = document.createElement('canvas');
-      c.width = w; c.height = h;
-      const ctx = c.getContext('2d');
-      ctx.drawImage(_bgImg, 0, 0);
-      if (_bgSelRect && _bgSelRect.w >= 2 && _bgSelRect.h >= 2) {
-        const imgData = ctx.getImageData(0, 0, w, h);
-        const data = imgData.data;
-        const { x: rx, y: ry, w: rw, h: rh } = _bgSelRect;
-        for (let p = 0, i = 0, y = 0; y < h; y++) {
-          for (let x = 0; x < w; x++, p++, i += 4) {
-            const dx = Math.max(rx - x, 0, x - (rx + rw));
-            const dy = Math.max(ry - y, 0, y - (ry + rh));
-            const d = Math.sqrt(dx * dx + dy * dy);
-            if (d > 0) data[i+3] = Math.round(data[i+3] * Math.max(0, 1 - d / BG_SEL_FEATHER));
-          }
-        }
-        ctx.putImageData(imgData, 0, 0);
+      let c = _bgFinalPreview;
+      if (!c) {
+        c = document.createElement('canvas');
+        c.width = _bgImg.width; c.height = _bgImg.height;
+        c.getContext('2d').drawImage(_bgImg, 0, 0);
       }
       c.toBlob(blob => {
         const a = document.createElement('a');
@@ -7282,7 +7372,7 @@ const ToolFn = (() => {
     irLoad, irSetMode, irToggleCompress, irSyncAR, irPreset, irPreviewLive, irDownload,
     mrLoad, mrProcess,
     fvLoad, fvDownloadPng, fvDownloadIco, fvShare,
-    bgLoad, bgAutoDetect, bgApply, bgDownload, bgSetMode, bgSelClear, bgAutoDetectFigure,
+    bgLoad, bgAutoDetect, bgApply, bgDownload, bgSetMode, bgSetShape, bgSelClear, bgAutoDetectFigure,
     pwdGenerate,
     jsonFormat,
     textDiffRun, diffSetMode,
