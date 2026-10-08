@@ -718,7 +718,7 @@ const ToolUI = (() => {
       label('Imagen (o varias)') +
       `${dropZone('ic-file','image/jpeg,image/png,image/webp','ToolFn.previewImg()','Arrastrá una o más imágenes acá',true)}` +
       label('Calidad: <span id="ic-ql">75</span>%') +
-      `<input type="range" min="5" max="99" value="75" id="ic-q" oninput="ToolFn.onQualityChange()" style="width:100%;margin:.25rem 0 .1rem">` +
+      `<input type="range" min="5" max="99" value="75" id="ic-q" oninput="ToolFn.onQualityChange()" style="width:100%;margin:.25rem 0 .1rem" aria-label="Calidad de la imagen comprimida">` +
       `<div id="ic-reduction" style="font-size:.75rem;color:var(--fg3);font-family:var(--mono);min-height:1.2rem;margin:.3rem 0"></div>` +
       label('Tamaño objetivo (opcional, una sola imagen)') +
       `<div style="display:flex;gap:.5rem;align-items:center">
@@ -837,8 +837,8 @@ const ToolUI = (() => {
     /* ── IMG RESIZE ── */
     'img-resize': () =>
       infoBox('Redimensioná tu imagen. Presets, píxeles o porcentaje. Preview en vivo. 100% local.') +
-      `<input type="file" id="ir-file" accept="image/*" style="display:none" onchange="ToolFn.irLoad()">` +
-      `<div class="file-drop" id="ir-drop" onclick="document.getElementById('ir-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');const dt=event.dataTransfer;if(dt.files.length){const inp=document.getElementById('ir-file');const tsfr=new DataTransfer();tsfr.items.add(dt.files[0]);inp.files=tsfr.files;ToolFn.irLoad();}">
+      `<div class="file-drop" id="ir-drop">
+        <input type="file" id="ir-file" accept="image/*" onchange="ToolFn.irLoad()" aria-label="Elegí una imagen para redimensionar">
         <div class="file-drop__icon">📐</div>
         <div class="file-drop__title">Arrastrá una imagen acá</div>
         <div class="file-drop__sub">o hacé click · JPG, PNG, WEBP, GIF</div>
@@ -853,9 +853,9 @@ const ToolUI = (() => {
         </div>
 
         <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:.5rem;align-items:end;margin-bottom:.4rem">
-          <div><label style="margin-top:0" id="ir-lbl-w">Ancho (px)</label><input type="number" id="ir-w" oninput="ToolFn.irSyncAR('w')" placeholder="1920" style="text-align:center"></div>
+          <div><label style="margin-top:0" id="ir-lbl-w" for="ir-w">Ancho (px)</label><input type="number" id="ir-w" oninput="ToolFn.irSyncAR('w')" placeholder="1920" style="text-align:center"></div>
           <div style="padding-bottom:.6rem;color:var(--fg3);font-family:var(--mono);font-size:.9rem">×</div>
-          <div><label style="margin-top:0" id="ir-lbl-h">Alto (px)</label><input type="number" id="ir-h" oninput="ToolFn.irSyncAR('h')" placeholder="1080" style="text-align:center"></div>
+          <div><label style="margin-top:0" id="ir-lbl-h" for="ir-h">Alto (px)</label><input type="number" id="ir-h" oninput="ToolFn.irSyncAR('h')" placeholder="1080" style="text-align:center"></div>
         </div>
 
         <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;cursor:pointer;margin-bottom:.5rem">
@@ -866,7 +866,7 @@ const ToolUI = (() => {
           <input type="checkbox" id="ir-compress" onchange="ToolFn.irToggleCompress()"> Comprimir (JPEG)
         </label>
         <div id="ir-q-row" style="display:none;margin-bottom:.4rem">
-          <label style="margin-top:.3rem">Calidad: <span id="ir-ql">80</span>%</label>
+          <label style="margin-top:.3rem" for="ir-q">Calidad: <span id="ir-ql">80</span>%</label>
           <input type="range" min="10" max="99" value="80" id="ir-q" oninput="document.getElementById('ir-ql').textContent=this.value;ToolFn.irPreviewLive()" style="width:100%">
         </div>
 
@@ -895,8 +895,8 @@ const ToolUI = (() => {
     /* ── META REMOVE ── */
     'meta-remove': () =>
       infoBox('Cada foto que sacás con el celular guarda datos ocultos además de la imagen: en qué <b>ubicación GPS</b> exacta la sacaste, la <b>marca y modelo</b> de tu cámara o teléfono, y la <b>fecha y hora</b> exacta. Si subís esa foto tal cual a redes sociales, Marketplace o un anuncio, cualquiera puede extraer esos datos y saber dónde vivís o dónde estabas. Esta herramienta te la limpia antes de compartirla — 100% local, la imagen nunca sale de tu navegador.') +
-      `<input type="file" id="mr-file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="ToolFn.mrLoad()">` +
-      `<div class="file-drop" id="mr-drop" onclick="document.getElementById('mr-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('mr-file').files=event.dataTransfer.files;ToolFn.mrLoad()">
+      `<div class="file-drop" id="mr-drop">
+        <input type="file" id="mr-file" accept="image/jpeg,image/png,image/webp" onchange="ToolFn.mrLoad()" aria-label="Elegí una imagen para quitar manchas">
         <div class="file-drop__icon">🚫</div>
         <div class="file-drop__title">Arrastrá una imagen acá</div>
         <div class="file-drop__sub">o hacé click para elegir · JPG, PNG, WEBP</div>
@@ -932,8 +932,8 @@ const ToolUI = (() => {
     /* ── FAVICON GEN ── */
     'favicon-gen': () =>
       infoBox('Convertí cualquier imagen a favicon. Se genera un <b>.ico</b> con múltiples tamaños (16, 32, 48px) listo para usar en tu web.') +
-      `<input type="file" id="fv-file" accept="image/*" style="display:none" onchange="ToolFn.fvLoad()">` +
-      `<div class="file-drop" id="fv-drop" onclick="document.getElementById('fv-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('fv-file').files=event.dataTransfer.files;ToolFn.fvLoad()">
+      `<div class="file-drop" id="fv-drop">
+        <input type="file" id="fv-file" accept="image/*" onchange="ToolFn.fvLoad()" aria-label="Elegí una imagen para generar el favicon">
         <div class="file-drop__icon">🌐</div>
         <div class="file-drop__title">Arrastrá una imagen acá</div>
         <div class="file-drop__sub">o hacé click para elegir · PNG recomendado</div>
@@ -973,8 +973,8 @@ const ToolUI = (() => {
     /* ── PDF MERGE ── */
     'pdf-merge': () =>
       infoBox('Combiná varios PDFs en uno solo. Arrastrá las tarjetas para reordenar. 100% local con <b>PDF-lib</b>.') +
-      `<input type="file" id="pm-files" accept="application/pdf" multiple style="display:none" onchange="ToolFn.pmLoad()">` +
-      `<div class="file-drop" onclick="document.getElementById('pm-files').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pm-files').files=event.dataTransfer.files;ToolFn.pmLoad()">
+      `<div class="file-drop">
+        <input type="file" id="pm-files" accept="application/pdf" multiple onchange="ToolFn.pmLoad()" aria-label="Elegí los PDFs para unir">
         <div class="file-drop__icon">🔗</div>
         <div class="file-drop__title">Arrastrá los PDFs acá</div>
         <div class="file-drop__sub">o hacé click · varios archivos a la vez</div>
@@ -991,8 +991,8 @@ const ToolUI = (() => {
       const resultHtml = result('ps-result');
       return `<div id="ps-upload-screen">` +
         infoBox('Dividí un PDF en páginas individuales o por rango. Hacé click en las miniaturas para seleccionar.') +
-        `<input type="file" id="ps-file" accept="application/pdf" style="display:none" onchange="ToolFn.psLoad()">
-        <div class="file-drop" onclick="document.getElementById('ps-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('ps-file').files=event.dataTransfer.files;ToolFn.psLoad()">
+        `<div class="file-drop">
+          <input type="file" id="ps-file" accept="application/pdf" onchange="ToolFn.psLoad()" aria-label="Elegí un PDF para dividir">
           <div class="file-drop__icon">✂️</div>
           <div class="file-drop__title">Arrastrá un PDF acá</div>
           <div class="file-drop__sub">o hacé click para elegir</div>
@@ -1020,7 +1020,7 @@ const ToolUI = (() => {
                 <button class="pr-scope-btn" id="ps-scope-range" onclick="ToolFn.psSetScope('range',this)">Rango</button>
               </div>
               <div id="ps-range-row" style="display:none;margin-top:.5rem">
-                <label>Páginas (ej: 1-3, 5, 7-9)</label>
+                <label for="ps-range">Páginas (ej: 1-3, 5, 7-9)</label>
                 <input type="text" id="ps-range" placeholder="1-3, 5, 7-9" oninput="ToolFn.psHighlightRange()">
               </div>
               <div id="ps-sel-hint" style="display:none;font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin-top:.4rem">✦ Hacé click en las miniaturas para seleccionar</div>
@@ -1043,8 +1043,8 @@ const ToolUI = (() => {
       const resultHtml = result('pc-result');
       return `<div id="pc-upload-screen">` +
         infoBox('Reducí el peso del PDF quitando metadatos innecesarios. Para reducciones grandes, activá el modo agresivo. 100% local.') +
-        `<input type="file" id="pc-file" accept="application/pdf" style="display:none" onchange="ToolFn.pcLoad()">
-        <div class="file-drop" onclick="document.getElementById('pc-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pc-file').files=event.dataTransfer.files;ToolFn.pcLoad()">
+        `<div class="file-drop">
+          <input type="file" id="pc-file" accept="application/pdf" onchange="ToolFn.pcLoad()" aria-label="Elegí un PDF para comprimir">
           <div class="file-drop__icon">🗜️</div>
           <div class="file-drop__title">Arrastrá un PDF acá</div>
           <div class="file-drop__sub">o hacé click para elegir</div>
@@ -1079,7 +1079,7 @@ const ToolUI = (() => {
                 <input type="checkbox" id="pc-aggressive" onchange="ToolFn.pcUpdateEst()"> Modo agresivo
               </label>
               <p style="font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin:.25rem 0 .6rem">Convierte cada página en imagen para lograr mucha más reducción — el texto deja de ser seleccionable/buscable.</p>
-              <label>Calidad de imagen (modo agresivo): <span id="pc-ql" style="color:var(--accent);font-family:var(--mono)">80</span>%</label>
+              <label for="pc-q">Calidad de imagen (modo agresivo): <span id="pc-ql" style="color:var(--accent);font-family:var(--mono)">80</span>%</label>
               <input type="range" min="10" max="99" value="80" id="pc-q" oninput="ToolFn.pcUpdateEst()" style="width:100%;margin:.25rem 0 .4rem;accent-color:var(--accent)">
               <p style="font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.6rem">Sin modo agresivo, solo se eliminan metadatos (título, autor, etc.) y el archivo se reduce apenas.</p>
               <label>Tamaño objetivo (opcional, solo en modo agresivo)</label>
@@ -1102,8 +1102,8 @@ const ToolUI = (() => {
       const loaderHtml = loader('pj-loader','⏳ convirtiendo páginas...');
       return `<div id="pj-upload-screen">` +
         infoBox('Exportá cada página como JPG. Preview en vivo al cambiar calidad. Descargá individual o todo en ZIP.') +
-        `<input type="file" id="pj-file" accept="application/pdf" style="display:none" onchange="ToolFn.pjLoad()">
-        <div class="file-drop" onclick="document.getElementById('pj-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pj-file').files=event.dataTransfer.files;ToolFn.pjLoad()">
+        `<div class="file-drop">
+          <input type="file" id="pj-file" accept="application/pdf" onchange="ToolFn.pjLoad()" aria-label="Elegí un PDF para convertir a imágenes">
           <div class="file-drop__icon">🖼️</div>
           <div class="file-drop__title">Arrastrá un PDF acá</div>
           <div class="file-drop__sub">o hacé click para elegir</div>
@@ -1124,9 +1124,9 @@ const ToolUI = (() => {
               <div id="pj-thumbs"></div>
             </div>
             <div class="pr-panel">
-              <label>Resolución: <span id="pj-scale-lbl" style="color:var(--accent);font-family:var(--mono)">Alta (2x)</span></label>
+              <label for="pj-scale">Resolución: <span id="pj-scale-lbl" style="color:var(--accent);font-family:var(--mono)">Alta (2x)</span></label>
               <input type="range" min="1" max="3" step="0.5" value="2" id="pj-scale" oninput="ToolFn.pjUpdateScaleLabel()" style="width:100%;margin:.25rem 0 .4rem;accent-color:var(--accent)">
-              <label style="margin-top:.5rem">Calidad JPG: <span id="pj-ql" style="color:var(--accent);font-family:var(--mono)">92</span>%</label>
+              <label style="margin-top:.5rem" for="pj-quality">Calidad JPG: <span id="pj-ql" style="color:var(--accent);font-family:var(--mono)">92</span>%</label>
               <input type="range" min="50" max="99" value="92" id="pj-quality" oninput="ToolFn.pjUpdateQLLabel()" style="width:100%;margin:.25rem 0 .8rem;accent-color:var(--accent)">
               <div class="btn-row" style="flex-wrap:wrap">
                 <button class="btn" onclick="ToolFn.pjConvert(false)">🖼️ Convertir y descargar todo</button>
@@ -1146,8 +1146,8 @@ const ToolUI = (() => {
       const resultHtml = result('pu-result');
       return `<div id="pu-upload-screen">` +
         infoBox('Eliminá restricciones de copia, impresión y edición. <b>No funciona con contraseña de apertura.</b>') +
-        `<input type="file" id="pu-file" accept="application/pdf" style="display:none" onchange="ToolFn.puLoad()">
-        <div class="file-drop" onclick="document.getElementById('pu-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pu-file').files=event.dataTransfer.files;ToolFn.puLoad()">
+        `<div class="file-drop">
+          <input type="file" id="pu-file" accept="application/pdf" onchange="ToolFn.puLoad()" aria-label="Elegí un PDF para desbloquear">
           <div class="file-drop__icon">🔓</div>
           <div class="file-drop__title">Arrastrá un PDF acá</div>
           <div class="file-drop__sub">o hacé click para elegir</div>
@@ -1196,8 +1196,8 @@ const ToolUI = (() => {
       const resultHtml = result('pr-result');
       return `<div id="pr-upload-screen">` +
         infoBox('Rotá páginas de tu PDF. Preview en vivo antes de descargar.') +
-        `<input type="file" id="pr-file" accept="application/pdf" style="display:none" onchange="ToolFn.prLoad()">
-        <div class="file-drop" onclick="document.getElementById('pr-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pr-file').files=event.dataTransfer.files;ToolFn.prLoad()">
+        `<div class="file-drop">
+          <input type="file" id="pr-file" accept="application/pdf" onchange="ToolFn.prLoad()" aria-label="Elegí un PDF para rotar">
           <div class="file-drop__icon">🔄</div>
           <div class="file-drop__title">Arrastrá un PDF acá</div>
           <div class="file-drop__sub">o hacé click para elegir</div>
@@ -1228,7 +1228,7 @@ const ToolUI = (() => {
               </div>
 
               <div id="pr-rotate-opts">
-                <label>Ángulo: <span id="pr-deg-label" style="color:var(--accent);font-family:var(--mono)">90°</span></label>
+                <label for="pr-deg-slider">Ángulo: <span id="pr-deg-label" style="color:var(--accent);font-family:var(--mono)">90°</span></label>
                 <input type="range" id="pr-deg-slider" min="0" max="359" value="90" step="1"
                   oninput="ToolFn.prOnSlider(this.value)"
                   style="width:100%;margin:.3rem 0 .2rem;accent-color:var(--accent)">
@@ -1246,7 +1246,7 @@ const ToolUI = (() => {
                 <button class="pr-scope-btn" onclick="ToolFn.prSetScope('range',this)">Rango</button>
               </div>
               <div id="pr-range-row" style="display:none;margin-top:.5rem">
-                <input type="text" id="pr-range" placeholder="ej: 1, 3, 5-7" oninput="ToolFn.prUpdatePreview()">
+                <input type="text" id="pr-range" placeholder="ej: 1, 3, 5-7" oninput="ToolFn.prUpdatePreview()" aria-label="Páginas a rotar">
               </div>
               <div id="pr-sel-hint" style="display:none;font-size:.7rem;color:var(--fg3);font-family:var(--mono);margin-top:.4rem">✦ Hacé click en las miniaturas para seleccionar</div>
               <div style="margin-top:.9rem;padding:.6rem;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
@@ -1270,8 +1270,8 @@ const ToolUI = (() => {
       const resultHtml = result('pd-result');
       return `<div id="pd-upload-screen">` +
         infoBox('Hacé click en las miniaturas para seleccionar las páginas a eliminar. Preview de lo que queda.') +
-        `<input type="file" id="pd-file" accept="application/pdf" style="display:none" onchange="ToolFn.pdLoad()">
-        <div class="file-drop" onclick="document.getElementById('pd-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pd-file').files=event.dataTransfer.files;ToolFn.pdLoad()">
+        `<div class="file-drop">
+          <input type="file" id="pd-file" accept="application/pdf" onchange="ToolFn.pdLoad()" aria-label="Elegí un PDF para borrar páginas">
           <div class="file-drop__icon">🗑️</div>
           <div class="file-drop__title">Arrastrá un PDF acá</div>
           <div class="file-drop__sub">o hacé click para elegir</div>
@@ -1311,8 +1311,8 @@ const ToolUI = (() => {
     /* ── PDF OCR ── */
     'pdf-ocr': () =>
       infoBox('Extraé texto de imágenes o PDFs escaneados con <b>Tesseract.js</b>. Para PDFs: elegí qué páginas escanear.') +
-      `<input type="file" id="po-file" accept="image/*,application/pdf" style="display:none" onchange="ToolFn.poLoad()">` +
-      `<div class="file-drop" onclick="document.getElementById('po-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('po-file').files=event.dataTransfer.files;ToolFn.poLoad()">
+      `<div class="file-drop">
+        <input type="file" id="po-file" accept="image/*,application/pdf" onchange="ToolFn.poLoad()" aria-label="Elegí una imagen o PDF para leer el texto">
         <div class="file-drop__icon">🔍</div>
         <div class="file-drop__title">Arrastrá una imagen o PDF acá</div>
         <div class="file-drop__sub">o hacé click · JPG, PNG, PDF</div>
@@ -1349,8 +1349,8 @@ const ToolUI = (() => {
     /* ── BACKGROUND REMOVE (chroma-key local + selección manual) ── */
     'bg-remove': () =>
       infoBox('Quitá el fondo de una imagen — sin IA, sin subir nada a ningún servidor. <b>Por color</b>: hacé click sobre el fondo para elegirlo (ideal con fondos lisos). <b>Por selección</b>: dibujá un rectángulo alrededor de la figura (o auto-detectala) y se borra todo lo que queda afuera.') +
-      `<input type="file" id="bg-file" accept="image/*" style="display:none" onchange="ToolFn.bgLoad()">` +
-      `<div class="file-drop" id="bg-drop" onclick="document.getElementById('bg-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('bg-file').files=event.dataTransfer.files;ToolFn.bgLoad()">
+      `<div class="file-drop" id="bg-drop">
+        <input type="file" id="bg-file" accept="image/*" onchange="ToolFn.bgLoad()" aria-label="Elegí una imagen para quitar el fondo">
         <div class="file-drop__icon">✂️</div>
         <div class="file-drop__title">Arrastrá una imagen acá</div>
         <div class="file-drop__sub">o hacé click para elegir · ideal con fondo liso</div>
@@ -1462,7 +1462,7 @@ const ToolUI = (() => {
 
       label('URL del video, audio o post') +
       `<div style="position:relative">
-        <input type="text" id="dl-url" placeholder="https://youtube.com/watch?v=..." oninput="ToolFn.dlValidateUrl()" autocomplete="off" spellcheck="false" style="padding-right:2.5rem">
+        <input type="text" id="dl-url" placeholder="https://youtube.com/watch?v=..." oninput="ToolFn.dlValidateUrl()" autocomplete="off" spellcheck="false" style="padding-right:2.5rem" aria-label="URL del video, audio o post">
         <span id="dl-url-status" style="position:absolute;right:.7rem;top:50%;transform:translateY(-50%);font-size:1rem;transition:opacity .2s;opacity:0"></span>
       </div>` +
 
@@ -1533,11 +1533,11 @@ const ToolUI = (() => {
     'qr-gen': () =>
       infoBox('Preview en vivo mientras escribís. Personalizá colores y tamaño. Se genera 100% local, sin conexión a ningún servicio externo.') +
       label('Contenido del QR') +
-      `<input type="text" id="qr-input" placeholder="https://... o cualquier texto" oninput="ToolFn.liveQR()">` +
+      `<input type="text" id="qr-input" placeholder="https://... o cualquier texto" oninput="ToolFn.liveQR()" aria-label="Contenido del QR">` +
       `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-top:.5rem">` +
-      `<div><label style="margin-top:0">Tamaño</label>${sel('qr-size',[['150','150px'],['250','250px'],['400','400px']])}</div>` +
-      `<div><label style="margin-top:0">Fondo</label><input type="color" id="qr-bg" value="#ffffff" oninput="ToolFn.liveQR()" style="width:100%;height:36px;padding:2px;border-radius:var(--radius-sm);cursor:pointer;border:1.5px solid var(--border)"></div>` +
-      `<div><label style="margin-top:0">Color QR</label><input type="color" id="qr-fg" value="#000000" oninput="ToolFn.liveQR()" style="width:100%;height:36px;padding:2px;border-radius:var(--radius-sm);cursor:pointer;border:1.5px solid var(--border)"></div>` +
+      `<div><label style="margin-top:0" for="qr-size">Tamaño</label>${sel('qr-size',[['150','150px'],['250','250px'],['400','400px']])}</div>` +
+      `<div><label style="margin-top:0" for="qr-bg">Fondo</label><input type="color" id="qr-bg" value="#ffffff" oninput="ToolFn.liveQR()" style="width:100%;height:36px;padding:2px;border-radius:var(--radius-sm);cursor:pointer;border:1.5px solid var(--border)"></div>` +
+      `<div><label style="margin-top:0" for="qr-fg">Color QR</label><input type="color" id="qr-fg" value="#000000" oninput="ToolFn.liveQR()" style="width:100%;height:36px;padding:2px;border-radius:var(--radius-sm);cursor:pointer;border:1.5px solid var(--border)"></div>` +
       `</div>` +
       `<div id="qr-preview-wrap" style="margin:.9rem 0;text-align:center;display:none">
         <canvas id="qr-live" style="border-radius:10px;border:2px solid var(--border);width:180px;height:180px;image-rendering:pixelated" aria-label="QR preview"></canvas>
@@ -1553,8 +1553,8 @@ const ToolUI = (() => {
       infoBox('Convertí un color entre los formatos que usás para diseño web: <b>HEX</b> (el más común en CSS, ej. #ff6ef7), <b>RGB</b> (para trabajar con transparencia vía rgba) y <b>HSL</b> (más intuitivo para ajustar tono/saturación/brillo a mano). Ingresá en cualquier formato y el selector sincroniza el resto automáticamente.') +
       label('Color') +
       `<div style="display:flex;gap:.5rem;align-items:center">
-        <input type="text" id="col-input" placeholder="#ff6ef7  /  rgb(255,110,247)  /  hsl(303,100%,71%)" style="flex:1">
-        <input type="color" id="col-picker" value="#ff6ef7" oninput="document.getElementById('col-input').value=this.value;ToolFn.liveColor()" style="width:44px;height:38px;padding:2px;border-radius:8px;cursor:pointer;border:1.5px solid var(--border)">
+        <input type="text" id="col-input" placeholder="#ff6ef7  /  rgb(255,110,247)  /  hsl(303,100%,71%)" style="flex:1" aria-label="Color en HEX, RGB o HSL">
+        <input type="color" id="col-picker" value="#ff6ef7" oninput="document.getElementById('col-input').value=this.value;ToolFn.liveColor()" style="width:44px;height:38px;padding:2px;border-radius:8px;cursor:pointer;border:1.5px solid var(--border)" aria-label="Elegir color">
         ${'EyeDropper' in window ? `<button class="btn btn--sec" onclick="ToolFn.pickScreenColor()" title="Elegir color de la pantalla" aria-label="Elegir color de la pantalla" style="padding:.5rem .6rem">💧</button>` : ''}
       </div>` +
       `<div class="color-preview" id="col-preview" style="background:#ff6ef7"></div>` +
@@ -1603,8 +1603,8 @@ const ToolUI = (() => {
         </div>` +
       `</div>` +
       `<div id="b64-file-panel" style="display:none;margin-top:.6rem">
-        <input type="file" id="b64-file" style="display:none" onchange="ToolFn.b64FileLoad()">
-        <div class="file-drop" onclick="document.getElementById('b64-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('b64-file').files=event.dataTransfer.files;ToolFn.b64FileLoad()">
+        <div class="file-drop">
+          <input type="file" id="b64-file" onchange="ToolFn.b64FileLoad()" aria-label="Elegí un archivo para codificar en Base64">
           <div class="file-drop__icon">💾</div>
           <div class="file-drop__title">Arrastrá cualquier archivo acá</div>
           <div class="file-drop__sub">o hacé click para elegir</div>
@@ -1622,8 +1622,8 @@ const ToolUI = (() => {
       </div>` +
       `<div id="hash-text-panel" style="margin-top:.6rem">${label('Texto')}${ta('hash-input','Texto a hashear...')}</div>` +
       `<div id="hash-file-panel" style="display:none;margin-top:.6rem">
-        <input type="file" id="hash-file" style="display:none" onchange="ToolFn._dropName('hash-file')">
-        <div class="file-drop" onclick="document.getElementById('hash-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('hash-file').files=event.dataTransfer.files;ToolFn._dropName('hash-file')">
+        <div class="file-drop">
+          <input type="file" id="hash-file" onchange="ToolFn._dropName('hash-file')" aria-label="Elegí un archivo para calcular el hash">
           <div class="file-drop__icon">🔐</div>
           <div class="file-drop__title">Arrastrá cualquier archivo acá</div>
           <div class="file-drop__sub">o hacé click para elegir</div>
@@ -1653,7 +1653,7 @@ const ToolUI = (() => {
       `<div class="result-area" id="uuid-out" style="font-family:var(--mono);font-size:.9rem;text-align:center;letter-spacing:1px;word-break:break-all">—</div>` +
       `<div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap;margin-top:.6rem">
         <div style="display:flex;align-items:center;gap:.4rem">
-          <label style="margin:0;white-space:nowrap">Cantidad</label>
+          <label style="margin:0;white-space:nowrap" for="uuid-count">Cantidad</label>
           <input type="number" id="uuid-count" value="1" min="1" max="50" style="width:70px">
         </div>
         <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer;margin:0">
@@ -1684,7 +1684,7 @@ const ToolUI = (() => {
       label('Patrón') +
       `<div style="display:flex;gap:.4rem;align-items:center">
         <span style="font-family:var(--mono);color:var(--fg3)">/</span>
-        <input type="text" id="rx-pattern" placeholder="[a-z]+" oninput="ToolFn.regexRun()" style="flex:1;font-family:var(--mono)">
+        <input type="text" id="rx-pattern" placeholder="[a-z]+" oninput="ToolFn.regexRun()" style="flex:1;font-family:var(--mono)" aria-label="Patrón de expresión regular">
         <span style="font-family:var(--mono);color:var(--fg3)">/</span>
       </div>` +
       `<div style="display:flex;gap:.9rem;flex-wrap:wrap;margin:.5rem 0">
@@ -1700,8 +1700,8 @@ const ToolUI = (() => {
     'lorem-gen': () =>
       infoBox('Generá texto de relleno <b>Lorem Ipsum</b> para maquetas y prototipos.') +
       `<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
-        <div><label style="margin-top:0">Cantidad</label><input type="number" id="lorem-count" value="3" min="1" max="200"></div>
-        <div><label style="margin-top:0">Unidad</label>${sel('lorem-unit',[['parrafos','Párrafos'],['oraciones','Oraciones'],['palabras','Palabras']])}</div>
+        <div><label style="margin-top:0" for="lorem-count">Cantidad</label><input type="number" id="lorem-count" value="3" min="1" max="200"></div>
+        <div><label style="margin-top:0" for="lorem-unit">Unidad</label>${sel('lorem-unit',[['parrafos','Párrafos'],['oraciones','Oraciones'],['palabras','Palabras']])}</div>
       </div>` +
       `<label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;cursor:pointer;margin-top:.6rem">
         <input type="checkbox" id="lorem-classic" checked> Empezar con "Lorem ipsum dolor sit amet..."
@@ -1713,15 +1713,15 @@ const ToolUI = (() => {
     'slugify': () =>
       infoBox('Convertí cualquier texto en un slug apto para URLs: minúsculas, sin tildes ni símbolos, separado por guiones.') +
       label('Texto') +
-      `<input type="text" id="slug-input" placeholder="Mi Título de Artículo: ¡Genial!" oninput="ToolFn.slugifyLive()">` +
+      `<input type="text" id="slug-input" placeholder="Mi Título de Artículo: ¡Genial!" oninput="ToolFn.slugifyLive()" aria-label="Texto a convertir en slug">` +
       `<div class="result-area" id="slug-output" style="font-family:var(--mono);text-align:center;margin-top:.7rem">—</div>` +
       `<div class="btn-row"><button class="btn btn--sec" onclick="UI.copyText(document.getElementById('slug-output').textContent,this)">Copiar</button></div>`,
 
     /* ── IMAGE DOMINANT COLOR PALETTE ── */
     'img-palette': () =>
       infoBox('Subí una imagen y extraé sus colores dominantes automáticamente. 100% local.') +
-      `<input type="file" id="ip-file" accept="image/*" style="display:none" onchange="ToolFn.imgPaletteLoad()">` +
-      `<div class="file-drop" id="ip-drop" onclick="document.getElementById('ip-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('ip-file').files=event.dataTransfer.files;ToolFn.imgPaletteLoad()">
+      `<div class="file-drop" id="ip-drop">
+        <input type="file" id="ip-file" accept="image/*" onchange="ToolFn.imgPaletteLoad()" aria-label="Elegí una imagen para extraer la paleta">
         <div class="file-drop__icon">🖌️</div>
         <div class="file-drop__title">Arrastrá una imagen acá</div>
         <div class="file-drop__sub">o hacé click para elegir</div>
@@ -1729,7 +1729,7 @@ const ToolUI = (() => {
       </div>` +
       `<div id="ip-info" style="display:none">
         <img id="ip-preview" style="width:100%;max-height:180px;object-fit:contain;border-radius:10px;border:1.5px solid var(--border);margin:.6rem 0;background:var(--bg3)" alt="preview">
-        <label>Cantidad de colores: <span id="ip-count-val">6</span></label>
+        <label for="ip-count">Cantidad de colores: <span id="ip-count-val">6</span></label>
         <input type="range" min="3" max="10" value="6" id="ip-count" oninput="document.getElementById('ip-count-val').textContent=this.value;ToolFn.imgPaletteExtract()" style="width:100%">
         <div id="ip-result" class="pal-grid" style="display:none;margin-top:.8rem"></div>
       </div>`,
@@ -1737,8 +1737,8 @@ const ToolUI = (() => {
     /* ── IMG CROP ── */
     'img-crop': () =>
       infoBox('Recortá tu imagen arrastrando sobre la vista previa para elegir la zona que querés conservar. 100% local.') +
-      `<input type="file" id="ic2-file" accept="image/*" style="display:none" onchange="ToolFn.cropLoad()">` +
-      `<div class="file-drop" id="ic2-drop" onclick="document.getElementById('ic2-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('ic2-file').files=event.dataTransfer.files;ToolFn.cropLoad()">
+      `<div class="file-drop" id="ic2-drop">
+        <input type="file" id="ic2-file" accept="image/*" onchange="ToolFn.cropLoad()" aria-label="Elegí una imagen para recortar">
         <div class="file-drop__icon">🔲</div>
         <div class="file-drop__title">Arrastrá una imagen acá</div>
         <div class="file-drop__sub">o hacé click para elegir</div>
@@ -1763,8 +1763,8 @@ const ToolUI = (() => {
     /* ── IMG ROTATE ── */
     'img-rotate': () =>
       infoBox('Rotá tu imagen en pasos de 90° o espejala horizontal/vertical. Preview en vivo, 100% local.') +
-      `<input type="file" id="irt-file" accept="image/*" style="display:none" onchange="ToolFn.rotLoad()">` +
-      `<div class="file-drop" id="irt-drop" onclick="document.getElementById('irt-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('irt-file').files=event.dataTransfer.files;ToolFn.rotLoad()">
+      `<div class="file-drop" id="irt-drop">
+        <input type="file" id="irt-file" accept="image/*" onchange="ToolFn.rotLoad()" aria-label="Elegí una imagen para rotar">
         <div class="file-drop__icon">🔃</div>
         <div class="file-drop__title">Arrastrá una imagen acá</div>
         <div class="file-drop__sub">o hacé click para elegir</div>
@@ -1792,7 +1792,7 @@ const ToolUI = (() => {
         ${sel('pn-pos', [['bottom-center','Abajo, centro'],['bottom-right','Abajo, derecha'],['bottom-left','Abajo, izquierda'],['top-center','Arriba, centro'],['top-right','Arriba, derecha'],['top-left','Arriba, izquierda']])}
         ${label('Formato')}
         ${sel('pn-fmt', [['n','1, 2, 3...'],['n-total','1 / N, 2 / N...'],['pag-n','Página 1, Página 2...']])}
-        ${label('Empezar en')}
+        <label for="pn-start">Empezar en</label>
         <input type="number" id="pn-start" value="1" min="1" style="width:100%">
         <div class="btn-row" style="margin-top:.6rem"><button class="btn" onclick="ToolFn.pnExport()">🔢 Agregar números y descargar</button></div>
         <div id="pn-result" style="margin-top:.6rem"></div>
@@ -1801,8 +1801,8 @@ const ToolUI = (() => {
     /* ── IMG WATERMARK ── */
     'img-watermark': () =>
       infoBox('Superponé tu propio texto como marca de agua sobre una imagen — en una esquina o repetido en diagonal sobre toda la foto. 100% local.') +
-      `<input type="file" id="wm-file" accept="image/*" style="display:none" onchange="ToolFn.wmLoad()">` +
-      `<div class="file-drop" id="wm-drop" onclick="document.getElementById('wm-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('wm-file').files=event.dataTransfer.files;ToolFn.wmLoad()">
+      `<div class="file-drop" id="wm-drop">
+        <input type="file" id="wm-file" accept="image/*" onchange="ToolFn.wmLoad()" aria-label="Elegí una imagen para marcar con marca de agua">
         <div class="file-drop__icon">💧</div>
         <div class="file-drop__title">Arrastrá una imagen acá</div>
         <div class="file-drop__sub">o hacé click para elegir</div>
@@ -1810,7 +1810,7 @@ const ToolUI = (() => {
       </div>` +
       `<div id="wm-info" style="display:none">
         <canvas id="wm-canvas" style="width:100%;display:block;max-height:340px;object-fit:contain;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3)"></canvas>
-        ${label('Texto de la marca')}
+        <label for="wm-text">Texto de la marca</label>
         <input type="text" id="wm-text" value="© Mi marca" maxlength="60" oninput="ToolFn.wmDraw()">
         <div class="pr-scope-group" style="margin:.5rem 0">
           <button class="pr-scope-btn active" id="wm-mode-single" onclick="ToolFn.wmSetMode('single',this)">Una esquina</button>
@@ -1820,12 +1820,12 @@ const ToolUI = (() => {
           ${label('Posición')}
           ${sel('wm-pos', [['bottom-right','Abajo, derecha'],['bottom-left','Abajo, izquierda'],['top-right','Arriba, derecha'],['top-left','Arriba, izquierda'],['center','Centro']])}
         </div>
-        <label>Tamaño: <span id="wm-size-val">4</span>% del ancho</label>
+        <label for="wm-size">Tamaño: <span id="wm-size-val">4</span>% del ancho</label>
         <input type="range" min="1" max="12" value="4" id="wm-size" oninput="document.getElementById('wm-size-val').textContent=this.value;ToolFn.wmDraw()" style="width:100%">
-        <label>Opacidad: <span id="wm-op-val">50</span>%</label>
+        <label for="wm-op">Opacidad: <span id="wm-op-val">50</span>%</label>
         <input type="range" min="10" max="100" value="50" id="wm-op" oninput="document.getElementById('wm-op-val').textContent=this.value;ToolFn.wmDraw()" style="width:100%">
         <label>Color</label>
-        <input type="color" id="wm-color" value="#ffffff" oninput="ToolFn.wmDraw()" style="width:100%;height:2.4rem;padding:.2rem">
+        <input type="color" id="wm-color" value="#ffffff" oninput="ToolFn.wmDraw()" style="width:100%;height:2.4rem;padding:.2rem" aria-label="Color de la marca de agua">
         <div class="btn-row" style="margin-top:.6rem"><button class="btn" onclick="ToolFn.wmExport()">💧 Agregar marca y descargar</button></div>
       </div>`,
 
@@ -1865,16 +1865,16 @@ const ToolUI = (() => {
         <button class="pr-scope-btn" id="cl-style-rounded" onclick="ToolFn.collageSetStyle('rounded',this)">Redondeado</button>
         <button class="pr-scope-btn" id="cl-style-polaroid" onclick="ToolFn.collageSetStyle('polaroid',this)">Polaroid</button>
       </div>` +
-      label(`Tamaño de celda: <span id="cl-size-val">360</span>px`) +
+      `<label for="cl-size">Tamaño de celda: <span id="cl-size-val">360</span>px</label>` +
       `<input type="range" min="150" max="560" step="10" value="360" id="cl-size" oninput="document.getElementById('cl-size-val').textContent=this.value;ToolFn.collageDraw()" style="width:100%">` +
       `<canvas id="cl-canvas" style="width:100%;display:block;max-height:380px;object-fit:contain;border-radius:8px;border:1.5px solid var(--border);background:var(--bg3);margin-top:.6rem;cursor:grab;touch-action:none"></canvas>` +
       `<p id="cl-hint" style="font-size:.68rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0"></p>` +
       label('Stickers — imágenes sobrepuestas que podés arrastrar donde quieras') +
       `${dropZone('cl-sticker-file','image/*','ToolFn.collageAddSticker()','Arrastrá un sticker acá',true)}` +
       `<div id="cl-sticker-list" style="display:flex;flex-direction:column;gap:.4rem;margin:.5rem 0"></div>` +
-      label('Espaciado') +
+      `<label for="cl-gap">Espaciado</label>` +
       `<input type="range" min="0" max="40" value="10" id="cl-gap" oninput="ToolFn.collageDraw()" style="width:100%">` +
-      label('Color de fondo') +
+      `<label for="cl-bg">Color de fondo</label>` +
       `<input type="color" id="cl-bg" value="#000000" oninput="ToolFn.collageDraw()" style="width:100%;height:2.4rem;padding:.2rem">` +
       `<div class="btn-row" style="margin-top:.6rem"><button class="btn" onclick="ToolFn.collageExport()">🧩 Descargar collage</button></div>`,
 
@@ -1904,8 +1904,8 @@ const ToolUI = (() => {
       const resultHtml = result('pcrop-result');
       return `<div id="pcrop-upload-screen">` +
         infoBox('Dibujá sobre la vista previa el área que querés conservar — movela y cambiale el tamaño con los tiradores, como en cualquier editor de recorte. Elegí a qué páginas se aplica: todas, solo la que estás viendo, o un rango.') +
-        `<input type="file" id="pcrop-file" accept="application/pdf" style="display:none" onchange="ToolFn.pcropLoad()">
-        <div class="file-drop" onclick="document.getElementById('pcrop-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pcrop-file').files=event.dataTransfer.files;ToolFn.pcropLoad()">
+        `<div class="file-drop">
+          <input type="file" id="pcrop-file" accept="application/pdf" onchange="ToolFn.pcropLoad()" aria-label="Elegí un PDF para recortar márgenes">
           <div class="file-drop__icon">📐</div>
           <div class="file-drop__title">Arrastrá un PDF acá</div>
           <div class="file-drop__sub">o hacé click para elegir</div>
@@ -1946,7 +1946,7 @@ const ToolUI = (() => {
                 <button class="pr-scope-btn" onclick="ToolFn.pcropSetScope('range',this)">Rango</button>
               </div>
               <div id="pcrop-range-row" style="display:none;margin-top:.5rem">
-                <input type="text" id="pcrop-range" placeholder="ej: 1, 3, 5-7">
+                <input type="text" id="pcrop-range" placeholder="ej: 1, 3, 5-7" aria-label="Páginas a recortar">
               </div>
 
               <div class="btn-row" style="margin-top:.9rem">
@@ -1964,8 +1964,8 @@ const ToolUI = (() => {
       const resultHtml = result('pred-result');
       return `<div id="pred-upload-screen">` +
         infoBox('Dibujá rectángulos negros sobre las páginas para tapar texto o datos sensibles (DNI, direcciones, firmas). El tapado es permanente: las páginas con algo tapado se convierten en imagen, así que no hay forma de deshacerlo ni de copiar el texto de abajo. Las páginas sin nada tapado mantienen su texto normal.') +
-        `<input type="file" id="pred-file" accept="application/pdf" style="display:none" onchange="ToolFn.predLoad()">
-        <div class="file-drop" onclick="document.getElementById('pred-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');document.getElementById('pred-file').files=event.dataTransfer.files;ToolFn.predLoad()">
+        `<div class="file-drop">
+          <input type="file" id="pred-file" accept="application/pdf" onchange="ToolFn.predLoad()" aria-label="Elegí un PDF para redactar">
           <div class="file-drop__icon">⬛</div>
           <div class="file-drop__title">Arrastrá un PDF acá</div>
           <div class="file-drop__sub">o hacé click para elegir</div>
@@ -2081,7 +2081,7 @@ const ToolUI = (() => {
         <div class="pwd-strength-bar"><div class="pwd-strength-bar__fill" id="pwd-strength-fill"></div></div>
         <p id="pwd-strength-label" style="font-size:.7rem;font-family:var(--mono);color:var(--fg3);margin-top:.3rem"></p>
       </div>` +
-      label('Longitud: <span id="pwd-len-val">16</span> caracteres') +
+      `<label for="pwd-len">Longitud: <span id="pwd-len-val">16</span> caracteres</label>` +
       `<input type="range" min="6" max="64" value="16" id="pwd-len" oninput="document.getElementById('pwd-len-val').textContent=this.value;ToolFn.pwdGenerate()" style="width:100%">` +
       `<div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem .6rem;margin:.7rem 0">
         <label style="display:flex;align-items:center;gap:.4rem;font-size:.78rem;cursor:pointer;margin:0"><input type="checkbox" id="pwd-lower" checked onchange="ToolFn.pwdGenerate()"> minúsculas (a-z)</label>
@@ -2135,15 +2135,15 @@ const ToolUI = (() => {
       </select>` +
       `<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:.5rem;align-items:end;margin-top:.6rem">
         <div>
-          <label style="margin-top:0">Desde</label>
+          <label style="margin-top:0" for="uc-val">Desde</label>
           <input type="number" id="uc-val" value="1" oninput="ToolFn.unitConvert()">
-          <select id="uc-from" onchange="ToolFn.unitConvert()" style="margin-top:.35rem"></select>
+          <select id="uc-from" onchange="ToolFn.unitConvert()" style="margin-top:.35rem" aria-label="Unidad de origen"></select>
         </div>
         <button class="btn btn--sec" onclick="ToolFn.unitSwap()" style="padding:.5rem .6rem;margin-bottom:.05rem" title="Invertir" aria-label="Invertir unidades">⇄</button>
         <div>
-          <label style="margin-top:0">Hacia</label>
+          <label style="margin-top:0" for="uc-out">Hacia</label>
           <input type="text" id="uc-out" readonly style="text-align:center;font-family:var(--mono);font-weight:700;color:var(--accent)">
-          <select id="uc-to" onchange="ToolFn.unitConvert()" style="margin-top:.35rem"></select>
+          <select id="uc-to" onchange="ToolFn.unitConvert()" style="margin-top:.35rem" aria-label="Unidad de destino"></select>
         </div>
       </div>` +
       `<div class="btn-row"><button class="btn btn--sec" onclick="UI.copyText(document.getElementById('uc-out').value,this)">Copiar resultado</button></div>`,
@@ -2165,7 +2165,7 @@ const ToolUI = (() => {
         <button class="btn btn--sec" onclick="ToolFn.ctSetPreset(15)" style="font-size:.72rem;padding:.3rem .6rem">🛋️ 15 min — Descanso largo</button>
       </div>` +
       `<div style="display:flex;align-items:center;gap:.5rem;margin-top:.7rem">
-        <label style="margin:0;white-space:nowrap">Personalizado (min)</label>
+        <label style="margin:0;white-space:nowrap" for="ct-custom">Personalizado (min)</label>
         <input type="number" id="ct-custom" min="1" max="180" placeholder="ej: 10" oninput="ToolFn.ctSetCustom()">
       </div>`,
 
@@ -2173,8 +2173,8 @@ const ToolUI = (() => {
     'palette-gen': () =>
       infoBox('Generá paletas de colores armónicas a partir de un color base. Hacé click en un color para copiar su HEX.') +
       `<div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.5rem">
-        <input type="text" id="pal-input" placeholder="#ff6ef7" value="#ff6ef7" style="flex:1">
-        <input type="color" id="pal-picker" value="#ff6ef7" oninput="document.getElementById('pal-input').value=this.value" style="width:44px;height:38px;padding:2px;border-radius:8px;cursor:pointer;border:1.5px solid var(--border)">
+        <input type="text" id="pal-input" placeholder="#ff6ef7" value="#ff6ef7" style="flex:1" aria-label="Color base de la paleta">
+        <input type="color" id="pal-picker" value="#ff6ef7" oninput="document.getElementById('pal-input').value=this.value" style="width:44px;height:38px;padding:2px;border-radius:8px;cursor:pointer;border:1.5px solid var(--border)" aria-label="Elegir color base">
       </div>` +
       label('Esquema') +
       sel('pal-scheme',[['complementario','Complementario'],['analogo','Análogo'],['triadico','Triádico'],['monocromatico','Monocromático'],['random','Aleatorio']]) +
@@ -4737,7 +4737,7 @@ const ToolFn = (() => {
             blobs.push({ blob, name: `taro-pag${i}.jpg` });
             const wrap = document.createElement('div');
             wrap.style.cssText = 'text-align:center';
-            wrap.innerHTML = `<img src="${url}" style="width:100%;border-radius:6px;border:1px solid var(--border)">
+            wrap.innerHTML = `<img src="${url}" alt="Página ${i} del PDF convertida a imagen" style="width:100%;border-radius:6px;border:1px solid var(--border)">
               <a href="${url}" download="taro-pag${i}.jpg" style="display:block;font-size:.68rem;color:var(--accent);font-family:var(--mono);margin-top:.2rem">⬇️ pag ${i}</a>`;
             previews.appendChild(wrap);
             resolve();
@@ -6055,7 +6055,7 @@ const ToolFn = (() => {
     wrap.innerHTML = _clStickers.map((s, i) => `
       <div style="display:flex;align-items:center;gap:.5rem;padding:.4rem;border:1.5px solid var(--border);border-radius:6px">
         <img src="${s.img.src}" style="width:36px;height:36px;object-fit:contain;border-radius:4px;background:var(--bg3)">
-        <input type="range" min="8" max="45" value="${Math.round(s.fsize * 100)}" oninput="ToolFn.collageStickerResize(${i},this.value)" style="flex:1">
+        <input type="range" min="8" max="45" value="${Math.round(s.fsize * 100)}" oninput="ToolFn.collageStickerResize(${i},this.value)" style="flex:1" aria-label="Tamaño del sticker ${i+1}">
         <button class="btn btn--sec" style="padding:.3rem .5rem" onclick="ToolFn.collageRemoveSticker(${i})">✕</button>
       </div>`).join('');
   }
@@ -7588,11 +7588,11 @@ const Admin = (() => {
       // add new tool
       body.innerHTML =
         `<p style="font-size:.76rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.9rem">Completá los campos. Si ponés una URL, se abre al clickear.</p>` +
-        `<label>${s.fields.name}</label><input type="text" id="a-name" placeholder="${s.ph.name}">` +
-        `<label>${s.fields.desc}</label><input type="text" id="a-desc" placeholder="${s.ph.desc}">` +
-        `<label>${s.fields.icon}</label><input type="text" id="a-icon" placeholder="${s.ph.icon}" style="width:65px">` +
-        `<label>${s.fields.cat}</label><select id="a-cat">${Object.entries(s.cats).map(([v,n])=>`<option value="${v}">${n}</option>`).join('')}</select>` +
-        `<label>${s.fields.url}</label><input type="text" id="a-url" placeholder="${s.ph.url}">` +
+        `<label for="a-name">${s.fields.name}</label><input type="text" id="a-name" placeholder="${s.ph.name}">` +
+        `<label for="a-desc">${s.fields.desc}</label><input type="text" id="a-desc" placeholder="${s.ph.desc}">` +
+        `<label for="a-icon">${s.fields.icon}</label><input type="text" id="a-icon" placeholder="${s.ph.icon}" style="width:65px">` +
+        `<label for="a-cat">${s.fields.cat}</label><select id="a-cat">${Object.entries(s.cats).map(([v,n])=>`<option value="${v}">${n}</option>`).join('')}</select>` +
+        `<label for="a-url">${s.fields.url}</label><input type="text" id="a-url" placeholder="${s.ph.url}">` +
         `<div class="btn-row"><button class="btn" onclick="Admin.addTool()">${s.addBtn}</button></div>`;
     }
   }
@@ -7660,11 +7660,11 @@ const Admin = (() => {
     div.style.display = 'block';
     div.innerHTML =
       `<div class="edit-form">` +
-      `<label>${s.fields.name}</label><input type="text" id="ei-n-${i}" value="${escHtml(t.name)}">` +
-      `<label>${s.fields.desc}</label><input type="text" id="ei-d-${i}" value="${escHtml(t.desc)}">` +
-      `<label>${s.fields.icon}</label><input type="text" id="ei-i-${i}" value="${escHtml(t.icon)}" style="width:65px">` +
-      `<label>${s.fields.cat}</label><select id="ei-c-${i}">${Object.entries(s.cats).map(([v,n])=>`<option value="${escHtml(v)}"${t.cat===v?' selected':''}>${escHtml(n)}</option>`).join('')}</select>` +
-      `<label>${s.fields.url}</label><input type="text" id="ei-u-${i}" value="${escHtml(t.url||'')}">` +
+      `<label for="ei-n-${i}">${s.fields.name}</label><input type="text" id="ei-n-${i}" value="${escHtml(t.name)}">` +
+      `<label for="ei-d-${i}">${s.fields.desc}</label><input type="text" id="ei-d-${i}" value="${escHtml(t.desc)}">` +
+      `<label for="ei-i-${i}">${s.fields.icon}</label><input type="text" id="ei-i-${i}" value="${escHtml(t.icon)}" style="width:65px">` +
+      `<label for="ei-c-${i}">${s.fields.cat}</label><select id="ei-c-${i}">${Object.entries(s.cats).map(([v,n])=>`<option value="${escHtml(v)}"${t.cat===v?' selected':''}>${escHtml(n)}</option>`).join('')}</select>` +
+      `<label for="ei-u-${i}">${s.fields.url}</label><input type="text" id="ei-u-${i}" value="${escHtml(t.url||'')}">` +
       `<div class="btn-row"><button class="btn" onclick="Admin.saveEdit(${i})">${s.saveBtn}</button></div></div>`;
   }
 
@@ -7812,7 +7812,7 @@ const Guestbook = (() => {
 
   function clear() {
     const w = wrapEl();
-    if (w) w.querySelectorAll('.gb__entry, .gb__empty').forEach(el => el.remove());
+    if (w) w.innerHTML = '';
     return w;
   }
 
@@ -7822,7 +7822,45 @@ const Guestbook = (() => {
     const p = document.createElement('p');
     p.className = 'gb__empty';
     p.textContent = msg;
-    w.insertBefore(p, w.firstChild);
+    w.appendChild(p);
+  }
+
+  function renderSkeleton() {
+    const w = clear();
+    if (!w) return;
+    const skel = document.createElement('div');
+    skel.className = 'gb__skel';
+    skel.setAttribute('aria-hidden', 'true');
+    for (let i = 0; i < 3; i++) {
+      const row = document.createElement('div');
+      const meta = document.createElement('div');
+      meta.className = 'gb__skel-line gb__skel-line--meta';
+      const msg = document.createElement('div');
+      msg.className = 'gb__skel-line gb__skel-line--msg';
+      msg.style.marginTop = '.25rem';
+      row.appendChild(meta);
+      row.appendChild(msg);
+      skel.appendChild(row);
+    }
+    w.appendChild(skel);
+  }
+
+  function renderError() {
+    const w = clear();
+    if (!w) return;
+    const box = document.createElement('div');
+    box.className = 'gb__error';
+    const p = document.createElement('p');
+    p.className = 'gb__empty';
+    p.textContent = 'no se pudo cargar el libro de visitas';
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'gb__retry';
+    retry.textContent = 'reintentar';
+    retry.addEventListener('click', load);
+    box.appendChild(p);
+    box.appendChild(retry);
+    w.appendChild(box);
   }
 
   function renderEntries(entries) {
@@ -7846,15 +7884,15 @@ const Guestbook = (() => {
       p.appendChild(document.createTextNode('> ' + entry.msg));
       frag.appendChild(p);
     });
-    w.insertBefore(frag, w.firstChild);
+    w.appendChild(frag);
   }
 
   function load() {
-    renderMessage('cargando…');
+    renderSkeleton();
     fetch(CONFIG.GUESTBOOK_API)
       .then(r => r.ok ? r.json() : Promise.reject(r))
       .then(data => renderEntries(data.entries || []))
-      .catch(() => renderMessage('no se pudo cargar el libro de visitas'));
+      .catch(renderError);
   }
 
   function sign() {
