@@ -38,19 +38,30 @@ exports.handler = async (event) => {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   };
 
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: cors, body: '' };
   }
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers: cors, body: JSON.stringify({ error: 'Method not allowed' }) };
-  }
 
   try {
     connectLambda(event);
     const store = getStore(STORE_NAME);
+
+    // GET: solo lee el total actual, no incrementa. La usa el cliente cuando
+    // ya contó una visita hoy (ver js/app.js) para no inflar el número con
+    // cada F5 — sin esto, recargar la página sumaba una "visita" por recarga.
+    if (event.httpMethod === 'GET') {
+      const existing = await store.getWithMetadata(KEY, { type: 'json' });
+      const total = (existing && typeof existing.data?.n === 'number') ? existing.data.n : 0;
+      return { statusCode: 200, headers: cors, body: JSON.stringify({ total }) };
+    }
+
+    if (event.httpMethod !== 'POST') {
+      return { statusCode: 405, headers: cors, body: JSON.stringify({ error: 'Method not allowed' }) };
+    }
+
     const total = await incrementCounter(store);
     return { statusCode: 200, headers: cors, body: JSON.stringify({ total }) };
   } catch (error) {

@@ -9,6 +9,10 @@ Objetivo de fondo de todo esto (como lo pidió el usuario): que TaroTools sea la
 herramientas online más útil que exista — no la que tiene más herramientas, la que de verdad
 resuelve lo que alguien necesita, sin fricción, sin humo.
 
+Los principios base del proyecto y el objetivo SMART vigente están en `PRINCIPIOS.md` (raíz del
+repo) — toda pasada de `mejorar-proyecto` y toda tarea nueva de este backlog se evalúa contra eso
+antes que contra preferencia del momento.
+
 Para agregar una tarea nueva, usá la skill `agregar-tarea` (o pedile directamente a Claude "agregá
 X al bucle de mejoras" / "anotá esto para después"). Cada entrada tiene que ser autocontenida: una
 sesión futura, sin el contexto de la conversación donde se pidió, tiene que poder leerla y
@@ -36,6 +40,8 @@ protección de copyright ajena — no sumar esto).
 
 ## Hechas
 
+- [x] **Descargador de video (`cobalt-dl`) marcado como "próximamente"** — a pedido del usuario: la instancia pública de Cobalt está fallando hoy (dependencia externa, ver debilidad/amenaza del FODA sobre esto) y el usuario planea que la herramienta siga existiendo, así que en vez de sacarla del catálogo se le puso `soon:true` en `js/app.js`. Se implementó de verdad el soporte de `tool.soon` en `ToolUI.build()` (antes solo existía el CSS/badge pero el modal seguía mostrando la herramienta real al hacer click) — ahora al abrirla muestra una pantalla "próximamente" en vez del formulario de descarga. Cuando la API externa vuelva a andar de forma confiable, sacar `soon:true` de la entrada `b11` en `I18n`/`TOOL_DEFS`. _(hecho 2026-10-12)_
+- [x] **El contador de visitas sumaba una "visita" por cada F5 (recarga)** — detectado por el usuario al notar que recargar la página inflaba el número sin que nadie entrara de nuevo. `js/app.js` llamaba a `netlify/functions/visits.js` con `POST` (incrementa) en cada carga, sin ningún tipo de deduplicación. Corregido sin pedir login ni usar cookies (coherente con el principio de cero fricción): se guarda en `localStorage` la fecha del último día ya contado, y si hoy ya se contó, el cliente pide el total con el nuevo método `GET` de la función (solo lee, no incrementa) en vez de `POST`. Esto deja como máximo una visita real por día por navegador. El contador base del objetivo SMART en `PRINCIPIOS.md` se corrigió a la cifra medida después de este arreglo. _(hecho 2026-10-12)_
 - [x] **`loadScript()` muestra "undefined" cuando falla la carga de un CDN** — corregido: ahora rechaza con `new Error('No se pudo cargar una librería externa — revisá tu conexión')` en vez de pasar el Event crudo del navegador. De paso quedó reutilizable: `loadScript()` también redirige automáticamente a una copia local cuando corre dentro de la extensión de Chrome (`IS_EXTENSION`), sin tocar cada call site. _(hecho 2026-10-06)_
 - [x] **Recortar imagen (crop)** — `img-crop`, caja de recorte interactiva arrastrando sobre la imagen (con presets de proporción libre/1:1/16:9/4:3). Encontrado y corregido en el camino: las imágenes son arrastrables (drag-and-drop nativo del navegador) por defecto, lo que interceptaba los eventos de puntero después del primer movimiento — se arregló con `draggable="false"` + `ondragstart="return false"` en el `<img>`. _(hecho 2026-10-06)_
 - [x] **Rotar/espejar imagen** — `img-rotate`, rotación en pasos de 90° y espejo horizontal/vertical con preview en vivo sobre canvas. _(hecho 2026-10-06)_

@@ -121,7 +121,7 @@ const I18n = (() => {
     // { id:'b8',  icon:'✏️', cat:'texto',      type:'ai-correct'    },
     // { id:'b9',  icon:'🌐', cat:'texto',      type:'ai-translate'  },
     // { id:'b10', icon:'📝', cat:'texto',      type:'ai-expand'     },
-    { id:'b11', icon:'⬇️', cat:'media',      type:'cobalt-dl'     },
+    { id:'b11', icon:'⬇️', cat:'media',      type:'cobalt-dl',    soon:true },
     { id:'b12', icon:'◼️', cat:'util',       type:'qr-gen'        },
     { id:'b13', icon:'🎨', cat:'util',       type:'color-conv'    },
     { id:'b14', icon:'🔡', cat:'texto',      type:'case-conv'     },
@@ -2240,6 +2240,14 @@ const ToolUI = (() => {
   };
 
   function build(tool) {
+    if (tool.soon) {
+      const s = I18n.get();
+      return `<div class="soon-screen">` +
+        `<div class="soon-icon" aria-hidden="true">🚧</div>` +
+        `<h3>${escHtml(s.soon)}</h3>` +
+        `<p>${escHtml(s.soonDesc)}</p>` +
+        `</div>`;
+    }
     const builder = BUILDERS[tool.type];
     if (!builder) return `<p style="color:var(--fg3)">${escHtml(tool.desc)}</p>`;
     return builder(tool);
@@ -7818,11 +7826,18 @@ document.addEventListener('drop', e => {
    con la última cifra conocida cacheada en localStorage para no mostrar
    la pantalla vacía mientras responde el servidor (o si no hay servidor,
    como al abrir el sitio como archivo local).
+
+   Cuenta como máximo una visita por día por navegador: sin esto, cada F5
+   sumaba una visita nueva y el número no decía nada real. No usa cookies
+   ni cuenta (sigue siendo anónimo): solo guarda en localStorage la fecha
+   del último día ya contado, y si hoy ya se contó, pide el total con GET
+   en vez de incrementarlo con POST.
 ═══════════════════════════════════════════════ */
 (() => {
   const el = document.getElementById('visit-counter');
   if (!el) return;
   const CACHE_KEY = 'tt_visits_cache';
+  const LAST_DAY_KEY = 'tt_visits_last_day';
 
   function render(total) {
     el.innerHTML = String(total).padStart(6, '0').split('').map(d => `<span>${d}</span>`).join('');
@@ -7831,12 +7846,18 @@ document.addEventListener('drop', e => {
   const cached = parseInt(localStorage.getItem(CACHE_KEY) || '', 10);
   if (!isNaN(cached)) render(cached);
 
-  fetch(CONFIG.VISITS_API, { method: 'POST' })
+  const today = new Date().toISOString().slice(0, 10);
+  const alreadyCountedToday = localStorage.getItem(LAST_DAY_KEY) === today;
+
+  fetch(CONFIG.VISITS_API, { method: alreadyCountedToday ? 'GET' : 'POST' })
     .then(r => r.ok ? r.json() : Promise.reject(r))
     .then(data => {
       if (typeof data.total !== 'number') return;
       render(data.total);
-      try { localStorage.setItem(CACHE_KEY, String(data.total)); } catch (e) {}
+      try {
+        localStorage.setItem(CACHE_KEY, String(data.total));
+        if (!alreadyCountedToday) localStorage.setItem(LAST_DAY_KEY, today);
+      } catch (e) {}
     })
     .catch(() => { if (isNaN(cached)) el.textContent = '------'; });
 })();
