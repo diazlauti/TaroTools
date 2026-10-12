@@ -111,10 +111,16 @@ const I18n = (() => {
     { id:'b4',  icon:'🎬', cat:'media',      type:'vid-compress'  },
     { id:'b5',  icon:'🎵', cat:'media',      type:'aud-compress'  },
     { id:'b6',  icon:'📄', cat:'archivo',    type:'pdf-text'      },
-    { id:'b7',  icon:'✂️', cat:'texto',      type:'ai-summarize'  },
-    { id:'b8',  icon:'✏️', cat:'texto',      type:'ai-correct'    },
-    { id:'b9',  icon:'🌐', cat:'texto',      type:'ai-translate'  },
-    { id:'b10', icon:'📝', cat:'texto',      type:'ai-expand'     },
+    // b7-b10 (resumir/corregir/traducir/expandir con IA) sacadas del catálogo
+    // a pedido del usuario: son muy fáciles de hacer gastar la cuota gratis
+    // de OpenRouter o de hacer banear la key, y por ahora el riesgo no vale
+    // el beneficio. El código de las 4 queda intacto (ToolUI.build/ToolFn) —
+    // para reactivarlas más adelante alcanza con descomentar estas 4 líneas
+    // (y volver a habilitar netlify/functions/gemini.js).
+    // { id:'b7',  icon:'✂️', cat:'texto',      type:'ai-summarize'  },
+    // { id:'b8',  icon:'✏️', cat:'texto',      type:'ai-correct'    },
+    // { id:'b9',  icon:'🌐', cat:'texto',      type:'ai-translate'  },
+    // { id:'b10', icon:'📝', cat:'texto',      type:'ai-expand'     },
     { id:'b11', icon:'⬇️', cat:'media',      type:'cobalt-dl'     },
     { id:'b12', icon:'◼️', cat:'util',       type:'qr-gen'        },
     { id:'b13', icon:'🎨', cat:'util',       type:'color-conv'    },

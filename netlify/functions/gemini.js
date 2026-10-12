@@ -8,6 +8,13 @@
 // abuso, rompiendo la herramienta para los usuarios reales. Mismo
 // rate-limit simple por IP que ya usa guestbook.js, para que un script no
 // pueda hacer eso con un loop.
+//
+// DESACTIVADA a pedido del usuario (2026-10-12): las herramientas de IA se
+// sacaron del catálogo del frontend por el mismo motivo de costo/abuso, y
+// esta función queda cortada server-side además, por si alguien le pega
+// directo a la URL salteándose el sitio. Para reactivar: borrar el bloque
+// AI_DISABLED de abajo (el rate-limit y el resto del proxy ya quedan listos).
+const AI_DISABLED = true;
 
 const { connectLambda, getStore } = require('@netlify/blobs');
 const RATE_LIMIT_MS = 15 * 1000; // 1 llamada por IP cada 15s
@@ -27,6 +34,10 @@ async function checkRate(ip) {
 }
 
 exports.handler = async (event) => {
+  if (AI_DISABLED) {
+    return { statusCode: 503, headers: corsHeaders(), body: JSON.stringify({ error: 'Las herramientas de IA están desactivadas por ahora.' }) };
+  }
+
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers: corsHeaders(), body: JSON.stringify({ error: 'Method not allowed' }) };
   }
