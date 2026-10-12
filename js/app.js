@@ -417,6 +417,20 @@ const I18n = (() => {
 ═══════════════════════════════════════════════ */
 const UI = (() => {
   let theme = 'dark';
+  const _defaultTitle = document.title;
+  const _descMeta = document.querySelector('meta[name="description"]');
+  const _defaultDesc = _descMeta ? _descMeta.content : '';
+
+  // título/descripción propios por herramienta, para que compartir el link
+  // (#id) muestre una preview real en redes y no siempre la misma genérica
+  function setToolMeta(tool) {
+    document.title = `${tool.icon} ${tool.name} — Taro's Tools`;
+    if (_descMeta && tool.desc) _descMeta.content = tool.desc;
+  }
+  function resetDocMeta() {
+    document.title = _defaultTitle;
+    if (_descMeta) _descMeta.content = _defaultDesc;
+  }
 
   function showToast(msg) {
     const t = document.getElementById('toast');
@@ -456,6 +470,7 @@ const UI = (() => {
     document.getElementById(id).classList.remove('open');
     if (id === 'tool-modal') {
       if (location.hash) history.replaceState(null, '', ' ');
+      resetDocMeta();
       if (typeof Tools !== 'undefined') Tools._onToolModalClosed();
     }
     if (id === 'snake-modal' && typeof SnakeGame !== 'undefined') SnakeGame.stop();
@@ -471,7 +486,7 @@ const UI = (() => {
     }
   });
 
-  return { showToast, copyText, toggleTheme, openModal, closeModal };
+  return { showToast, copyText, toggleTheme, openModal, closeModal, setToolMeta };
 })();
 
 /* ═══════════════════════════════════════════════
@@ -560,6 +575,7 @@ const Tools = (() => {
     const fragment = document.createDocumentFragment();
     const cats = [...new Set(allTools().map(t => t.cat))];
     let _cardStaggerIdx = 0;
+    let anyMatch = false;
 
     cats.forEach(cat => {
       const filtered = allTools().filter(t =>
@@ -568,6 +584,7 @@ const Tools = (() => {
         (!q || (t.name + t.desc).toLowerCase().includes(q))
       );
       if (!filtered.length) return;
+      anyMatch = true;
 
       const section = document.createElement('div');
       const title = document.createElement('p');
@@ -605,6 +622,25 @@ const Tools = (() => {
     });
 
     container.innerHTML = '';
+    if (!anyMatch) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.setAttribute('role', 'status');
+      empty.innerHTML =
+        `<div class="empty-state__icon" aria-hidden="true">🔎</div>` +
+        `<p class="empty-state__title">No encontramos ninguna herramienta con "${escHtml(currentSearch)}"</p>` +
+        `<p class="empty-state__sub">Probá con otro término, o volvé a ver todo el catálogo.</p>` +
+        `<button type="button" class="btn btn--sec">Limpiar búsqueda</button>`;
+      empty.querySelector('button').onclick = () => {
+        document.getElementById('search').value = '';
+        currentSearch = '';
+        currentCat = 'all';
+        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.textContent === s.tabs[0]));
+        renderGrid();
+      };
+      container.appendChild(empty);
+      return;
+    }
     container.appendChild(fragment);
   }
 
@@ -618,11 +654,19 @@ const Tools = (() => {
     if (typeof Recent !== 'undefined') Recent.render();
   }
 
+  // herramientas que dependen de un servicio externo (IA gratuita, descarga de
+  // video): ya explican su propio procesamiento en el infoBox de su contenido,
+  // así que no muestran el sello de "esto se procesa en tu navegador".
+  const SERVER_SIDE_TYPES = new Set(['ai-summarize','ai-correct','ai-translate','ai-expand','cobalt-dl']);
+
   function openTool(tool, params) {
     params = params || new URLSearchParams();
     _saveCurrentState(); // guarda el estado de la herramienta que se está reemplazando, si aplica
     Audio.click();
     document.getElementById('modal-title').textContent = tool.icon + ' ' + tool.name;
+    UI.setToolMeta(tool);
+    const badge = document.getElementById('modal-privacy-badge');
+    if (badge) badge.style.display = SERVER_SIDE_TYPES.has(tool.type) ? 'none' : 'flex';
     const remembered = REMEMBER_TYPES.has(tool.type) ? _memory.get(tool.id) : null;
     if (remembered) {
       document.getElementById('modal-body').innerHTML = remembered.html;
@@ -683,8 +727,15 @@ const ToolUI = (() => {
   const label   = txt  => `<label>${txt}</label>`;
   const sel     = (id, opts, attrs='') => `<select id="${id}" ${attrs}>${opts.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>`;
   const ta      = (id, ph, h='') => `<textarea id="${id}" placeholder="${ph}" ${h}></textarea>`;
-  const loader  = (id, txt) => `<div class="loader" id="${id}">${txt}</div>`;
-  const result  = id => `<div class="result-area" id="${id}" style="display:none"></div>`;
+  const loader  = (id, txt) => `<div class="loader" id="${id}" role="status" aria-live="polite">
+      <div class="tt-skel" aria-hidden="true">
+        <div class="tt-skel-line tt-skel-line--sm"></div>
+        <div class="tt-skel-line tt-skel-line--lg"></div>
+        <div class="tt-skel-line" style="width:65%"></div>
+      </div>
+      <span class="loader__txt">${txt}</span>
+    </div>`;
+  const result  = id => `<div class="result-area" id="${id}" style="display:none" role="status" aria-live="polite"></div>`;
   const copyRow = id => `<div id="${id}-copy" style="display:none;margin-top:.5rem"></div>`;
 
   // ── "coming soon" badge style injected once ──
@@ -2957,7 +3008,7 @@ const ToolFn = (() => {
         const hint = code === 'error.api.link.unsupported'
           ? '<br><small style="color:var(--fg3);font-size:.7rem">Plataformas soportadas: YouTube, TikTok, Instagram, Twitter/X, Reddit, Vimeo, SoundCloud y más.</small>'
           : '<br><small style="color:var(--fg3);font-size:.7rem">Si el problema persiste, intentá directamente en <a href="https://cobalt.tools" target="_blank" style="color:var(--accent)">cobalt.tools</a>.</small>';
-        showResult('dl-result', `⚠️ ${msg}${hint}`, true);
+        showResult('dl-result', `⚠️ ${msg}${hint}${_retryBtn('ToolFn.cobaltDl()')}`, true);
         Audio.error();
         return;
       }
@@ -2997,7 +3048,8 @@ const ToolFn = (() => {
       } else {
         showResult('dl-result',
           `⚠️ Respuesta inesperada del servidor (status: ${data.status || 'desconocido'}).<br>` +
-          `<small style="color:var(--fg3);font-size:.7rem">Probá en <a href="https://cobalt.tools" target="_blank" style="color:var(--accent)">cobalt.tools</a> directamente.</small>`,
+          `<small style="color:var(--fg3);font-size:.7rem">Probá en <a href="https://cobalt.tools" target="_blank" style="color:var(--accent)">cobalt.tools</a> directamente.</small>` +
+          _retryBtn('ToolFn.cobaltDl()'),
           true
         );
         Audio.error();
@@ -3009,9 +3061,9 @@ const ToolFn = (() => {
       btn.textContent = '⬇️ Obtener enlace de descarga';
       const isNetwork = e instanceof TypeError && e.message.includes('fetch');
       showResult('dl-result',
-        isNetwork
+        (isNetwork
           ? `⚠️ No se pudo conectar con cobalt.tools.<br><small style="color:var(--fg3);font-size:.7rem">Verificá tu conexión o intentá de nuevo en unos minutos. El servidor puede estar temporalmente caído.</small>`
-          : `⚠️ Error inesperado: ${e.message}`,
+          : `⚠️ Error inesperado: ${escHtml(e.message)}`) + _retryBtn('ToolFn.cobaltDl()'),
         true
       );
       Audio.error();
@@ -3187,7 +3239,11 @@ const ToolFn = (() => {
 
   const AI_MAX_CHARS = 6000;
 
-  async function _runAiTool({ inputId, loaderId, resultId, btnLabel, buildPrompt }) {
+  const _retryBtn = retryCall => retryCall
+    ? ` <button type="button" class="btn btn--sec" style="margin-top:.4rem" onclick="${retryCall}">↻ Reintentar</button>`
+    : '';
+
+  async function _runAiTool({ inputId, loaderId, resultId, retryCall, buildPrompt }) {
     const txt = document.getElementById(inputId).value.trim();
     if (!txt) return;
     if (txt.length > AI_MAX_CHARS) {
@@ -3206,7 +3262,7 @@ const ToolFn = (() => {
       Audio.success();
     } catch(e) {
       toggleLoader(loaderId, false);
-      showResult(resultId, '⚠️ ' + e.message, true);
+      showResult(resultId, `⚠️ ${escHtml(e.message)}${_retryBtn(retryCall)}`, true);
       Audio.error();
     }
   }
@@ -3219,14 +3275,14 @@ const ToolFn = (() => {
     };
     const length = document.getElementById('ai-sum-len').value;
     _runAiTool({
-      inputId: 'ai-sum-input', loaderId: 'ai-sum-loader', resultId: 'ai-sum-result',
+      inputId: 'ai-sum-input', loaderId: 'ai-sum-loader', resultId: 'ai-sum-result', retryCall: 'ToolFn.aiSummarize()',
       buildPrompt: txt => `Resumí el siguiente texto en español, ${lengthMap[length]}. Devolvé únicamente el resumen, sin introducciones ni comentarios adicionales:\n\n${txt}`,
     });
   }
 
   function aiCorrect() {
     _runAiTool({
-      inputId: 'ai-cor-input', loaderId: 'ai-cor-loader', resultId: 'ai-cor-result',
+      inputId: 'ai-cor-input', loaderId: 'ai-cor-loader', resultId: 'ai-cor-result', retryCall: 'ToolFn.aiCorrect()',
       buildPrompt: txt => `Corregí la ortografía, gramática y puntuación del siguiente texto, manteniendo el idioma y el estilo originales. Devolvé únicamente el texto corregido, sin explicaciones ni comentarios:\n\n${txt}`,
     });
   }
@@ -3234,14 +3290,14 @@ const ToolFn = (() => {
   function aiTranslate() {
     const lang = document.getElementById('ai-tr-lang').value;
     _runAiTool({
-      inputId: 'ai-tr-input', loaderId: 'ai-tr-loader', resultId: 'ai-tr-result',
+      inputId: 'ai-tr-input', loaderId: 'ai-tr-loader', resultId: 'ai-tr-result', retryCall: 'ToolFn.aiTranslate()',
       buildPrompt: txt => `Traducí el siguiente texto al idioma "${lang}". Devolvé únicamente la traducción, sin explicaciones ni comentarios adicionales:\n\n${txt}`,
     });
   }
 
   function aiExpand() {
     _runAiTool({
-      inputId: 'ai-exp-input', loaderId: 'ai-exp-loader', resultId: 'ai-exp-result',
+      inputId: 'ai-exp-input', loaderId: 'ai-exp-loader', resultId: 'ai-exp-result', retryCall: 'ToolFn.aiExpand()',
       buildPrompt: txt => `Expandí y desarrollá el siguiente texto agregando más detalle, ejemplos y contexto, manteniendo el idioma y el tono originales. Devolvé únicamente el texto expandido, sin explicaciones ni comentarios adicionales:\n\n${txt}`,
     });
   }
@@ -3392,7 +3448,8 @@ const ToolFn = (() => {
     } catch(e) {
       toggleLoader('ip-loader', false);
       res.style.display = 'block'; res.className = 'result-area is-error';
-      res.textContent = 'Error al consultar IP'; Audio.error();
+      res.innerHTML = `⚠️ No se pudo consultar tu IP.${_retryBtn('ToolFn.fetchIP()')}`;
+      Audio.error();
     }
   }
 
@@ -7711,6 +7768,10 @@ const Admin = (() => {
    INIT
 ═══════════════════════════════════════════════ */
 I18n.set('es');
+
+// año del footer siempre al día, en vez de quedar hardcodeado
+const _footerYear = document.getElementById('footer-year');
+if (_footerYear) _footerYear.textContent = new Date().getFullYear();
 
 /* ── PWA: cachea lo estático para que ande offline después de la primera visita ──
    (no aplica dentro de la extensión: ahí el origen es chrome-extension:// y los archivos
