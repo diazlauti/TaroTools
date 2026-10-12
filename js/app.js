@@ -121,7 +121,7 @@ const I18n = (() => {
     // { id:'b8',  icon:'✏️', cat:'texto',      type:'ai-correct'    },
     // { id:'b9',  icon:'🌐', cat:'texto',      type:'ai-translate'  },
     // { id:'b10', icon:'📝', cat:'texto',      type:'ai-expand'     },
-    { id:'b11', icon:'⬇️', cat:'media',      type:'cobalt-dl'     },
+    { id:'b11', icon:'⬇️', cat:'media',      type:'cobalt-dl',    soon:true },
     { id:'b12', icon:'◼️', cat:'util',       type:'qr-gen'        },
     { id:'b13', icon:'🎨', cat:'util',       type:'color-conv'    },
     { id:'b14', icon:'🔡', cat:'texto',      type:'case-conv'     },
@@ -2240,6 +2240,14 @@ const ToolUI = (() => {
   };
 
   function build(tool) {
+    if (tool.soon) {
+      const s = I18n.get();
+      return `<div class="soon-screen">` +
+        `<div class="soon-icon" aria-hidden="true">🚧</div>` +
+        `<h3>${escHtml(s.soon)}</h3>` +
+        `<p>${escHtml(s.soonDesc)}</p>` +
+        `</div>`;
+    }
     const builder = BUILDERS[tool.type];
     if (!builder) return `<p style="color:var(--fg3)">${escHtml(tool.desc)}</p>`;
     return builder(tool);
