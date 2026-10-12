@@ -319,6 +319,15 @@ header {
   color:var(--fg4); padding:.3rem .6rem; border-bottom:1px solid var(--border2);
 }
 
+/* estado vacío del buscador — sin resultados en ninguna categoría */
+.empty-state {
+  display:flex; flex-direction:column; align-items:center; text-align:center;
+  gap:.5rem; padding:2.2rem 1rem; border:1.5px dashed var(--border);
+}
+.empty-state__icon { font-size:2.2rem; }
+.empty-state__title { font-family:var(--mono); font-size:.85rem; color:var(--fg2); word-break:break-word; }
+.empty-state__sub { font-size:.74rem; color:var(--fg3); }
+
 .card {
   display:grid;
   grid-template-columns:24px minmax(0,1fr) 84px;
@@ -513,6 +522,15 @@ header {
   display:flex; align-items:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
 }
 .modal > *:not(.modal__title):not(.modal__close):first-child { margin-top:0; }
+
+/* sello de privacidad — solo se muestra en herramientas que procesan todo
+   en el navegador, nunca en las que dependen de un servicio externo */
+.privacy-badge {
+  display:flex; align-items:center; gap:.4rem;
+  font-family:var(--mono); font-size:.68rem; color:var(--accent3);
+  background:var(--bg3); border:1px solid var(--border);
+  padding:.45rem .6rem; margin-bottom:.8rem;
+}
 .modal__close {
   position:absolute; top:0; right:0;
   background:transparent; border:none; border-left:1px solid rgba(0,0,0,.25);
@@ -545,11 +563,26 @@ header {
 .result-area.is-error { border-color:#ff4466; color:#ff8899; }
 
 .loader {
-  display:none; color:var(--accent); font-size:.72rem;
-  margin-top:.5rem; font-family:var(--mono); animation:pulse 1s infinite;
+  display:none; margin-top:.5rem;
 }
 .loader.show { display:block; }
-.loader::after { content:'_'; animation:blink 1s steps(1) infinite; }
+.loader__txt {
+  color:var(--accent); font-size:.72rem; font-family:var(--mono);
+  animation:pulse 1s infinite; display:inline-block; margin-top:.4rem;
+}
+.loader__txt::after { content:'_'; animation:blink 1s steps(1) infinite; }
+
+/* skeleton genérico — placeholder con la forma del resultado final mientras se espera
+   una respuesta de red (IA, descarga, etc.), reusando el patrón del libro de visitas */
+.tt-skel { display:flex; flex-direction:column; gap:.35rem; }
+.tt-skel-line {
+  height:.68rem; border-radius:2px; background:var(--bg3);
+  background-image:linear-gradient(90deg, var(--bg3) 0%, var(--border2) 50%, var(--bg3) 100%);
+  background-size:200% 100%; animation:gb-shimmer 1.3s ease-in-out infinite;
+}
+.tt-skel-line--sm { width:38%; height:.6rem; }
+.tt-skel-line--lg { width:92%; }
+@media (prefers-reduced-motion: reduce) { .tt-skel-line, .loader__txt { animation:none; } }
 
 .dl-link {
   display:inline-block; margin-top:.55rem; padding:.45rem .9rem;

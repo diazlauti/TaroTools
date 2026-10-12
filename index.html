@@ -160,6 +160,7 @@
   <div class="modal">
     <button class="modal__close" onclick="UI.closeModal('tool-modal')" aria-label="Cerrar">✕</button>
     <h2 class="modal__title" id="modal-title"></h2>
+    <div class="privacy-badge" id="modal-privacy-badge" style="display:none">🔒 Se procesa en tu navegador — tu archivo nunca se sube a un servidor</div>
     <div id="modal-body"></div>
   </div>
 </div>
@@ -225,7 +226,7 @@
   </div>
 </div>
 
-<footer role="contentinfo">made with ✦ by <span>taro</span> · taro's tools © 2025</footer>
+<footer role="contentinfo">made with ✦ by <span>taro</span> · taro's tools © <span id="footer-year">2025</span></footer>
 
 <script src="js/app.js"></script>
 <script src="js/missions.js"></script>
