@@ -47,8 +47,14 @@ resuelve lo que alguien necesita, sin fricción, sin humo.
 
 ## Objetivo SMART actual
 
-**Para el 31 de diciembre de 2026, llevar el contador de visitas del sitio de 121 (medido el
-2026-10-12) a 250 visitas acumuladas, mediante dos acciones concretas alineadas con el principio 5:**
+> Nota: el contador original sumaba una visita por cada F5 (recarga), no por visita real — se
+> corrigió el 2026-10-12 para contar como máximo una vez por día por navegador, sin cookies ni
+> cuenta. El número base de abajo ya es el corregido; puede incluir algo de inflación de antes del
+> arreglo, pero de acá en adelante cuenta de forma honesta.
+
+**Para el 31 de diciembre de 2026, llevar el contador de visitas del sitio de 123 (medido el
+2026-10-12, tras el arreglo del conteo) a 250 visitas acumuladas, mediante dos acciones concretas
+alineadas con el principio 5:**
 
 1. Agregar un sello visible ("🔒 esto se procesa en tu navegador, nunca se sube") en cada
    herramienta que procese 100% en cliente, y mencionar el mismo mensaje en la portada y en la
@@ -60,8 +66,9 @@ resuelve lo que alguien necesita, sin fricción, sin humo.
 
 - **Specific**: las dos acciones de arriba, tomadas directamente de las oportunidades #1 y #2 del
   FODA.
-- **Measurable**: el contador de visitas ya implementado (`netlify/functions/visits.js`), que pasa
-  de 121 a 250 (más del doble) en el período.
+- **Measurable**: el contador de visitas ya implementado (`netlify/functions/visits.js`, con el
+  conteo corregido a una visita por día por navegador), que pasa de 123 a 250 (casi el doble) en
+  el período.
 - **Achievable**: no requiere infraestructura nueva — es front-end sobre lo que ya existe
   (catálogo de herramientas, sistema de routing del SPA, metadatos del `<head>`).
 - **Relevant**: ataca la mayor debilidad de discovery del sitio (sin SEO, sin mensaje de privacidad
