@@ -1,9 +1,40 @@
 // netlify/functions/gemini.js
 // Proxy serverless usando OpenRouter — modelos gratuitos sin billing.
+//
+// Esta key es el recurso más fácil de agotar de todo el sitio: la URL de
+// esta función está en el JS público, así que cualquiera puede pegarle
+// directo (sin pasar por el navegador ni por el frontend) y consumir la
+// cuota gratuita de OpenRouter o hacer que el proveedor banee la key por
+// abuso, rompiendo la herramienta para los usuarios reales. Mismo
+// rate-limit simple por IP que ya usa guestbook.js, para que un script no
+// pueda hacer eso con un loop.
+
+const { connectLambda, getStore } = require('@netlify/blobs');
+const RATE_LIMIT_MS = 15 * 1000; // 1 llamada por IP cada 15s
+
+function clientIp(event) {
+  const h = event.headers || {};
+  return h['x-nf-client-connection-ip'] || (h['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+}
+
+async function checkRate(ip) {
+  if (ip === 'unknown') return true; // no bloqueamos si no pudimos identificar IP
+  const store = getStore('gemini-rate');
+  const last = await store.get(ip);
+  if (last && Date.now() - Number(last) < RATE_LIMIT_MS) return false;
+  await store.set(ip, String(Date.now()));
+  return true;
+}
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers: corsHeaders(), body: JSON.stringify({ error: 'Method not allowed' }) };
+  }
+
+  connectLambda(event);
+  const allowed = await checkRate(clientIp(event));
+  if (!allowed) {
+    return { statusCode: 429, headers: corsHeaders(), body: JSON.stringify({ error: 'Demasiadas solicitudes. Esperá unos segundos e intentá de nuevo.' }) };
   }
 
   const apiKey = process.env.TARO_KEY;
@@ -23,6 +54,10 @@ exports.handler = async (event) => {
   let body;
   try { body = JSON.parse(event.body); }
   catch { return { statusCode: 400, headers: corsHeaders(), body: JSON.stringify({ error: 'Body inválido' }) }; }
+
+  if (!Array.isArray(body.contents) || !body.contents.length) {
+    return { statusCode: 400, headers: corsHeaders(), body: JSON.stringify({ error: 'Falta el contenido a procesar' }) };
+  }
 
   // Convertir formato Gemini → formato OpenAI (que usa OpenRouter)
   const messages = body.contents.map(c => ({

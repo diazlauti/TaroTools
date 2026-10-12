@@ -3021,7 +3021,7 @@ const ToolFn = (() => {
         const modeLabel = mode === 'audio' ? `${audiofmt.toUpperCase()} · ${bitrate} kbps` : `${quality === 'max' ? 'calidad máxima' : quality+'p'}`;
         showResult('dl-result',
           `✅ Listo — ${modeLabel}${sizeStr}<br>` +
-          `<a href="${dlUrl}" target="_blank" class="dl-link">⬇️ Descargar "${fname}"</a><br>` +
+          `<a href="${escHtml(safeUrl(dlUrl))}" target="_blank" rel="noopener" class="dl-link">⬇️ Descargar "${escHtml(fname)}"</a><br>` +
           `<small style="color:var(--fg3);font-size:.7rem;margin-top:.4rem;display:block">` +
           `Si no descarga automáticamente → click derecho → "Guardar enlace como"</small>`
         );
@@ -3030,13 +3030,13 @@ const ToolFn = (() => {
       } else if (data.status === 'picker') {
         const items = data.picker || [];
         const pickerHtml = items.map((p, i) => {
-          const thumb = p.thumb ? `<img src="${p.thumb}" style="width:60px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--border);flex-shrink:0" alt="">` : '';
+          const thumb = p.thumb ? `<img src="${escHtml(safeUrl(p.thumb))}" style="width:60px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--border);flex-shrink:0" alt="">` : '';
           return `<div style="display:flex;align-items:center;gap:.6rem;padding:.5rem;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
             ${thumb}
             <div style="flex:1;min-width:0">
-              <div style="font-size:.72rem;color:var(--fg3);font-family:var(--mono)">${p.type || 'archivo'} ${i+1}</div>
+              <div style="font-size:.72rem;color:var(--fg3);font-family:var(--mono)">${escHtml(p.type || 'archivo')} ${i+1}</div>
             </div>
-            <a href="${p.url}" target="_blank" class="dl-link" style="margin:0;flex-shrink:0">⬇️</a>
+            <a href="${escHtml(safeUrl(p.url))}" target="_blank" rel="noopener" class="dl-link" style="margin:0;flex-shrink:0">⬇️</a>
           </div>`;
         }).join('');
         showResult('dl-result',
