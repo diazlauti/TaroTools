@@ -9,6 +9,10 @@ Objetivo de fondo de todo esto (como lo pidió el usuario): que TaroTools sea la
 herramientas online más útil que exista — no la que tiene más herramientas, la que de verdad
 resuelve lo que alguien necesita, sin fricción, sin humo.
 
+Los principios base del proyecto y el objetivo SMART vigente están en `PRINCIPIOS.md` (raíz del
+repo) — toda pasada de `mejorar-proyecto` y toda tarea nueva de este backlog se evalúa contra eso
+antes que contra preferencia del momento.
+
 Para agregar una tarea nueva, usá la skill `agregar-tarea` (o pedile directamente a Claude "agregá
 X al bucle de mejoras" / "anotá esto para después"). Cada entrada tiene que ser autocontenida: una
 sesión futura, sin el contexto de la conversación donde se pidió, tiene que poder leerla y
