@@ -826,36 +826,37 @@ const ToolUI = (() => {
 
     /* ── VID COMPRESS ── */
     'vid-compress': () =>
-      infoBox('⚠️ El resultado es <b>WEBM</b> (limitación del navegador). Para MP4 profesional usá <a href="https://handbrake.fr" target="_blank">HandBrake</a> (gratis).') +
+      infoBox('Comprimí tu video a <b>MP4</b> conservando el audio. Se procesa 100% en tu navegador con un motor de compresión real (ffmpeg) compilado a WebAssembly — tu video nunca se sube a ningún servidor. La primera vez descarga el motor (~30&nbsp;MB, una sola vez; el navegador lo cachea después). Mejor con videos de hasta un par de cientos de MB: archivos muy grandes pueden agotar la memoria del navegador y trabar la pestaña.') +
       label('Video') +
       `${dropZone('vc-file','video/*','ToolFn.previewVideo()','Arrastrá un video acá')}` +
       `<div id="vc-video-preview" style="margin:.5rem 0;display:none">
         <video id="vc-orig-video" controls muted style="width:100%;border-radius:8px;border:1.5px solid var(--border);max-height:160px"></video>
         <p id="vc-orig-info" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin-top:.3rem"></p>
+        <p id="vc-size-warning" style="display:none;font-size:.68rem;color:var(--accent2);font-family:var(--mono);margin-top:.3rem">⚠️ Archivo grande: puede tardar bastante y usar mucha memoria. Si el navegador se traba, probá con un video más corto o una escala menor.</p>
       </div>` +
-      label('Escala de resolución') +
-      sel('vc-scale',[['1','100% (original)'],['0.75','75%'],['0.5','50%'],['0.25','25%']],'onchange="ToolFn.vcUpdateEstimate()"') +
-      label('Bitrate de video') +
-      sel('vc-bps',[['3000000','3 Mbps (alta calidad)'],['1500000','1.5 Mbps (media)'],['800000','800 kbps (baja)'],['400000','400 kbps (muy baja)']],'onchange="ToolFn.vcBpsChanged()"') +
-      `<div id="vc-estimate" style="font-size:.75rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0;min-height:1.2rem"></div>` +
+      `<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
+        <div><label style="margin-top:0">Escala</label>${sel('vc-scale',[['1','100% (original)'],['0.75','75%'],['0.5','50%'],['0.25','25%']],'onchange="ToolFn.vcUpdateEstimate()"')}</div>
+        <div><label style="margin-top:0">Calidad</label>${sel('vc-quality',[['23','Alta calidad'],['28','Media'],['32','Baja'],['36','Muy baja']],'onchange="ToolFn.vcQualityChanged()"')}</div>
+      </div>` +
+      `<div id="vc-estimate" style="font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin:.4rem 0;min-height:1.2rem" role="status" aria-live="polite"></div>` +
       label('Tamaño objetivo (opcional)') +
       `<div style="display:flex;gap:.5rem;align-items:center">
-        <input type="number" id="vc-target-mb" placeholder="ej: 10" min="0" step="0.1" oninput="ToolFn.vcApplyTarget()" style="flex:1">
+        <input type="number" id="vc-target-mb" placeholder="ej: 10" min="0" step="0.1" oninput="ToolFn.vcApplyTarget()" style="flex:1" aria-describedby="vc-target-note">
         <span style="color:var(--fg3);font-family:var(--mono);font-size:.75rem">MB</span>
       </div>` +
-      `<p style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);margin:.25rem 0 0">Si lo completás, calculamos el bitrate necesario para acercarnos a ese tamaño (no es exacto, depende del contenido del video). El video resultante no incluye audio.</p>` +
-      `<div class="btn-row"><button class="btn" id="vc-btn" onclick="ToolFn.compressVid()">🎬 Comprimir</button></div>` +
-      `<div id="vc-progress-wrap" style="display:none;margin-top:.7rem">
+      `<p id="vc-target-note" style="font-size:.62rem;color:var(--fg3);font-family:var(--mono);margin:.25rem 0 0">Si lo completás, calculamos el bitrate necesario para acercarnos a ese tamaño (aproximado: el resultado real depende del contenido del video) y se descarta la calidad elegida arriba.</p>` +
+      `<div class="btn-row"><button class="btn" id="vc-btn" onclick="ToolFn.compressVid()" style="flex:1;min-height:44px;font-size:.9rem">🎬 Comprimir a MP4</button></div>` +
+      `<div id="vc-progress-wrap" style="display:none;margin-top:.7rem" role="status" aria-live="polite">
         <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--fg3);font-family:var(--mono);margin-bottom:.3rem">
-          <span id="vc-progress-label">Procesando...</span>
+          <span id="vc-progress-label">Preparando...</span>
           <span id="vc-progress-pct">0%</span>
         </div>
         <div style="background:var(--bg3);border-radius:30px;height:6px;overflow:hidden">
           <div id="vc-progress-bar" style="height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:30px;transition:width .3s;width:0%"></div>
         </div>
       </div>` +
-      loader('vc-loader','⏳ procesando video...') +
-      `<div id="vc-result" style="margin-top:.7rem"></div>`,
+      loader('vc-loader','⏳ cargando motor de compresión...') +
+      `<div id="vc-result" style="margin-top:.7rem" role="status" aria-live="polite"></div>`,
 
     /* ── AUD COMPRESS ── */
     'aud-compress': () =>
@@ -2288,6 +2289,71 @@ const ToolFn = (() => {
     el.innerHTML = html;
   }
 
+  // ── ffmpeg.wasm: cargado on-demand solo cuando se usa el compresor de video,
+  // desde CDN (unpkg) como módulos ESM. Build single-thread (@ffmpeg/core, sin
+  // "-mt") a propósito: el core multi-thread necesita SharedArrayBuffer, que
+  // requiere headers COOP/COEP a nivel de todo el sitio — no vale la pena el
+  // riesgo de romper otras herramientas (iframes, recursos cross-origin) por
+  // esto. El worker y el core se traen como blob: URL (en vez de la URL de
+  // unpkg directa) porque un Worker no puede crearse con un script de otro
+  // origen — es el patrón oficial de ffmpeg.wasm para usarlo desde un CDN.
+  const FFMPEG_PKG_VER  = '0.12.15';
+  const FFMPEG_CORE_VER = '0.12.10';
+  const FFMPEG_UTIL_VER = '0.12.2';
+  let _ffmpeg = null, _ffmpegFetchFile = null, _ffmpegLoadPromise = null;
+
+  function _loadFFmpeg() {
+    if (_ffmpeg) return Promise.resolve(_ffmpeg);
+    if (_ffmpegLoadPromise) return _ffmpegLoadPromise;
+    _ffmpegLoadPromise = (async () => {
+      if (typeof WebAssembly === 'undefined') {
+        throw new Error('Tu navegador no soporta WebAssembly, necesario para comprimir video acá. Probá con una versión reciente de Chrome, Firefox, Edge o Safari.');
+      }
+      let ffmpegMod, utilMod;
+      try {
+        [ffmpegMod, utilMod] = await Promise.all([
+          import(/* webpackIgnore: true */ `https://unpkg.com/@ffmpeg/ffmpeg@${FFMPEG_PKG_VER}/dist/esm/index.js`),
+          import(/* webpackIgnore: true */ `https://unpkg.com/@ffmpeg/util@${FFMPEG_UTIL_VER}/dist/esm/index.js`),
+        ]);
+      } catch (e) {
+        throw new Error('No se pudo descargar el motor de compresión (ffmpeg) — revisá tu conexión a internet e intentá de nuevo.');
+      }
+      const { FFmpeg } = ffmpegMod;
+      const { toBlobURL } = utilMod;
+      const coreBase = `https://unpkg.com/@ffmpeg/core@${FFMPEG_CORE_VER}/dist/esm`;
+      const pkgBase  = `https://unpkg.com/@ffmpeg/ffmpeg@${FFMPEG_PKG_VER}/dist/esm`;
+      const ffmpeg = new FFmpeg();
+      try {
+        // El worker propio de @ffmpeg/ffmpeg ("worker.js") se crea con `new Worker(url)`,
+        // y los navegadores no permiten construir un Worker con un script de otro origen
+        // aunque sea de tipo "module" — por eso se trae como blob: URL (mismo-origen para
+        // el navegador). Ese worker.js importa a su vez "./const.js" y "./errors.js" con
+        // rutas relativas, que no se resuelven contra un blob: URL (no tiene jerarquía de
+        // path) — así que esos dos archivos se traen primero como sus propios blobs, y se
+        // reescriben esas dos rutas relativas en el texto de worker.js antes de blob-ificarlo.
+        const [coreURL, wasmURL, constBlobURL, errorsBlobURL] = await Promise.all([
+          toBlobURL(`${coreBase}/ffmpeg-core.js`, 'text/javascript'),
+          toBlobURL(`${coreBase}/ffmpeg-core.wasm`, 'application/wasm'),
+          toBlobURL(`${pkgBase}/const.js`, 'text/javascript'),
+          toBlobURL(`${pkgBase}/errors.js`, 'text/javascript'),
+        ]);
+        let workerSrc = await (await fetch(`${pkgBase}/worker.js`)).text();
+        workerSrc = workerSrc
+          .replace('"./const.js"', JSON.stringify(constBlobURL))
+          .replace('"./errors.js"', JSON.stringify(errorsBlobURL));
+        const classWorkerURL = URL.createObjectURL(new Blob([workerSrc], { type: 'text/javascript' }));
+        await ffmpeg.load({ coreURL, wasmURL, classWorkerURL });
+      } catch (e) {
+        throw new Error('No se pudo iniciar el motor de compresión — tu navegador puede no tener suficiente memoria disponible, o la descarga se interrumpió. Probá de nuevo.');
+      }
+      _ffmpeg = ffmpeg;
+      _ffmpegFetchFile = utilMod.fetchFile;
+      return ffmpeg;
+    })();
+    _ffmpegLoadPromise.catch(() => { _ffmpegLoadPromise = null; _ffmpeg = null; });
+    return _ffmpegLoadPromise;
+  }
+
   function showCopyBtn(resultId, getText) {
     const row = document.getElementById(resultId + '-copy'); if (!row) return;
     row.style.display = 'block';
@@ -2673,14 +2739,21 @@ const ToolFn = (() => {
     }
   }
 
-  // ── video preview & compress ──
-  let _vcDuration = 0, _vcCustomBps = null;
+  // ── video preview & compress (ffmpeg.wasm, ver _loadFFmpeg más arriba) ──
+  let _vcDuration = 0, _vcTargetBps = null;
+  const VC_LARGE_FILE_BYTES = 350 * 1024 * 1024; // a partir de aquí avisamos que puede trabar el navegador
+  const VC_QUALITY_APPROX_BPS = { 23: 3000000, 28: 1500000, 32: 800000, 36: 400000 }; // solo para la estimación, no se usa para codificar
 
   function previewVideo() {
     const f = document.getElementById('vc-file').files[0]; if (!f) return;
-    _vcCustomBps = null;
+    _vcTargetBps = null;
     const targetInput = document.getElementById('vc-target-mb');
     if (targetInput) targetInput.value = '';
+    document.getElementById('vc-progress-wrap').style.display = 'none';
+    document.getElementById('vc-result').innerHTML = '';
+    document.getElementById('vc-result').style.display = 'none';
+    const warn = document.getElementById('vc-size-warning');
+    if (warn) warn.style.display = f.size > VC_LARGE_FILE_BYTES ? 'block' : 'none';
     const video = document.getElementById('vc-orig-video');
     video.src = URL.createObjectURL(f);
     document.getElementById('vc-video-preview').style.display = 'block';
@@ -2695,13 +2768,20 @@ const ToolFn = (() => {
   function vcUpdateEstimate() {
     const el = document.getElementById('vc-estimate'); if (!el) return;
     if (!_vcDuration) { el.textContent = ''; return; }
-    const bps = _vcCustomBps != null ? _vcCustomBps : parseInt(document.getElementById('vc-bps').value);
-    const estimatedBytes = (bps * _vcDuration) / 8;
-    el.textContent = `Tamaño estimado: ~${fmtSize(estimatedBytes)}`;
+    const scale = parseFloat(document.getElementById('vc-scale').value);
+    if (_vcTargetBps != null) {
+      const estimatedBytes = ((_vcTargetBps + 128000) * _vcDuration) / 8;
+      el.textContent = `Tamaño objetivo: ~${fmtSize(estimatedBytes)} (aproximado, el resultado real depende del contenido)`;
+      return;
+    }
+    const crf = document.getElementById('vc-quality').value;
+    const approxBps = (VC_QUALITY_APPROX_BPS[crf] || 1500000) * scale;
+    const estimatedBytes = (approxBps * _vcDuration) / 8;
+    el.textContent = `Tamaño estimado: ~${fmtSize(estimatedBytes)} (aproximado, depende del contenido del video)`;
   }
 
-  function vcBpsChanged() {
-    _vcCustomBps = null; // el usuario eligió un bitrate manual, descarta el tamaño objetivo
+  function vcQualityChanged() {
+    _vcTargetBps = null; // el usuario eligió una calidad manual, descarta el tamaño objetivo
     const targetInput = document.getElementById('vc-target-mb');
     if (targetInput) targetInput.value = '';
     vcUpdateEstimate();
@@ -2709,86 +2789,108 @@ const ToolFn = (() => {
 
   function vcApplyTarget() {
     const val = parseFloat(document.getElementById('vc-target-mb').value);
-    if (!val || !_vcDuration) { _vcCustomBps = null; vcUpdateEstimate(); return; }
+    if (!val || !_vcDuration) { _vcTargetBps = null; vcUpdateEstimate(); return; }
     const targetBytes = val * 1024 * 1024;
-    let bps = Math.round((targetBytes * 8) / _vcDuration);
-    bps = Math.max(100000, Math.min(8000000, bps)); // rango razonable de bitrate de video
-    _vcCustomBps = bps;
+    const audioBps = 128000;
+    let videoBps = Math.round((targetBytes * 8) / _vcDuration) - audioBps;
+    videoBps = Math.max(100000, Math.min(8000000, videoBps)); // rango razonable de bitrate de video
+    _vcTargetBps = videoBps;
     vcUpdateEstimate();
+  }
+
+  function _vcSetBtnBusy(busy) {
+    const btn = document.getElementById('vc-btn'); if (!btn) return;
+    btn.disabled = busy;
+    btn.textContent = busy ? 'Procesando...' : '🎬 Comprimir a MP4';
+  }
+
+  function _vcSetProgress(pct, label) {
+    const bar = document.getElementById('vc-progress-bar');
+    const pctEl = document.getElementById('vc-progress-pct');
+    const lblEl = document.getElementById('vc-progress-label');
+    if (bar) bar.style.width = pct + '%';
+    if (pctEl) pctEl.textContent = pct + '%';
+    if (lblEl && label) lblEl.textContent = label;
   }
 
   async function compressVid() {
     const f = document.getElementById('vc-file').files[0]; if (!f) return;
-    if (typeof MediaRecorder === 'undefined' || !HTMLCanvasElement.prototype.captureStream) {
+    if (IS_EXTENSION) {
       document.getElementById('vc-result').innerHTML =
-        '<span style="color:#ff8899">Tu navegador no soporta grabación de video en canvas. Probá con una versión reciente de Chrome, Firefox o Edge.</span>';
-      Audio.error();
+        `<span style="color:#ff8899">Esta herramienta no está disponible dentro de la extensión — abrila en <a href="${SITE_BASE}" target="_blank">tarotools.netlify.app</a>.</span>`;
+      document.getElementById('vc-result').style.display = 'block';
       return;
     }
-    const btn = document.getElementById('vc-btn');
-    btn.disabled = true; btn.textContent = 'Procesando...';
+
+    _vcSetBtnBusy(true);
     toggleLoader('vc-loader', true);
     document.getElementById('vc-progress-wrap').style.display = 'block';
+    _vcSetProgress(0, 'Cargando motor de compresión...');
+    document.getElementById('vc-result').style.display = 'none';
     document.getElementById('vc-result').innerHTML = '';
 
+    const inputName  = 'input' + (f.name.match(/\.[a-zA-Z0-9]+$/)?.[0] || '.mp4');
+    const outputName = 'output.mp4';
+    let ffmpeg = null, onProgress = null;
+
     try {
-      const scale = parseFloat(document.getElementById('vc-scale').value);
-      const bps   = _vcCustomBps != null ? _vcCustomBps : parseInt(document.getElementById('vc-bps').value);
-      const video = document.createElement('video');
-      video.src = URL.createObjectURL(f); video.muted = true;
-      await new Promise(r => { video.onloadedmetadata = r; });
-
-      const totalDur = video.duration;
-      const canvas = document.createElement('canvas');
-      canvas.width  = Math.round(video.videoWidth  * scale);
-      canvas.height = Math.round(video.videoHeight * scale);
-      const ctx = canvas.getContext('2d');
-      const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-        ? 'video/webm;codecs=vp9' : 'video/webm;codecs=vp8';
-      const stream = canvas.captureStream(30);
-      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bps });
-      const chunks = [];
-      rec.ondataavailable = e => e.data.size > 0 && chunks.push(e.data);
-
-      // progress via currentTime
-      const progressInterval = setInterval(() => {
-        if (!totalDur) return;
-        const pct = Math.min(Math.round((video.currentTime / totalDur) * 100), 99);
-        document.getElementById('vc-progress-bar').style.width = pct + '%';
-        document.getElementById('vc-progress-pct').textContent = pct + '%';
-        document.getElementById('vc-progress-label').textContent =
-          `${fmtDur(video.currentTime)} / ${fmtDur(totalDur)}`;
-      }, 300);
-
-      rec.onstop = () => {
-        clearInterval(progressInterval);
-        document.getElementById('vc-progress-bar').style.width = '100%';
-        document.getElementById('vc-progress-pct').textContent = '100%';
-        const blob = new Blob(chunks, { type:'video/webm' });
-        toggleLoader('vc-loader', false);
-        const pct = Math.round((1 - blob.size / f.size) * 100);
-        document.getElementById('vc-result').innerHTML =
-          `✅ ${fmtSize(f.size)} → ${fmtSize(blob.size)} ${pct > 0 ? '<b style="color:var(--accent)">(-'+pct+'%)</b>' : ''}<br>` +
-          `<small style="color:var(--fg3)">${canvas.width}×${canvas.height} · WEBM</small><br>` +
-          `<a href="${URL.createObjectURL(blob)}" download="taro-compressed.webm" class="dl-link">⬇️ Descargar .WEBM</a>`;
-        btn.disabled = false; btn.textContent = '🎬 Comprimir';
-        Audio.success();
-      };
-
-      rec.start(200);
-      video.currentTime = 0; await video.play();
-      const draw = () => {
-        if (video.ended || video.paused) { rec.stop(); return; }
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        requestAnimationFrame(draw);
-      };
-      draw(); video.onended = () => rec.stop();
-    } catch(e) {
+      ffmpeg = await _loadFFmpeg();
       toggleLoader('vc-loader', false);
-      document.getElementById('vc-result').innerHTML = `<span style="color:#ff8899">Error: ${e.message}</span>`;
-      const btn2 = document.getElementById('vc-btn');
-      if (btn2) { btn2.disabled = false; btn2.textContent = '🎬 Comprimir'; }
+
+      onProgress = ({ progress }) => {
+        // progress puede venir fuera de [0,1] en algún frame suelto; se acota.
+        const pct = Math.max(0, Math.min(99, Math.round((progress || 0) * 100)));
+        _vcSetProgress(pct, 'Comprimiendo...');
+      };
+      ffmpeg.on('progress', onProgress);
+
+      await ffmpeg.writeFile(inputName, await _ffmpegFetchFile(f));
+
+      const scale = parseFloat(document.getElementById('vc-scale').value);
+      const crf   = document.getElementById('vc-quality').value;
+      const args = ['-i', inputName];
+      if (scale !== 1) {
+        // trunc(...)*2 para asegurar dimensiones pares, requisito de libx264 en yuv420p
+        args.push('-vf', `scale=trunc(iw*${scale}/2)*2:trunc(ih*${scale}/2)*2`);
+      }
+      args.push('-c:v', 'libx264', '-preset', 'veryfast');
+      if (_vcTargetBps != null) {
+        const bps = _vcTargetBps;
+        args.push('-b:v', String(bps), '-maxrate', String(Math.round(bps * 1.5)), '-bufsize', String(bps * 2));
+      } else {
+        args.push('-crf', String(crf));
+      }
+      args.push('-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', outputName);
+
+      const ret = await ffmpeg.exec(args);
+      if (ret !== 0) throw new Error('ffmpeg no pudo procesar este video (código ' + ret + '). Puede estar corrupto o usar un formato no soportado.');
+
+      const data = await ffmpeg.readFile(outputName);
+      const blob = new Blob([data.buffer], { type: 'video/mp4' });
+
+      _vcSetProgress(100, 'Listo');
+      const pct = Math.round((1 - blob.size / f.size) * 100);
+      document.getElementById('vc-result').style.display = 'block';
+      document.getElementById('vc-result').innerHTML =
+        `✅ ${fmtSize(f.size)} → ${fmtSize(blob.size)} ${pct > 0 ? '<b style="color:var(--accent)">(-'+pct+'%)</b>' : ''}<br>` +
+        `<small style="color:var(--fg3)">MP4 · H.264 + AAC (con audio)</small><br>` +
+        `<a href="${URL.createObjectURL(blob)}" download="taro-comprimido.mp4" class="dl-link">⬇️ Descargar .MP4</a>`;
+      Audio.success();
+    } catch (e) {
+      toggleLoader('vc-loader', false);
+      document.getElementById('vc-result').style.display = 'block';
+      document.getElementById('vc-result').className = 'result-area is-error';
+      document.getElementById('vc-result').innerHTML =
+        `<span style="color:#ff8899">${_escHtml(e.message || 'Error desconocido al comprimir el video.')}</span><br>` +
+        `<small style="color:var(--fg3)">Podés volver a intentar con el botón de arriba — si el archivo es muy grande o el navegador se quedó sin memoria, probá con un video más corto o una escala menor.</small>`;
       Audio.error();
+    } finally {
+      if (ffmpeg && onProgress) { try { ffmpeg.off('progress', onProgress); } catch(e) {} }
+      if (ffmpeg) {
+        try { await ffmpeg.deleteFile(inputName); } catch(e) {}
+        try { await ffmpeg.deleteFile(outputName); } catch(e) {}
+      }
+      _vcSetBtnBusy(false);
     }
   }
 
@@ -7503,7 +7605,7 @@ const ToolFn = (() => {
     previewImg, onQualityChange, compressImg, icApplyTarget,
     previewConvertFiles, convertImg,
     previewPdfFiles, imgToPdf,
-    previewVideo, compressVid, vcUpdateEstimate, vcBpsChanged, vcApplyTarget,
+    previewVideo, compressVid, vcUpdateEstimate, vcQualityChanged, vcApplyTarget,
     previewAudio, compressAudio, acOptionsChanged, acApplyTarget,
     pdfToText, cobaltDl,
     liveQR, downloadQR, shareQR,
