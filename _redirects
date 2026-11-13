@@ -1,0 +1,5 @@
+# SPA: cualquier ruta (ej. /comprimir-pdf, la URL propia de las herramientas top)
+# tiene que servir el mismo index.html — si no, Netlify devuelve 404 porque ese
+# archivo no existe de verdad en el repo. El routing real lo hace js/app.js
+# (initDeepLink) leyendo location.pathname una vez cargada la página.
+/*  /index.html  200
