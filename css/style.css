@@ -340,6 +340,7 @@ header {
   position:relative;
   opacity:0; animation:rowIn .3s ease forwards;
   animation-delay:calc(min(var(--i,0), 30) * 18ms);
+  text-decoration:none; color:inherit; /* las herramientas con URL propia son <a>, no <article> */
 }
 @keyframes rowIn { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
 .card:last-child { border-bottom:none; }
