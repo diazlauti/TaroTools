@@ -105,8 +105,8 @@ const I18n = (() => {
   let current = 'es';
 
   const TOOL_DEFS = [
-    { id:'b1',  icon:'🖼️', cat:'archivo',    type:'img-compress'  },
-    { id:'b2',  icon:'🔄', cat:'conversion', type:'img-convert'   },
+    { id:'b1',  icon:'🖼️', cat:'archivo',    type:'img-compress', slug:'comprimir-imagen' },
+    { id:'b2',  icon:'🔄', cat:'conversion', type:'img-convert',  slug:'convertir-imagen'  },
     { id:'b3',  icon:'📋', cat:'conversion', type:'img-pdf'       },
     { id:'b4',  icon:'🎬', cat:'media',      type:'vid-compress'  },
     { id:'b5',  icon:'🎵', cat:'media',      type:'aud-compress'  },
@@ -122,7 +122,7 @@ const I18n = (() => {
     // { id:'b9',  icon:'🌐', cat:'texto',      type:'ai-translate'  },
     // { id:'b10', icon:'📝', cat:'texto',      type:'ai-expand'     },
     { id:'b11', icon:'⬇️', cat:'media',      type:'cobalt-dl',    soon:true },
-    { id:'b12', icon:'◼️', cat:'util',       type:'qr-gen'        },
+    { id:'b12', icon:'◼️', cat:'util',       type:'qr-gen',       slug:'generador-qr' },
     { id:'b13', icon:'🎨', cat:'util',       type:'color-conv'    },
     { id:'b14', icon:'🔡', cat:'texto',      type:'case-conv'     },
     { id:'b15', icon:'🔢', cat:'texto',      type:'word-count'    },
@@ -131,15 +131,15 @@ const I18n = (() => {
     { id:'b18', icon:'⏱️', cat:'util',       type:'timer'         },
     { id:'b19', icon:'🆔', cat:'util',       type:'uuid-gen'      },
     { id:'b20', icon:'🌍', cat:'util',       type:'my-ip'         },
-    { id:'b21', icon:'📏', cat:'imagen',     type:'img-resize'    },
+    { id:'b21', icon:'📏', cat:'imagen',     type:'img-resize',   slug:'redimensionar-imagen' },
     { id:'b22', icon:'🚫', cat:'imagen',     type:'meta-remove'   },
     { id:'b23', icon:'🌐', cat:'imagen',     type:'favicon-gen'   },
     { id:'b24', icon:'✂️',  cat:'imagen',     type:'bg-remove',    isNew:true },
-    { id:'c1',  icon:'🔗', cat:'pdf',        type:'pdf-merge'     },
-    { id:'c2',  icon:'✂️', cat:'pdf',        type:'pdf-split'     },
-    { id:'c3',  icon:'🗜️', cat:'pdf',        type:'pdf-compress'  },
-    { id:'c4',  icon:'🖼️', cat:'pdf',        type:'pdf-to-jpg'    },
-    { id:'c5',  icon:'🔓', cat:'pdf',        type:'pdf-unlock'    },
+    { id:'c1',  icon:'🔗', cat:'pdf',        type:'pdf-merge',    slug:'unir-pdf'      },
+    { id:'c2',  icon:'✂️', cat:'pdf',        type:'pdf-split',    slug:'dividir-pdf'   },
+    { id:'c3',  icon:'🗜️', cat:'pdf',        type:'pdf-compress', slug:'comprimir-pdf' },
+    { id:'c4',  icon:'🖼️', cat:'pdf',        type:'pdf-to-jpg',   slug:'pdf-a-jpg'     },
+    { id:'c5',  icon:'🔓', cat:'pdf',        type:'pdf-unlock',   slug:'desbloquear-pdf' },
     { id:'c6',  icon:'🔄', cat:'pdf',        type:'pdf-rotate'    },
     { id:'c7',  icon:'🗑️', cat:'pdf',        type:'pdf-delete-p'  },
     { id:'c8',  icon:'🔍', cat:'pdf',        type:'pdf-ocr'       },
@@ -163,7 +163,7 @@ const I18n = (() => {
     { id:'g2',  icon:'🔃', cat:'imagen',     type:'img-rotate',   isNew:true },
     { id:'g3',  icon:'🔢', cat:'pdf',        type:'pdf-pagenum',  isNew:true },
     { id:'g4',  icon:'💧', cat:'imagen',     type:'img-watermark',isNew:true },
-    { id:'g5',  icon:'📱', cat:'conversion', type:'img-heic',     isNew:true },
+    { id:'g5',  icon:'📱', cat:'conversion', type:'img-heic',     isNew:true, slug:'convertir-heic-a-jpg' },
     { id:'g6',  icon:'🧩', cat:'imagen',     type:'img-collage',  isNew:true },
     { id:'g7',  icon:'📑', cat:'pdf',        type:'pdf-compare',  isNew:true },
     { id:'g8',  icon:'📐', cat:'pdf',        type:'pdf-crop',     isNew:true },
@@ -426,16 +426,30 @@ const UI = (() => {
   const _defaultTitle = document.title;
   const _descMeta = document.querySelector('meta[name="description"]');
   const _defaultDesc = _descMeta ? _descMeta.content : '';
+  const _ogTitle = document.querySelector('meta[property="og:title"]');
+  const _defaultOgTitle = _ogTitle ? _ogTitle.content : '';
+  const _ogDesc = document.querySelector('meta[property="og:description"]');
+  const _defaultOgDesc = _ogDesc ? _ogDesc.content : '';
+  const _canonical = document.getElementById('canonical-link');
+  const _defaultCanonical = _canonical ? _canonical.href : '';
 
-  // título/descripción propios por herramienta, para que compartir el link
-  // (#id) muestre una preview real en redes y no siempre la misma genérica
+  // título/descripción/canonical propios por herramienta, para que compartir el
+  // link (#id o /slug) muestre una preview real en redes y no siempre la misma
+  // genérica, y para que Google indexe cada /slug como su propia página.
   function setToolMeta(tool) {
-    document.title = `${tool.icon} ${tool.name} — Taro's Tools`;
+    const title = `${tool.icon} ${tool.name} — Taro's Tools`;
+    document.title = title;
     if (_descMeta && tool.desc) _descMeta.content = tool.desc;
+    if (_ogTitle) _ogTitle.content = title;
+    if (_ogDesc && tool.desc) _ogDesc.content = tool.desc;
+    if (_canonical && tool.slug) _canonical.href = 'https://tarotools.netlify.app/' + tool.slug;
   }
   function resetDocMeta() {
     document.title = _defaultTitle;
     if (_descMeta) _descMeta.content = _defaultDesc;
+    if (_ogTitle) _ogTitle.content = _defaultOgTitle;
+    if (_ogDesc) _ogDesc.content = _defaultOgDesc;
+    if (_canonical) _canonical.href = _defaultCanonical;
   }
 
   function showToast(msg) {
@@ -475,7 +489,8 @@ const UI = (() => {
   function closeModal(id) {
     document.getElementById(id).classList.remove('open');
     if (id === 'tool-modal') {
-      if (location.hash) history.replaceState(null, '', ' ');
+      if (IS_EXTENSION) { if (location.hash) history.replaceState(null, '', ' '); }
+      else if (location.hash || location.pathname !== '/') history.replaceState(null, '', '/');
       resetDocMeta();
       if (typeof Tools !== 'undefined') Tools._onToolModalClosed();
     }
@@ -602,13 +617,20 @@ const Tools = (() => {
       grid.className = 'grid';
 
       filtered.forEach(tool => {
-        const card = document.createElement('article');
+        // las herramientas con URL propia (slug, ver objetivo SEO de PRINCIPIOS.md) se
+        // vuelven un <a href="/slug"> real en vez de <article>: así Google puede
+        // descubrir y rastrear el link igual que cualquier otra página, no solo un
+        // onclick en JS que un crawler no sigue. El click normal sigue abriendo el
+        // modal sin recargar (preventDefault); un click con el medio/ctrl, o un bot
+        // leyendo el href, llega a la URL directa gracias al _redirects + deep link.
+        const card = document.createElement(tool.slug ? 'a' : 'article');
         card.className = 'card' + (tool.soon ? ' card--soon' : '');
         card.style.setProperty('--i', _cardStaggerIdx++);
         card.dataset.cat = tool.cat;
         card.setAttribute('role', 'listitem');
         card.setAttribute('tabindex', '0');
         card.setAttribute('aria-label', tool.name);
+        if (tool.slug) card.href = '/' + tool.slug;
         card.innerHTML =
           `<span class="card__cat" aria-hidden="true">${escHtml(tool.cat)}</span>` +
           (tool.soon ? `<span class="card__soon-badge">${escHtml(s.soon)}</span>` : '') +
@@ -616,9 +638,14 @@ const Tools = (() => {
           `<div class="card__icon" aria-hidden="true">${escHtml(tool.icon)}</div>` +
           `<div class="card__name">${escHtml(tool.name)}</div>` +
           `<div class="card__desc">${escHtml(tool.desc)}</div>`;
-        card.onclick = () => openTool(tool);
+        card.onclick = e => { e.preventDefault(); openTool(tool); };
+        // un <a> ya dispara "click" solo con Enter (comportamiento nativo del navegador,
+        // que cae en el onclick de arriba) — a mano hace falta manejar Enter solo para
+        // el <article> sin href, y Espacio para los dos casos (ninguno lo hace solo).
         card.addEventListener('keydown', e => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTool(tool); }
+          if (e.key === ' ' || (e.key === 'Enter' && card.tagName !== 'A')) {
+            e.preventDefault(); openTool(tool);
+          }
         });
         grid.appendChild(card);
       });
@@ -682,7 +709,10 @@ const Tools = (() => {
     }
     _currentTool = tool;
     UI.openModal('tool-modal');
-    history.replaceState(null, '', '#' + tool.id);
+    // las 10 herramientas con URL propia (objetivo SEO de PRINCIPIOS.md) navegan a una
+    // ruta real (/slug) en vez de #id, para que sea una URL indexable de verdad y no
+    // solo un fragmento que Google trata como la misma página que la home.
+    history.replaceState(null, '', tool.slug ? '/' + tool.slug : '#' + tool.id);
     if (!tool.soon) trackRecent(tool);
     if (tool.type === 'word-count') {
       const ta = document.getElementById('wc-input');
@@ -710,7 +740,13 @@ const Tools = (() => {
     if (tool && !tool.soon) openTool(tool);
   }
 
-  return { filter, filterCat, renderTabs, renderGrid, allTools, openTool, openToolById, _onToolModalClosed };
+  function openToolBySlug(slug) {
+    const tool = allTools().find(t => t.slug === slug);
+    if (tool && !tool.soon) openTool(tool);
+    return !!tool;
+  }
+
+  return { filter, filterCat, renderTabs, renderGrid, allTools, openTool, openToolById, openToolBySlug, _onToolModalClosed };
 })();
 
 /* ═══════════════════════════════════════════════
@@ -7910,8 +7946,16 @@ document.addEventListener('drop', e => {
   document.querySelectorAll('.file-drop').forEach(d => d.classList.remove('drag-over'));
 });
 
-/* ── deep link ── */
+/* ── deep link ──
+   Dos formas de llegar directo a una herramienta: por hash (#id, el link que
+   siempre existió, válido para cualquier herramienta) o por ruta propia
+   (/slug, solo las 10 del objetivo SEO de PRINCIPIOS.md — ver _redirects). */
 (function initDeepLink() {
+  function openFromPath() {
+    if (IS_EXTENSION) return false; // la extensión no usa rutas, solo hash
+    const slug = location.pathname.replace(/^\/+/, '').trim();
+    return slug ? Tools.openToolBySlug(slug) : false;
+  }
   function openFromHash() {
     const hash = location.hash.replace('#', '').trim();
     if (!hash) return;
@@ -7919,8 +7963,10 @@ document.addEventListener('drop', e => {
     const tool = Tools.allTools().find(t => t.id === id);
     if (tool && !tool.soon) Tools.openTool(tool, new URLSearchParams(query || ''));
   }
-  window.addEventListener('DOMContentLoaded', () => setTimeout(openFromHash, 100));
+  function openFromUrl() { if (!openFromPath()) openFromHash(); }
+  window.addEventListener('DOMContentLoaded', () => setTimeout(openFromUrl, 100));
   window.addEventListener('hashchange', openFromHash);
+  window.addEventListener('popstate', openFromUrl);
 })();
 
 /* ═══════════════════════════════════════════════
