@@ -63,6 +63,13 @@ alineadas con el principio 5:**
    a las 10 herramientas con más potencial de búsqueda: `pdf-compress`, `img-compress`,
    `pdf-merge`, `pdf-to-jpg`, `img-convert`, `img-heic`, `qr-gen`, `pdf-split`, `img-resize`,
    `pdf-unlock`.
+   > Actualización 2026-11-18: a pedido explícito del usuario tras comparar con PineTools
+   > (`competencia/pinetools-vs-tarotools-2026-11-13.md`), esto se amplió de 10 a **todas** las
+   > herramientas del catálogo que tienen contenido propio real (quedan afuera los enlaces
+   > externos de la categoría "Descubrí" y `cobalt-dl` mientras esté en "próximamente", porque no
+   > tienen página propia que indexar). El mecanismo (`slug` en `TOOL_DEFS`, routing genérico,
+   > `_redirects`, `sitemap.xml`) ya es el mismo para las 10 originales y para el resto — no hace
+   > falta volver a tocar esta meta si se suma una herramienta nueva, solo agregarle su `slug`.
 
 - **Specific**: las dos acciones de arriba, tomadas directamente de las oportunidades #1 y #2 del
   FODA.
